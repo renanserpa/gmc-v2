@@ -1,14 +1,12 @@
-
 import React, { useState } from 'react';
-// @ts-ignore - Resolving environment-specific export errors for react-router-dom
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useCurrentStudent } from '../hooks/useCurrentStudent';
-import { updateStudent } from '../services/dataService';
-import { supabase } from '../lib/supabaseClient';
-import { Card, CardContent } from '../components/ui/Card';
+import { useAuth } from '../contexts/AuthContext.tsx';
+import { useCurrentStudent } from '../hooks/useCurrentStudent.ts';
+import { updateStudent } from '../services/dataService.ts';
+import { supabase } from '../lib/supabaseClient.ts';
+import { Card, CardContent } from '../components/ui/Card.tsx';
 import { Music2, Guitar, Mic2, ArrowRight, Check, Sparkles, Zap, ArrowLeft, Loader2 } from 'lucide-react';
-import { AVATARS_LIST, INSTRUMENTS_LIST } from '../constants';
+import { AVATARS_LIST, INSTRUMENTS_LIST } from '../constants.ts';
 
 export default function Onboarding() {
   const { user } = useAuth();

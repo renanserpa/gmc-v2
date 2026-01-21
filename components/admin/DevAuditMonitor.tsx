@@ -97,7 +97,6 @@ export const DevAuditMonitor: React.FC = () => {
                         className="mb-4 w-[380px]"
                     >
                         <Card className="bg-slate-950 border border-white/10 rounded-[40px] shadow-2xl overflow-hidden p-0">
-                            {/* FIX: The 'actions' prop is not valid on CardHeader. Replaced with a div and flex layout to position the title and actions correctly. */}
                             <div className="bg-slate-900/80 p-6 mb-0 border-b border-white/5 flex items-center justify-between">
                                 <CardTitle className="text-[10px] flex items-center gap-2 text-sky-400">
                                     <Terminal size={14} /> Maestro Dev Audit

@@ -1,5 +1,3 @@
-
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { School, SchoolBranding } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -22,7 +20,6 @@ const DEFAULT_BRANDING: SchoolBranding = {
 };
 
 export const ThemeProvider = ({ children }: { children?: ReactNode }) => {
-    // @ts-ignore - FIX: Property 'role' does not exist on type 'AuthContextType'. Added to AuthContext.
     const { user, role } = useAuth();
     const [activeSchool, setActiveSchool] = useState<School | null>(null);
     const [schools, setSchools] = useState<School[]>([]);

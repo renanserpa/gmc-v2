@@ -1,5 +1,3 @@
-
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AccessibilitySettings } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -21,7 +19,6 @@ const DEFAULT_SETTINGS: AccessibilitySettings = {
 const AccessibilityContext = createContext<AccessibilityContextType | undefined>(undefined);
 
 export const AccessibilityProvider = ({ children }: { children?: ReactNode }) => {
-  // @ts-ignore - FIX: Property 'profile' does not exist on type 'AuthContextType'. Added to AuthContext.
   const { user, profile } = useAuth();
   const [settings, setSettings] = useState<AccessibilitySettings>(() => {
     const local = localStorage.getItem('maestro_a11y');

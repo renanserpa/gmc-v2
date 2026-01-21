@@ -1,7 +1,4 @@
-
-
 import React from 'react';
-// @ts-ignore - Resolving environment-specific export errors for react-router-dom
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { Home, Music, Sparkles, Gamepad2, Store, Settings, LogOut, GraduationCap, Shield } from 'lucide-react';
 import { useAccessibility } from '../contexts/AccessibilityContext';

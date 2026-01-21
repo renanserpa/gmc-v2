@@ -1,5 +1,4 @@
 import React from 'react';
-// @ts-ignore - Resolving environment-specific export errors for react-router-dom
 import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 

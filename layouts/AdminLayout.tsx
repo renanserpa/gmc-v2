@@ -3,15 +3,14 @@ import { NavLink, Outlet, Navigate, useNavigate } from 'react-router-dom';
 import { 
     LayoutDashboard, Users, Building2, Terminal, 
     Activity, Database, ShieldAlert, LogOut, 
-    ChevronDown, ChevronRight, Settings, Box, Network
+    ChevronDown, ChevronRight, Settings, Box, Network, ArchiveRestore
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { GodModeBar } from '../components/admin/GodModeBar';
-import { cn } from '../lib/utils';
-import { haptics } from '../lib/haptics';
+import { useAuth } from '../contexts/AuthContext.tsx';
+import { GodModeBar } from '../components/admin/GodModeBar.tsx';
+import { cn } from '../lib/utils.ts';
+import { haptics } from '../lib/haptics.ts';
 
 export default function AdminLayout() {
-    // @ts-ignore - FIX: Property 'role' does not exist on type 'AuthContextType'. Added to AuthContext.
     const { user, role, signOut } = useAuth();
     const navigate = useNavigate();
     const [engExpanded, setEngExpanded] = useState(true);
@@ -84,6 +83,9 @@ export default function AdminLayout() {
                                 </NavLink>
                                 <NavLink to="/admin/logs" className={navItemClass}>
                                     <Terminal size={16} /> Kernel Logs
+                                </NavLink>
+                                <NavLink to="/admin/cleanup" className={navItemClass}>
+                                    <ArchiveRestore size={16} /> Análise de Sanidade
                                 </NavLink>
                             </div>
                         )}

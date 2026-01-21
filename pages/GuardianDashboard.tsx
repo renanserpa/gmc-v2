@@ -1,7 +1,4 @@
-
-
 import React, { useMemo, useState, useEffect } from 'react';
-// @ts-ignore - Resolving environment-specific export errors for react-router-dom
 import { useNavigate } from 'react-router-dom';
 // FIX: CardDescription is now exported from ../components/ui/Card
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
@@ -57,7 +54,7 @@ export default function GuardianDashboard() {
         <AnimatePresence mode="wait">
             {activeTab === 'overview' && (
                 /* Use any to bypass Framer Motion properties error */
-                <motion.div key="overview" initial={{ opacity: 0, y: 10 } as any} animate={{ opacity: 1, y: 0 } as any} className="space-y-8">
+                <motion.div key="overview" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Card className="bg-slate-900/50 border-slate-800/60 hover:border-sky-500/30 transition-all">
                             <CardContent className="p-5 flex items-center gap-4">

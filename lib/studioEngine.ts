@@ -1,6 +1,5 @@
-
 import * as Tone from 'tone';
-import { ChordBlock } from '../types';
+import { ChordBlock } from '../types.ts';
 
 class StudioEngine {
     private polySynth: Tone.PolySynth;

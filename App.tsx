@@ -1,5 +1,4 @@
 import React, { Suspense, lazy } from 'react';
-// @ts-ignore
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { UserRole } from './types.ts';
 import ProtectedRoute from './components/ProtectedRoute.tsx';
@@ -40,6 +39,7 @@ const NoticeBoardPage = lazy(() => import('./pages/NoticeBoardPage.tsx'));
 const TeacherAcademy = lazy(() => import('./pages/TeacherAcademy.tsx'));
 const BrainCenter = lazy(() => import('./pages/BrainCenter.tsx'));
 const PhilosophyLab = lazy(() => import('./pages/chronos/PhilosophyLab.tsx'));
+const ProjectCleanup = lazy(() => import('./pages/admin/ProjectCleanup.tsx'));
 const NotFound = lazy(() => import('./pages/NotFound.tsx'));
 
 export default function App() {
@@ -109,6 +109,7 @@ export default function App() {
               <Route path="architecture" element={<ArchitectureBoard />} />
               <Route path="health" element={<SystemHealth />} />
               <Route path="db" element={<DatabaseConsole />} />
+              <Route path="cleanup" element={<ProjectCleanup />} />
             </Route>
 
             <Route 
