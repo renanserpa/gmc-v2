@@ -1,0 +1,7 @@
+{
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "name": "Copy of Copy of OlieMusic GCM Maestro",
+  "description": "Plataforma de ensino musical gamificada com engine de áudio profissional e análise de performance por IA."
+}

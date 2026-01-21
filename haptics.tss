@@ -1,0 +1,20 @@
+// Caminho: src/lib/haptics.ts
+
+export const haptics = {
+  light: () => {
+    // Verifica se o navegador suporta vibração para não dar erro
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(10); } catch (e) { console.log('Haptics not supported'); }
+    }
+  },
+  success: () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate([10, 30, 10]); } catch (e) { }
+    }
+  },
+  error: () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate([50, 30, 50]); } catch (e) { }
+    }
+  }
+};

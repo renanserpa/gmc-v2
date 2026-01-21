@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#020617" />
+  <title>OlieMusic - GCM Maestro</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    window.__maestro_errors = [];
+    window.onerror = (msg, url, line, col, err) => {
+      if (msg && (msg.includes('ResizeObserver') || msg.includes('Script error'))) return false;
+      console.error("Global Error captured:", msg);
+      window.__maestro_errors.push({ msg, url, line, stack: err?.stack });
+      return false;
+    };
+
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              primary: '#38bdf8',
+              secondary: '#a78bfa',
+              sky: '#38bdf8',
+              purple: '#a78bfa',
+            },
+            obsidian: '#020617',
+            'slate-deep': '#0f172a',
+          },
+          borderRadius: {
+            'brand': '24px',
+          },
+          animation: {
+            'glow-pulse': 'glow 2s ease-in-out infinite',
+            'shimmer-fast': 'shimmer 1.5s infinite linear',
+            'spin-slow': 'spin 12s linear infinite',
+          },
+          keyframes: {
+            glow: {
+              '0%, 100%': { opacity: 0.4, transform: 'scale(1)' },
+              '50%': { opacity: 0.8, transform: 'scale(1.02)' },
+            },
+            shimmer: {
+              '0%': { transform: 'translateX(-100%)' },
+              '100%': { transform: 'translateX(100%)' }
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+    "react-router-dom": "https://esm.sh/react-router-dom@6.22.3?bundle&external=react,react-dom",
+    "lucide-react": "https://esm.sh/lucide-react@0.363.0?bundle&external=react",
+    "framer-motion": "https://esm.sh/framer-motion@11.0.8?bundle&external=react,react-dom",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.8",
+    "@tanstack/react-query": "https://esm.sh/@tanstack/react-query@5.28.6?bundle&external=react,react-dom",
+    "clsx": "https://esm.sh/clsx@2.1.0",
+    "tailwind-merge": "https://esm.sh/tailwind-merge@2.2.2",
+    "date-fns": "https://esm.sh/date-fns@3.6.0",
+    "date-fns/locale": "https://esm.sh/date-fns@3.6.0/locale",
+    "react-toastify": "https://esm.sh/react-toastify@10.0.5?bundle&external=react,react-dom",
+    "react-hook-form": "https://esm.sh/react-hook-form@7.51.1?bundle&external=react,react-dom",
+    "zod": "https://esm.sh/zod@3.22.4",
+    "@hookform/resolvers/zod": "https://esm.sh/@hookform/resolvers@3.3.4/zod?bundle&external=react,react-dom",
+    "tone": "https://esm.sh/tone@14.7.77",
+    "@coderline/alphatab": "https://esm.sh/@coderline/alphatab@1.8.0",
+    "@google/genai": "https://esm.sh/@google/genai@0.2.1",
+    "canvas-confetti": "https://esm.sh/canvas-confetti@1.9.2",
+    "react-player": "https://esm.sh/react-player@2.15.1?bundle&external=react,react-dom",
+    "jszip": "https://esm.sh/jszip@3.10.1",
+    "react-i18next": "https://esm.sh/react-i18next@14.1.0?bundle&external=react,react-dom",
+    "i18next": "https://esm.sh/i18next@23.10.1",
+    "i18next-browser-languagedetector": "https://esm.sh/i18next-browser-languagedetector@7.2.0",
+    "@radix-ui/react-tooltip": "https://esm.sh/@radix-ui/react-tooltip@1.0.7?bundle&external=react,react-dom",
+    "@radix-ui/react-dialog": "https://esm.sh/@radix-ui/react-dialog@1.0.5?bundle&external=react,react-dom",
+    "lottie-react": "https://esm.sh/lottie-react@2.4.0?bundle&external=react,react-dom",
+    "three": "https://esm.sh/three@0.162.0",
+    "@react-three/fiber": "https://esm.sh/@react-three/fiber@8.16.0?bundle&external=react,three,react-dom",
+    "@react-three/drei": "https://esm.sh/@react-three/drei@9.102.6?bundle&external=react,three,react-dom,@react-three/fiber",
+    "url": "https://esm.sh/url@^0.11.4",
+    "path": "https://esm.sh/path@^0.12.7",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "date-fns/": "https://esm.sh/date-fns@^4.1.0/",
+    "@hookform/resolvers/": "https://esm.sh/@hookform/resolvers@^5.2.2/",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "class-variance-authority": "https://esm.sh/class-variance-authority@^0.7.1",
+    "@radix-ui/react-slot": "https://esm.sh/@radix-ui/react-slot@^1.2.4"
+  }
+}
+</script>
+
+  <style>
+    body { 
+      background-color: #020617; 
+      color: #f1f5f9; 
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .maestro-gradient { 
+      background: radial-gradient(circle at top right, #0f172a 0%, #020617 100%); 
+      min-height: 100vh;
+    }
+    #root:empty::before {
+      content: "";
+      position: fixed;
+      top: 50%; left: 50%;
+      width: 50px; height: 50px;
+      margin: -25px 0 0 -25px;
+      border: 3px solid rgba(56, 189, 248, 0.1);
+      border-top-color: #38bdf8;
+      border-radius: 50%;
+      animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    .font-dyslexic { font-family: 'OpenDyslexic', sans-serif !important; }
+    .high-contrast { filter: contrast(1.2); }
+    .reduced-motion * { animation: none !important; transition: none !important; }
+  </style>
+</head>
+<body class="maestro-gradient overflow-x-hidden antialiased custom-scrollbar">
+  <div id="root"></div>
+  <script type="module" src="./index.tsx"></script>
+</body>
+</html>
