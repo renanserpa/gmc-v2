@@ -1,3 +1,4 @@
+
 import * as Tone from 'tone';
 import { ChordBlock } from '../types.ts';
 
@@ -29,7 +30,8 @@ class StudioEngine {
                 envelope: { attack: 0.005, decay: 0.1, sustain: 0 }
             }).toDestination(),
             hihat: new Tone.MetalSynth({
-                frequency: 200,
+                // FIX: The 'frequency' property is not a valid constructor option for this version of Tone.js.
+                // It is set on the instance after creation.
                 envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
                 harmonicity: 5.1,
                 modulationIndex: 32,
@@ -43,6 +45,8 @@ class StudioEngine {
                 envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4 }
             }).toDestination()
         };
+
+        this.drumKit.hihat.frequency.value = 200;
     }
 
     async startTransport() {

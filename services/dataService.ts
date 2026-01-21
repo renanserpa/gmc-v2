@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabaseClient.ts';
 import { Student, MusicClass, Notice, Mission, AttendanceStatus, Lesson, ContentLibraryItem } from '../types.ts';
-import { RENAN_SERPA_TABS } from '../lib/tabsStore.ts';
 import { Star, Zap, Trophy, Flag } from 'lucide-react';
 import { SessionStats } from '../lib/audioPro.ts';
 

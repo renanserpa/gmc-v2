@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 // FIX: CardDescription is now exported
@@ -41,7 +39,6 @@ const COURSES: any[] = [
 
 export default function TeacherAcademy() {
     usePageTitle("Maestro Academy");
-    // @ts-ignore
     const { profile } = useAuth();
     const [selectedCourse, setSelectedCourse] = useState<any>(null);
     const [progress, setProgress] = useState<any[]>([]);
@@ -85,7 +82,6 @@ export default function TeacherAcademy() {
                                             <h3 className="text-2xl font-black text-white uppercase tracking-tight">{course.title}</h3>
                                             <p className="text-slate-400 text-sm leading-relaxed mt-2">{course.description}</p>
                                         </div>
-                                        {/* @ts-ignore */}
                                         <Button variant={isDone ? 'ghost' : 'primary'} onClick={() => setSelectedCourse(course)} className="w-full">
                                             {isDone ? 'Rever Teoria' : 'Iniciar Estudo'}
                                         </Button>

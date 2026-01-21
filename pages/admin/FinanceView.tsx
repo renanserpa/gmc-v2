@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 // FIX: CardDescription is now exported
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/Card';
@@ -29,7 +27,6 @@ export default function FinanceView() {
                     <p className="text-slate-500 mt-1">Monitore o fluxo de caixa pedagógico da sua escola.</p>
                 </div>
                 <div className="flex gap-3">
-                    {/* @ts-ignore */}
                     <Button variant="outline" leftIcon={Download}>Exportar Relatório</Button>
                 </div>
             </header>
@@ -53,7 +50,6 @@ export default function FinanceView() {
                 <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle className="text-slate-900">Listagem de Alunos</CardTitle>
                     <div className="flex gap-2">
-                        {/* @ts-ignore */}
                         <Button size="sm" variant="ghost" leftIcon={Filter}>Filtros</Button>
                     </div>
                 </CardHeader>
