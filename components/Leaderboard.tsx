@@ -1,10 +1,9 @@
-
 import React, { useEffect, useState } from 'react';
-import { getLeaderboard } from '../services/gamificationService';
-import { UserAvatar } from './ui/UserAvatar';
+import { getLeaderboard } from '../services/gamificationService.ts';
+import { UserAvatar } from './ui/UserAvatar.tsx';
 import { Trophy, Flame, Star, Crown } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { cn } from '../lib/utils';
+import { cn } from '../lib/utils.ts';
 
 interface LeaderboardProps {
   professorId: string;

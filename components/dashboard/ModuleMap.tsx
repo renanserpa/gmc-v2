@@ -1,11 +1,10 @@
-
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LearningModule, ModuleStatus } from '../../types';
+import { LearningModule, ModuleStatus } from '../../types.ts';
 import { Book, Zap, Music, Trophy, Lock, CheckCircle2, Star, Mountain, Trees, Waves, Ghost, Flame, Wind } from 'lucide-react';
-import { cn } from '../../lib/utils';
-import { haptics } from '../../lib/haptics';
-import { UserAvatar } from '../ui/UserAvatar';
+import { cn } from '../../lib/utils.ts';
+import { haptics } from '../../lib/haptics.ts';
+import { UserAvatar } from '../ui/UserAvatar.tsx';
 
 interface ModuleMapProps {
     modules: LearningModule[];
@@ -81,7 +80,7 @@ export const ModuleMap: React.FC<ModuleMapProps> = ({
                                             fill="none" 
                                             stroke={isCompleted ? "#10b981" : isCurrent ? "#38bdf8" : "#1e293b"} 
                                             strokeWidth="12" 
-                                            strokeLinecap="round"
+                                            strokeLinecap="round" 
                                             strokeDasharray="1 24"
                                             initial={{ pathLength: 0, opacity: 0 }}
                                             animate={{ pathLength: 1, opacity: 1 }}

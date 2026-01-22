@@ -14,8 +14,8 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   height,
   width
 }) => {
-  // Use animate-pulse for a stable, pleasing loading effect instead of shimmer which might shift layout if not absolutely positioned
-  const baseStyles = "animate-pulse bg-slate-800/80 rounded-md";
+  // Usa animate-glow-pulse para um efeito mais suave e premium
+  const baseStyles = "animate-glow-pulse bg-slate-800 rounded-md";
   
   let variantStyles = "";
   switch (variant) {

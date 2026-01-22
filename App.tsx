@@ -9,6 +9,9 @@ import { AppLoader } from './components/AppLoader.tsx';
 import { DevAuditMonitor } from './components/admin/DevAuditMonitor.tsx';
 import { useAuth } from './contexts/AuthContext.tsx';
 
+// Importa a nova tela de carregamento
+import LoadingScreen from './components/ui/LoadingScreen.tsx';
+
 // Lazy load components com caminhos relativos para maior estabilidade
 const Login = lazy(() => import('./pages/Login.tsx'));
 const ProfileSelector = lazy(() => import('./pages/ProfileSelector.tsx'));
@@ -48,7 +51,7 @@ export default function App() {
   return (
     <HashRouter>
       <AppLoader>
-        <Suspense fallback={null}>
+        <Suspense fallback={<LoadingScreen />}>
           <OmniSearch />
           
           {/* Monitor de Auditoria exclusivo para Administradores */}

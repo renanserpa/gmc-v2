@@ -1,15 +1,13 @@
-
-
 import React, { useEffect, useState, useMemo } from 'react';
-import { Student, PlayerAchievement, Profile } from '../types';
-import { getPlayerAchievements } from '../services/gamificationService';
+import { Student, PlayerAchievement, Profile } from '../types.ts';
+import { getPlayerAchievements } from '../services/gamificationService.ts';
 import { Star, Flame, Coins, Trophy, Zap, ArrowUpCircle, Music, Sparkles, Award, ShieldCheck } from 'lucide-react';
-import { Card, CardContent, CardHeader } from './ui/Card';
+import { Card, CardContent, CardHeader } from './ui/Card.tsx';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserAvatar } from './ui/UserAvatar';
-import { supabase } from '../lib/supabaseClient';
-import { cn } from '../lib/utils';
-import { useAccessibility } from '../contexts/AccessibilityContext';
+import { UserAvatar } from './ui/UserAvatar.tsx';
+import { supabase } from '../lib/supabaseClient.ts';
+import { cn } from '../lib/utils.ts';
+import { useAccessibility } from '../contexts/AccessibilityContext.tsx';
 
 interface StudentHudProps {
   student: Student;
@@ -165,7 +163,6 @@ export default function StudentHud({ student }: StudentHudProps) {
                             {[...Array(5)].map((_, i) => {
                                 const active = animatedProgress > (i * 20);
                                 return (
-                                    // FIX: Removed stray '}' after comment which was causing a syntax error.
                                     <motion.div 
                                         key={i}
                                         animate={(active ? { scale: [1, 1.2, 1], rotate: [0, 5, -5, 0] } : {}) as any}

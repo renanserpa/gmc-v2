@@ -1,4 +1,3 @@
-
 import React, { ReactNode } from 'react';
 import { AuthProvider } from '../contexts/AuthContext.tsx';
 import { GamificationProvider } from '../contexts/GamificationEventContext.tsx';
