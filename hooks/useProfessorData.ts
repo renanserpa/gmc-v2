@@ -1,79 +1,51 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext.tsx';
-import { 
-    getStudentsByTeacher, 
-    getProfessorAuditLogs,
-    getMusicClasses,
-    getLessonsByTeacher,
-    getMissionsByTeacher
-} from '../services/dataService.ts';
-import { getProfessorDashboardStats } from '../services/analyticsService.ts';
+import { supabase } from '../lib/supabaseClient.ts';
 
-// Higienizador de Dados: Previne quebras por campos nulos ou schema desalinhado
-const sanitizeStudent = (s: any) => ({
-    ...s,
-    name: s.name || "Aluno sem Nome",
-    xp: s.xp || 0,
-    level: s.level || 1,
-    school_grade: s.school_grade || "Não Informado",
-    instrument: s.instrument || "Nenhum",
-    current_streak_days: s.current_streak_days || 0
-});
-
-/**
- * Hook de Dados do Professor com Proteção de Kernel
- */
 export function useProfessorData() {
     const { user, role } = useAuth();
     const teacherId = user?.id;
-    
-    const isProfessor = role === 'professor' || role === 'admin';
 
-    const { data, isLoading, error } = useQuery({
-        queryKey: ['professor-cockpit-data', teacherId],
+    return useQuery({
+        queryKey: ['professor-contract-data-v4', teacherId],
         queryFn: async () => {
-            if (!teacherId || !isProfessor) return null;
+            if (!teacherId) return null;
 
-            try {
-                // Carregamento Atômico
-                const [stats, rawStudents, classes, auditLogs, lessons, missions] = await Promise.all([
-                    getProfessorDashboardStats(teacherId),
-                    getStudentsByTeacher(teacherId),
-                    getMusicClasses(teacherId),
-                    getProfessorAuditLogs(teacherId),
-                    getLessonsByTeacher(teacherId),
-                    getMissionsByTeacher(teacherId)
-                ]);
+            // Busca atômica de Students, Classes e Atividades da Semana
+            const [resStudents, resClasses, resEvents] = await Promise.all([
+                supabase.from('students').select('*').eq('professor_id', teacherId),
+                supabase.from('music_classes').select('*').eq('professor_id', teacherId),
+                supabase.from('xp_events').select('xp_amount, created_at').gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+            ]);
 
-                // Validação de Integridade na Camada de Hook
-                const students = (rawStudents || []).map(sanitizeStudent);
+            const students = resStudents.data || [];
+            const classes = resClasses.data || [];
+            const recentEvents = resEvents.data || [];
 
-                return { 
-                    stats, 
-                    students, 
-                    classes: classes || [], 
-                    auditLogs: auditLogs || [], 
-                    lessons: lessons || [], 
-                    missions: missions || [] 
-                };
-            } catch (e) {
-                console.error("[Kernel Data Error]:", e);
-                throw new Error("Falha na sincronização do kernel de dados.");
-            }
+            // Cálculos de Métrica
+            const totalXp = students.reduce((acc, s) => acc + (s.xp || 0), 0);
+            const avgXp = students.length > 0 ? Math.round(totalXp / students.length) : 0;
+            
+            // Agrupamento de XP por dia para o gráfico
+            const chartData = recentEvents.reduce((acc: any, curr) => {
+                const day = new Date(curr.created_at).toLocaleDateString('pt-BR', { weekday: 'short' });
+                acc[day] = (acc[day] || 0) + curr.xp_amount;
+                return acc;
+            }, {});
+
+            return {
+                students,
+                classes,
+                isNewTeacher: classes.length === 0,
+                stats: {
+                    totalStudents: students.length,
+                    avgXp,
+                    weeklyGrowth: recentEvents.length
+                },
+                evolution: Object.entries(chartData).map(([name, value]) => ({ name, value }))
+            };
         },
-        enabled: !!teacherId && isProfessor,
-        staleTime: 1000 * 60 * 5,
-        retry: 1
+        enabled: !!teacherId,
+        staleTime: 1000 * 60 * 2 // 2 minutos de cache
     });
-
-    return {
-        stats: data?.stats || { totalStudents: 0, upcomingLessonsCount: 0, pendingMissionsCount: 0, recentCompletedMissionsCount: 0 },
-        students: data?.students || [],
-        classes: data?.classes || [],
-        lessons: data?.lessons || [],
-        missions: data?.missions || [],
-        auditLogs: data?.auditLogs || [],
-        isLoading,
-        error: error ? "Erro de integridade de dados detectado." : null
-    };
 }

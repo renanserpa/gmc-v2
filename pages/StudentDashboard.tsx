@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// FIX: Using any to bypass react-router-dom export errors in this environment
 import * as RRD from 'react-router-dom';
 const { useNavigate } = RRD as any;
 import { useCurrentStudent } from '../hooks/useCurrentStudent.ts';
@@ -21,7 +20,7 @@ import { DashboardSkeleton } from '../components/ui/Skeleton.tsx';
 import { Dialog, DialogContent, DialogTitle } from '../components/ui/Dialog.tsx';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card.tsx';
 import { Button } from '../components/ui/Button.tsx';
-import { Zap, Map as MapIcon, Flag, Play, Sparkles } from 'lucide-react';
+import { Zap, Map as MapIcon, Flag, Play, Sparkles, AlertCircle } from 'lucide-react';
 import { usePageTitle } from '../hooks/usePageTitle.ts';
 import { haptics } from '../lib/haptics.ts';
 
@@ -53,7 +52,6 @@ export default function StudentDashboard() {
             setTrends(tr);
             setLatestStats(stats);
             
-            // Load AI Plan and Crucible
             const plan = await getMaestroStudyPlan(student!.name, tr);
             setRecommendation(plan);
             
@@ -62,7 +60,7 @@ export default function StudentDashboard() {
                 setCrucible(challenge);
             }
         } catch (e) {
-            console.error("Dashboard load error", e);
+            console.error("Dashboard data sync failed", e);
         }
     }
 
@@ -79,13 +77,27 @@ export default function StudentDashboard() {
     };
 
     if (loading) return <DashboardSkeleton />;
+    
+    // Tratamento para erro de permissão ou aluno não vinculado
     if (error || !student) return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
-            <div className="p-8 text-center text-slate-400 bg-slate-900/50 rounded-[32px] border border-white/5 max-w-md">
-                <AlertCircle className="mx-auto mb-4 text-amber-500" size={48} />
-                <h2 className="text-xl font-black text-white uppercase italic">Sincronia Pendente</h2>
-                <p className="mt-4 text-sm leading-relaxed">Seu perfil de aluno ainda não foi vinculado a esta conta. Utilize o código fornecido pelo seu professor para ativar sua jornada.</p>
-                <Button onClick={() => navigate('/student/link')} className="mt-8 w-full">Vincular Agora</Button>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8 animate-in fade-in">
+            <div className="p-10 text-center bg-slate-900/60 rounded-[48px] border border-white/5 max-w-md shadow-2xl backdrop-blur-xl">
+                <div className="w-20 h-20 bg-amber-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-amber-500/20">
+                    <AlertCircle className="text-amber-500" size={40} />
+                </div>
+                <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">Sincronia Necessária</h2>
+                <p className="mt-4 text-slate-400 text-sm leading-relaxed">
+                    Seu perfil de músico ainda não foi detectado no Kernel Maestro. 
+                    Verifique se você utilizou o código de vínculo fornecido pelo seu professor.
+                </p>
+                <div className="flex flex-col gap-3 mt-8">
+                    <Button onClick={() => navigate('/student/link')} className="w-full py-6 rounded-2xl">
+                        Vincular Jornada Agora
+                    </Button>
+                    <Button variant="ghost" onClick={() => window.location.reload()} className="text-slate-500 text-[10px] font-black uppercase">
+                        Tentar Re-Sincronizar
+                    </Button>
+                </div>
             </div>
         </div>
     );
@@ -129,7 +141,7 @@ export default function StudentDashboard() {
                     <Card className="bg-slate-900 border-white/5 rounded-[48px] overflow-hidden shadow-2xl">
                         <CardHeader className="p-8 border-b border-white/5 flex flex-row items-center justify-between bg-slate-950/20">
                             <div>
-                                <CardTitle className="text-xl flex items-center gap-2 uppercase tracking-widest italic">
+                                <CardTitle className="text-xl flex items-center gap-2 uppercase tracking-widest italic text-white">
                                     <MapIcon className="text-sky-500" /> Mapa da Jornada
                                 </CardTitle>
                             </div>
@@ -220,25 +232,4 @@ export default function StudentDashboard() {
             </Dialog>
         </div>
     );
-}
-
-function AlertCircle(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="8" x2="12" y2="12" />
-      <line x1="12" y1="16" x2="12.01" y2="16" />
-    </svg>
-  );
 }

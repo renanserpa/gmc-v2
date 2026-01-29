@@ -1,36 +1,101 @@
 import { supabase } from '../lib/supabaseClient.ts';
-import { Student, MusicClass, Notice, Mission, AttendanceStatus, Lesson, ContentLibraryItem } from '../types.ts';
+import { Student, MusicClass, Notice, Mission, AttendanceStatus, Lesson, ContentLibraryItem, School, Profile } from '../types.ts';
 import { Star, Zap, Trophy, Flag } from 'lucide-react';
 import { SessionStats } from '../lib/audioPro.ts';
 
+// --- ADMIN SERVICES ---
+
+export const getAdminSchools = async (): Promise<School[]> => {
+    const { data, error } = await supabase
+        .from('schools')
+        .select('*')
+        .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+};
+
+export const createAdminSchool = async (schoolData: Partial<School> & { slug: string }) => {
+    const { data, error } = await supabase
+        .from('schools')
+        .insert([{
+            name: schoolData.name,
+            slug: schoolData.slug,
+            branding: schoolData.branding || { primaryColor: '#38bdf8', secondaryColor: '#a78bfa', borderRadius: '24px', logoUrl: null }
+        }])
+        .select()
+        .single();
+    
+    if (error) {
+        console.error("[Maestro DB Error] Falha ao criar escola:", error);
+        throw error;
+    }
+    return data;
+};
+
+export const createAdminProfessor = async (profData: { email: string, full_name: string, school_id?: string }) => {
+    // 1. Criar Perfil (Nota: Em produção isso deve ser precedido por um invite no Auth)
+    const { data: profile, error: pError } = await supabase
+        .from('profiles')
+        .insert([{
+            email: profData.email,
+            full_name: profData.full_name,
+            role: 'professor',
+            school_id: profData.school_id || null
+        }])
+        .select()
+        .single();
+
+    if (pError) {
+        console.error("[Maestro DB Error] Falha ao criar perfil do professor:", pError);
+        throw pError;
+    }
+
+    // 2. Se houver escola, vincular na tabela de junção para permissões multitenant
+    if (profData.school_id && profile) {
+        const { error: linkError } = await supabase
+            .from('professor_schools')
+            .insert([{
+                professor_id: profile.id,
+                school_id: profData.school_id
+            }]);
+        
+        if (linkError) console.warn("[Maestro DB Warning] Falha ao criar vínculo secundário de escola:", linkError);
+    }
+
+    return profile;
+};
+
+export const getSystemConfig = async (key: string) => {
+    const { data, error } = await supabase
+        .from('system_configs')
+        .select('value')
+        .eq('key', key)
+        .maybeSingle();
+    
+    return data?.value || null;
+};
+
+export const updateSystemConfig = async (key: string, value: any) => {
+    const { error } = await supabase
+        .from('system_configs')
+        .upsert({ key, value, updated_at: new Date().toISOString() });
+    
+    if (error) throw error;
+    return true;
+};
+
+// --- RESTO DOS SERVIÇOS EXISTENTES MANTIDOS ---
 export const generateAccessCode = () => {
   const digits = Math.floor(100 + Math.random() * 900);
   return `GCM-${digits}`;
 };
 
-/**
- * Busca logs de gamificação para o cockpit do professor.
- * Usa xp_events como fonte primária de auditoria.
- */
 export const getProfessorAuditLogs = async (professorId: string) => {
-    const { data, error } = await supabase
-        .from('xp_events')
-        .select(`
-            *,
-            students:player_id (
-                name,
-                professor_id,
-                avatar_url
-            )
-        `)
-        .eq('students.professor_id', professorId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-    
-    if (error) {
-        console.error("[DataService] Erro ao buscar logs de XP:", error);
-        return [];
-    }
+    const { data: myStudents } = await supabase.from('students').select('id').eq('professor_id', professorId);
+    if (!myStudents || myStudents.length === 0) return [];
+    const studentIds = myStudents.map(s => s.id);
+    const { data, error } = await supabase.from('xp_events').select('*, students:player_id (name, avatar_url)').in('player_id', studentIds).order('created_at', { ascending: false }).limit(50);
     return data || [];
 };
 
@@ -48,88 +113,39 @@ export const savePracticeSession = async (studentId: string, stats: SessionStats
         resonance_score: stats.resonanceScore,
         created_at: new Date().toISOString()
     }]).select().single();
-    
     if (error) throw error;
     return data;
 };
 
 export const getLatestPracticeStats = async (studentId: string): Promise<SessionStats | null> => {
-    const { data, error } = await supabase
-        .from('practice_sessions')
-        .select('*')
-        .eq('student_id', studentId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
+    const { data, error } = await supabase.from('practice_sessions').select('*').eq('student_id', studentId).order('created_at', { ascending: false }).limit(1).maybeSingle();
     if (error || !data) return null;
     return {
-        totalBeats: 0,
-        onTargetBeats: 0,
-        durationSeconds: data.duration_seconds,
-        averagePrecision: data.avg_precision,
-        averageLatency: 0,
-        totalScore: data.total_score,
-        maxCombo: data.max_combo,
-        avgStability: data.avg_stability,
-        flowFactor: data.flow_factor || 0,
-        dynamicRange: data.dynamic_range || { min: 0, max: 1 },
-        noteHeatmap: data.note_heatmap,
-        resonanceScore: data.resonance_score || 0
+        totalBeats: 0, onTargetBeats: 0, durationSeconds: data.duration_seconds, averagePrecision: data.avg_precision,
+        averageLatency: 0, totalScore: data.total_score, maxCombo: data.max_combo, avgStability: data.avg_stability,
+        flowFactor: data.flow_factor || 0, dynamicRange: data.dynamic_range || { min: 0, max: 1 },
+        noteHeatmap: data.note_heatmap, resonanceScore: data.resonance_score || 0
     };
 };
 
 export const getPracticeTrends = async (studentId: string, limit = 5): Promise<SessionStats[]> => {
-    const { data, error } = await supabase
-        .from('practice_sessions')
-        .select('*')
-        .eq('student_id', studentId)
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
+    const { data, error } = await supabase.from('practice_sessions').select('*').eq('student_id', studentId).order('created_at', { ascending: false }).limit(limit);
     if (error || !data) return [];
-    
     return data.map(d => ({
-        totalBeats: 0,
-        onTargetBeats: 0,
-        durationSeconds: d.duration_seconds,
-        averagePrecision: d.avg_precision,
-        averageLatency: 0,
-        totalScore: d.total_score,
-        maxCombo: d.max_combo,
-        avgStability: d.avg_stability,
-        flowFactor: d.flow_factor || 0,
-        dynamicRange: d.dynamic_range || { min: 0, max: 1 },
-        noteHeatmap: d.note_heatmap,
-        resonanceScore: d.resonance_score || 0
+        totalBeats: 0, onTargetBeats: 0, durationSeconds: d.duration_seconds, averagePrecision: d.avg_precision,
+        averageLatency: 0, totalScore: d.total_score, maxCombo: d.max_combo, avgStability: d.avg_stability,
+        flowFactor: d.flow_factor || 0, dynamicRange: d.dynamic_range || { min: 0, max: 1 },
+        noteHeatmap: d.note_heatmap, resonanceScore: d.resonance_score || 0
     }));
 };
 
 export const getStudentMilestones = async (studentId: string) => {
-    const { data } = await supabase
-        .from('xp_events')
-        .select('*')
-        .eq('player_id', studentId)
-        .order('created_at', { ascending: true });
-    
+    const { data } = await supabase.from('xp_events').select('*').eq('player_id', studentId).order('created_at', { ascending: true });
     if (!data) return [];
-
-    const iconMap: any = {
-        'FIRST_SYNC': Star,
-        'LEVEL_UP': Trophy,
-        'PRACTICE_SESSION': Zap,
-        'MISSION_COMPLETE': Flag
-    };
-
-    return data
-        .filter(e => ['FIRST_SYNC', 'LEVEL_UP', 'MISSION_COMPLETE'].includes(e.event_type))
-        .map(e => ({
-            id: e.id,
-            title: e.event_type.replace('_', ' '),
-            date: e.created_at,
-            icon: iconMap[e.event_type] || Star,
-            xp: e.xp_amount
-        }));
+    const iconMap: any = { 'FIRST_SYNC': Star, 'LEVEL_UP': Trophy, 'PRACTICE_SESSION': Zap, 'MISSION_COMPLETE': Flag };
+    return data.filter(e => ['FIRST_SYNC', 'LEVEL_UP', 'MISSION_COMPLETE'].includes(e.event_type)).map(e => ({
+        id: e.id, title: e.event_type.replace('_', ' '), date: e.created_at, icon: iconMap[e.event_type] || Star, xp: e.xp_amount
+    }));
 };
 
 export const getContentLibrary = async (professorId: string): Promise<ContentLibraryItem[]> => {
@@ -164,10 +180,7 @@ export const getLessonsByTeacher = async (professorId: string): Promise<Lesson[]
 
 export const markAttendance = async (studentId: string, classId: string, status: AttendanceStatus, professorId: string) => {
     const { data, error } = await supabase.rpc('mark_attendance_and_award_xp', {
-        p_student_id: studentId,
-        p_class_id: classId,
-        p_status: status,
-        p_professor_id: professorId
+        p_student_id: studentId, p_class_id: classId, p_status: status, p_professor_id: professorId
     });
     if (error) throw error;
     return data;
@@ -240,7 +253,8 @@ export const linkStudentAccount = async (code: string) => {
 
 export const getSystemStats = async () => {
     const { count: totalStudents } = await supabase.from('students').select('*', { count: 'exact', head: true });
-    return { totalStudents: totalStudents || 0, activeMissions: 0, totalContent: 0 };
+    const { count: totalProfs } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'professor');
+    return { totalStudents: totalStudents || 0, activeMissions: 0, totalContent: 0, totalProfs: totalProfs || 0 };
 };
 
 export const updateLessonStatus = async (lessonId: string, status: string) => {
@@ -271,25 +285,16 @@ export const savePerformanceRecording = async (payload: any) => {
 };
 
 export const getStudentRepertoire = async (studentId: string) => {
-    const { data, error } = await supabase
-        .from('student_songs')
-        .select('*, songs(*)')
-        .eq('student_id', studentId);
-    
+    const { data, error } = await supabase.from('student_songs').select('*, songs(*)').eq('student_id', studentId);
     if (error) throw error;
     return data || [];
 };
 
 export const giveHighFive = async (hallId: string) => {
-    const { data, error } = await supabase.rpc('increment_concert_hall_high_fives', { 
-        p_hall_id: hallId 
-    });
-    
+    const { data, error } = await supabase.rpc('increment_concert_hall_high_fives', { p_hall_id: hallId });
     if (error) {
         const { data: current } = await supabase.from('concert_hall').select('high_fives_count').eq('id', hallId).single();
-        if (current) {
-            await supabase.from('concert_hall').update({ high_fives_count: (current.high_fives_count || 0) + 1 }).eq('id', hallId);
-        }
+        if (current) await supabase.from('concert_hall').update({ high_fives_count: (current.high_fives_count || 0) + 1 }).eq('id', hallId);
         return true;
     }
     return data;

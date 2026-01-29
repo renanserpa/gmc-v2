@@ -1,10 +1,10 @@
-
 import React from 'react';
 import { Card } from '../ui/Card.tsx';
 import { Skeleton } from '../ui/Skeleton.tsx';
 import { LucideIcon, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/Tooltip.tsx';
 import { motion } from 'framer-motion';
+import { cn } from '../../lib/utils.ts';
 
 // FIX: Casting motion components to any to bypass property errors
 const M = motion as any;
@@ -20,9 +20,9 @@ interface KPICardProps {
 
 export const KPICard: React.FC<KPICardProps> = ({ title, description, value, icon: Icon, color, border }) => {
     return (
-        <Card className={`border-l-4 ${border} bg-[#020617]/40 backdrop-blur-md border-white/5 shadow-sm hover:bg-slate-900/60 transition-all duration-300 group`}>
+        <Card className={cn(`border-l-4 ${border} bg-[#020617]/40 backdrop-blur-md border-white/5 shadow-sm hover:bg-slate-900/60 transition-all duration-300 group`)}>
             <div className="p-5 flex items-center gap-4">
-                <div className={`p-3 rounded-xl bg-slate-950 ${color} group-hover:scale-110 transition-transform duration-300 shadow-inner border border-white/5`}>
+                <div className={cn(`p-3 rounded-xl bg-slate-950 ${color} group-hover:scale-110 transition-transform duration-300 shadow-inner border border-white/5`)}>
                     <Icon size={24} />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -49,6 +49,7 @@ export const KPICard: React.FC<KPICardProps> = ({ title, description, value, ico
                                         className="text-slate-600 hover:text-sky-400 transition-colors focus:outline-none outline-none"
                                         aria-label={`Informação sobre ${title}`}
                                     >
+                                        {/* FIX: Corrected syntax for size prop from size(12) to size={12} to fix boolean assignment error */}
                                         <Info size={12} />
                                     </M.button>
                                 </TooltipTrigger>

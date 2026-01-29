@@ -1,60 +1,51 @@
 -- ==============================================================================
--- OLIEMUSIC GCM - INFRAESTRUTURA MESTRE V3.5 (POLÍTICAS DE GAMIFICAÇÃO)
--- Resolve o erro 42501 na tabela xp_events
+-- OLIEMUSIC GCM - KERNEL DE ADMINISTRAÇÃO V4.0
+-- Tabelas para Multitenancy e Governança Global
 -- ==============================================================================
 
--- 1. CRIAÇÃO DA TABELA DE EVENTOS DE XP (Se não existir)
-CREATE TABLE IF NOT EXISTS public.xp_events (
+-- 1. TABELA DE ESCOLAS (TENANTS)
+CREATE TABLE IF NOT EXISTS public.schools (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    player_id UUID REFERENCES public.students(id) ON DELETE CASCADE,
-    event_type TEXT NOT NULL,
-    xp_amount INTEGER DEFAULT 0,
-    coins_amount INTEGER DEFAULT 0,
-    context_type TEXT, -- 'mission', 'lesson', 'practice'
-    context_id TEXT,
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    branding JSONB DEFAULT '{"primaryColor": "#38bdf8", "borderRadius": "24px", "logoUrl": null}'::jsonb,
+    is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 2. GARANTIR RLS ATIVO
-ALTER TABLE public.xp_events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
-
--- 3. PERMISSÕES DE LEITURA (SELECT) PARA XP_EVENTS
--- Política: Alunos vêem seus próprios eventos.
-DROP POLICY IF EXISTS "Alunos vêem seus próprios XP" ON public.xp_events;
-CREATE POLICY "Alunos vêem seus próprios XP" ON public.xp_events
-FOR SELECT USING (
-    EXISTS (
-        SELECT 1 FROM public.students 
-        WHERE students.id = xp_events.player_id 
-        AND students.auth_user_id = auth.uid()
-    )
+-- 2. TABELA DE JUNÇÃO (ADMIN ACESSO A ESCOLAS)
+CREATE TABLE IF NOT EXISTS public.professor_schools (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    professor_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    school_id UUID REFERENCES public.schools(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(professor_id, school_id)
 );
 
--- Política: Professores vêem os XP dos seus alunos.
-DROP POLICY IF EXISTS "Professores vêem XP dos seus alunos" ON public.xp_events;
-CREATE POLICY "Professores vêem XP dos seus alunos" ON public.xp_events
-FOR SELECT USING (
-    EXISTS (
-        SELECT 1 FROM public.students 
-        WHERE students.id = xp_events.player_id 
-        AND students.professor_id = auth.uid()
-    )
+-- 3. CONFIGURAÇÕES GLOBAIS DE SISTEMA
+CREATE TABLE IF NOT EXISTS public.system_configs (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
+    description TEXT,
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 4. PERMISSÕES DE LEITURA PARA AUDIT_LOGS
-DROP POLICY IF EXISTS "Professores vêem logs dos seus alunos" ON public.audit_logs;
-CREATE POLICY "Professores vêem logs dos seus alunos" ON public.audit_logs
-FOR SELECT USING (
-    professor_id = auth.uid() OR 
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-);
+-- Inserir multiplicador padrão se não existir
+INSERT INTO public.system_configs (key, value, description)
+VALUES ('global_xp_multiplier', '1.0', 'Multiplicador de ganho de XP para todos os alunos')
+ON CONFLICT (key) DO NOTHING;
 
--- 5. GRANTS EXPLICITOS
-GRANT SELECT ON public.xp_events TO authenticated;
-GRANT SELECT ON public.audit_logs TO authenticated;
-GRANT INSERT ON public.xp_events TO authenticated;
+-- 4. POLÍTICAS RLS PARA ADMIN
+ALTER TABLE public.schools ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admins possuem controle total sobre escolas" 
+ON public.schools FOR ALL 
+USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND (role = 'admin' OR email = 'admin@oliemusic.dev')));
 
--- 6. CORREÇÃO DE INTEGRIDADE: Garantir que a Role do Professor está correta
--- (Exemplo para p@adm.com se tornar professor se não for)
-UPDATE public.profiles SET role = 'professor' WHERE email = 'p@adm.com';
+CREATE POLICY "Usuários veem suas próprias escolas"
+ON public.schools FOR SELECT
+USING (id IN (SELECT school_id FROM profiles WHERE id = auth.uid()) OR id IN (SELECT school_id FROM students WHERE auth_user_id = auth.uid()));
+
+-- Grants
+GRANT ALL ON public.schools TO authenticated;
+GRANT ALL ON public.system_configs TO authenticated;
+GRANT ALL ON public.professor_schools TO authenticated;

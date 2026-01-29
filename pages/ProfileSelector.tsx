@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import * as RRD from 'react-router-dom';
 const { Link, useNavigate } = RRD as any;
 import { UserRole } from '../types.ts';
-import { Users, Music, Shield, LayoutDashboard, ArrowRight, Building2, Sparkles, LogOut, Code2, Terminal, RefreshCw } from 'lucide-react';
+import { Users, Music, Shield, LayoutDashboard, ArrowRight, Building2, Sparkles, LogOut, Code2, Terminal, RefreshCw, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card.tsx';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -43,23 +43,32 @@ export default function ProfileSelector() {
         notify.info(`Modo Dev Ativado: ${roleTarget.toUpperCase()}`);
     };
 
-    const handleQuickReset = () => {
+    /**
+     * Reseta o ambiente para o estado original de fábrica.
+     * Limpa localStorage, sessionStorage e IndexedDB.
+     */
+    const handleEnvironmentPurge = () => {
         haptics.heavy();
-        if (confirm("🚨 ATENÇÃO: Deseja limpar permanentemente todos os dados locais (Cache, Banco de Áudio, Sessão e Credenciais) e reiniciar o Kernel?")) {
-            // Limpa síncronos
+        uiSounds.playError();
+        
+        if (confirm("🚨 LIMPEZA DE AMBIENTE: Deseja apagar permanentemente todos os dados de cache, sessões salvas e credenciais? Você retornará ao estado inicial da aplicação.")) {
+            // 1. Limpa Armazenamento Síncrono
             localStorage.clear();
             sessionStorage.clear();
             
-            // Limpa IndexedDB
+            // 2. Limpa Banco de Dados Offline (Cache de Áudio)
             try {
                 indexedDB.deleteDatabase('OlieMusicCache');
-            } catch (e) {}
+            } catch (e) {
+                console.warn("[Kernel] Falha ao deletar IndexedDB:", e);
+            }
 
-            notify.warning("Purgando ecossistema... Reiniciando.");
+            notify.warning("Purgando dados... Reiniciando.");
             
+            // 3. Força recarregamento da aplicação
             setTimeout(() => {
                 window.location.href = '/';
-            }, 500);
+            }, 800);
         }
     };
 
@@ -69,15 +78,15 @@ export default function ProfileSelector() {
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-6 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 -z-10"></div>
             
-            {/* Botão Superior: Limpar Ambiente (Kernel Reset) */}
-            <div className="absolute top-0 right-0 z-50 p-6">
+            {/* BARRA SUPERIOR DE UTILITÁRIOS */}
+            <div className="absolute top-0 left-0 right-0 z-50 p-6 flex justify-center">
                 <M.button 
                     initial={{ opacity: 0, y: -20 } as any}
                     animate={{ opacity: 1, y: 0 } as any}
-                    onClick={handleQuickReset}
-                    className="bg-slate-900/40 hover:bg-red-600/20 text-slate-500 hover:text-red-400 border border-white/5 hover:border-red-500/30 px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.3em] transition-all flex items-center gap-3 backdrop-blur-xl shadow-2xl"
+                    onClick={handleEnvironmentPurge}
+                    className="bg-slate-900/40 hover:bg-red-600/20 text-slate-500 hover:text-red-400 border border-white/5 hover:border-red-500/30 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.3em] transition-all flex items-center gap-3 backdrop-blur-xl shadow-2xl group"
                 >
-                    <RefreshCw size={14} /> Limpar Ambiente (Factory Reset)
+                    <Trash2 size={14} className="group-hover:animate-bounce" /> Limpar Ambiente (Factory Reset)
                 </M.button>
             </div>
 

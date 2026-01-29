@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { NavLink, Outlet, Navigate, useNavigate } from 'react-router-dom';
+import React from 'react';
+import * as RRD from 'react-router-dom';
+const { NavLink, Outlet, Navigate, useNavigate } = RRD as any;
 import { 
     LayoutDashboard, Users, Building2, Terminal, 
-    Activity, Database, ShieldAlert, LogOut, 
-    ChevronDown, ChevronRight, Settings, Box, Network, ArchiveRestore
+    Activity, ShieldAlert, LogOut, 
+    Network, Megaphone, Coins, ShieldCheck, Zap,
+    Award, Fingerprint, Box, Cpu
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { GodModeBar } from '../components/admin/GodModeBar.tsx';
@@ -13,107 +15,107 @@ import { haptics } from '../lib/haptics.ts';
 export default function AdminLayout() {
     const { user, role, signOut } = useAuth();
     const navigate = useNavigate();
-    const [engExpanded, setEngExpanded] = useState(true);
-
-    const isGod = user?.email === 'admin@oliemusic.dev';
-    const isAdmin = role === 'admin' || isGod;
+    
+    // Trava de Segurança Final: Root Email ou Role DB Admin
+    const isGlobalRoot = user?.email === 'admin@oliemusic.dev';
+    const isAdmin = role === 'admin' || isGlobalRoot;
 
     if (!isAdmin) {
+        console.error("[Maestro Security] Tentativa de acesso administrativo negada.");
         return <Navigate to="/" replace />;
     }
 
     const navItemClass = ({ isActive }: { isActive: boolean }) => cn(
-        "flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all",
+        "flex items-center gap-4 px-6 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all group relative overflow-hidden",
         isActive 
-            ? "bg-purple-600 text-white shadow-lg shadow-purple-900/20" 
-            : "text-slate-400 hover:text-white hover:bg-white/5"
+            ? "bg-sky-600 text-white shadow-2xl shadow-sky-900/40 translate-x-1" 
+            : "text-slate-500 hover:text-slate-200 hover:bg-white/5"
     );
 
     return (
-        <div className="min-h-screen bg-[#020617] flex flex-col md:flex-row text-slate-300 selection:bg-purple-500/30">
-            {/* Sidebar */}
-            <aside className="w-full md:w-72 bg-[#0a0f1d] border-r border-white/5 flex flex-col shrink-0">
-                <div className="p-8 border-b border-white/5 flex items-center gap-4">
-                    <div className="w-10 h-10 bg-purple-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-purple-900/20">
-                        <ShieldAlert size={24} />
+        <div className="min-h-screen bg-[#020617] flex flex-col md:flex-row text-slate-300 selection:bg-sky-500/30">
+            {/* Sidebar de Comando */}
+            <aside className="w-full md:w-80 bg-[#0a0f1d] border-r border-white/5 flex flex-col shrink-0 z-50 shadow-2xl">
+                <div className="p-10 border-b border-white/5 flex items-center gap-4">
+                    <div className="w-12 h-12 bg-sky-600 rounded-[20px] flex items-center justify-center text-white shadow-2xl relative overflow-hidden group cursor-pointer border border-sky-400/20">
+                        <div className="absolute inset-0 bg-gradient-to-tr from-sky-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Cpu size={24} className="group-hover:rotate-12 transition-transform relative z-10" />
                     </div>
                     <div>
-                        <h1 className="text-sm font-black text-white uppercase tracking-tighter">Maestro Admin</h1>
-                        <p className="text-[9px] font-bold text-purple-500 uppercase tracking-widest">Global Control</p>
+                        <h1 className="text-lg font-black text-white uppercase tracking-tighter leading-none italic">
+                            Maestro <span className="text-sky-500">Admin</span>
+                        </h1>
+                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.4em] mt-1.5">Kernel v4.0.1 Stable</p>
                     </div>
                 </div>
 
-                <nav className="flex-1 p-4 space-y-6 overflow-y-auto custom-scrollbar">
-                    <div className="space-y-1">
-                        <p className="px-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-2">Monitoramento</p>
+                <nav className="flex-1 p-6 space-y-10 overflow-y-auto custom-scrollbar pt-10">
+                    <div className="space-y-1.5">
+                        <p className="px-6 text-[9px] font-black text-slate-700 uppercase tracking-[0.5em] mb-4">Núcleo Central</p>
                         <NavLink to="/admin" end className={navItemClass}>
-                            <LayoutDashboard size={18} /> Dashboard
+                            <LayoutDashboard size={18} /> Resumo Executivo
                         </NavLink>
-                        <NavLink to="/admin/architecture" className={navItemClass}>
-                            <Network size={18} /> Architecture Board
+                        <NavLink to="/admin/explorer" className={navItemClass}>
+                            <Activity size={18} /> War Room (Kernel)
                         </NavLink>
                     </div>
 
-                    <div className="space-y-1">
-                        <p className="px-4 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-2">Governança</p>
-                        <NavLink to="/admin/users" className={navItemClass}>
-                            <Users size={18} /> Gestão de Usuários
-                        </NavLink>
+                    <div className="space-y-1.5">
+                        <p className="px-6 text-[9px] font-black text-slate-700 uppercase tracking-[0.5em] mb-4">Governança B2B</p>
                         <NavLink to="/admin/tenants" className={navItemClass}>
-                            <Building2 size={18} /> Escolas / Tenants
+                            <Building2 size={18} /> Tenants / Escolas
+                        </NavLink>
+                        <NavLink to="/admin/users" className={navItemClass}>
+                            <Users size={18} /> Usuários Totais
+                        </NavLink>
+                        <NavLink to="/admin/economy" className={navItemClass}>
+                            <Coins size={18} /> Economia Global
+                        </NavLink>
+                        <NavLink to="/admin/gamification" className={navItemClass}>
+                            <Award size={18} /> Lab Progressão
                         </NavLink>
                     </div>
 
-                    <div className="space-y-1">
-                        <button 
-                            onClick={() => setEngExpanded(!engExpanded)}
-                            className="w-full flex items-center justify-between px-4 py-2 text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] hover:text-slate-400 transition-colors"
-                        >
-                            <span>Engenharia Core</span>
-                            {engExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                        </button>
-                        
-                        {engExpanded && (
-                            <div className="space-y-1 mt-2">
-                                <NavLink to="/admin/db" className={navItemClass}>
-                                    <Database size={16} /> Schema Console
-                                </NavLink>
-                                <NavLink to="/admin/health" className={navItemClass}>
-                                    <Activity size={16} /> Health Monitor
-                                </NavLink>
-                                <NavLink to="/admin/logs" className={navItemClass}>
-                                    <Terminal size={16} /> Kernel Logs
-                                </NavLink>
-                                <NavLink to="/admin/cleanup" className={navItemClass}>
-                                    <ArchiveRestore size={16} /> Análise de Sanidade
-                                </NavLink>
-                            </div>
-                        )}
+                    <div className="space-y-1.5">
+                        <p className="px-6 text-[9px] font-black text-slate-700 uppercase tracking-[0.5em] mb-4">Segurança</p>
+                        <NavLink to="/admin/security" className={navItemClass}>
+                            <Fingerprint size={18} /> Auditoria Master
+                        </NavLink>
+                        <NavLink to="/admin/broadcast" className={navItemClass}>
+                            <Megaphone size={18} /> Global Broadcast
+                        </NavLink>
+                        <NavLink to="/admin/health" className={navItemClass}>
+                            <Terminal size={18} /> System Health
+                        </NavLink>
                     </div>
                 </nav>
 
-                <div className="p-4 border-t border-white/5 space-y-4">
-                    <div className="bg-slate-950/50 p-4 rounded-2xl border border-white/5 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-800 border border-white/10" />
+                <div className="p-6 border-t border-white/5 space-y-4 bg-black/40 backdrop-blur-md">
+                    <div className="bg-slate-900/80 p-4 rounded-3xl border border-white/5 flex items-center gap-4 shadow-inner">
+                        <div className="w-10 h-10 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center shadow-inner relative group">
+                            <ShieldCheck size={20} className="text-emerald-500" />
+                            <div className="absolute inset-0 bg-emerald-500/10 rounded-full animate-pulse" />
+                        </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-[10px] font-black text-white uppercase truncate">{user?.email}</p>
-                            <p className="text-[8px] font-bold text-slate-600 uppercase">SuperAdmin</p>
+                            <p className="text-[8px] font-bold text-slate-600 uppercase">Status: Root Identity</p>
                         </div>
                     </div>
                     <button 
-                        onClick={() => { signOut(); navigate('/'); }}
-                        className="flex items-center gap-3 w-full px-4 py-3 text-xs font-black text-slate-500 hover:text-red-400 transition-colors uppercase tracking-widest"
+                        onClick={() => { haptics.heavy(); signOut(); navigate('/'); }} 
+                        className="flex items-center gap-3 w-full px-6 py-4 text-[10px] font-black text-slate-600 hover:text-red-500 rounded-2xl transition-all uppercase tracking-[0.2em] hover:bg-red-500/5"
                     >
-                        <LogOut size={16} /> Finalizar Sessão
+                        <LogOut size={16} /> Encerrar Núcleo
                     </button>
                 </div>
             </aside>
 
-            {/* Main Surface */}
+            {/* Canvas de Conteúdo */}
             <main className="flex-1 flex flex-col h-screen overflow-hidden">
-                {isGod && <GodModeBar />}
-                <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#020617] p-8">
-                    <div className="max-w-7xl mx-auto">
+                {isGlobalRoot && <GodModeBar />}
+                <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#020617] p-8 md:p-12 relative">
+                    <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-sky-500/5 to-transparent pointer-events-none" />
+                    <div className="max-w-7xl mx-auto relative z-10">
                         <Outlet />
                     </div>
                 </div>

@@ -11,26 +11,30 @@ import Layout from './components/Layout.tsx';
 import AdminLayout from './layouts/AdminLayout.tsx';
 import LoadingScreen from './components/ui/LoadingScreen.tsx';
 
-// Lazy loading de Views com caminhos relativos puros
+// Lazy loading de Views Administrativas
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard.tsx'));
+const SystemExplorer = lazy(() => import('./pages/admin/SystemExplorer.tsx'));
+const TenantManager = lazy(() => import('./pages/admin/TenantManager.tsx'));
+const GlobalEconomy = lazy(() => import('./pages/admin/GlobalEconomy.tsx'));
+const BroadcastCenter = lazy(() => import('./pages/admin/BroadcastCenter.tsx'));
+const UserManager = lazy(() => import('./pages/admin/UserManager.tsx'));
+const SystemHealth = lazy(() => import('./pages/admin/SystemHealth.tsx'));
+const GamificationLab = lazy(() => import('./pages/admin/GamificationLab.tsx'));
+const SecurityAudit = lazy(() => import('./pages/admin/SecurityAudit.tsx'));
+
+// Views de Usuários
 const LandingPage = lazy(() => import('./pages/LandingPage.tsx'));
 const Login = lazy(() => import('./pages/Login.tsx'));
 const ProfileSelector = lazy(() => import('./pages/ProfileSelector.tsx'));
 const StudentDashboard = lazy(() => import('./pages/StudentDashboard.tsx'));
 const PracticeRoom = lazy(() => import('./pages/PracticeRoom.tsx'));
-const ArcadePage = lazy(() => import('./pages/ArcadePage.tsx'));
-const LibraryPage = lazy(() => import('./pages/LibraryPage.tsx'));
 const ProfessorDashboard = lazy(() => import('./pages/ProfessorDashboard.tsx'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard.tsx'));
-const SystemExplorer = lazy(() => import('./pages/admin/SystemExplorer.tsx'));
-const DatabaseConsole = lazy(() => import('./pages/admin/DatabaseConsole.tsx'));
-const SettingsPage = lazy(() => import('./pages/SettingsPage.tsx'));
-const NotFound = lazy(() => import('./pages/NotFound.tsx'));
 
 export default function App() {
   const { user } = useAuth();
   
-  // Regra de Ouro: adm@adm.com é o Root do Kernel
-  const isGlobalAdmin = user?.email === 'adm@adm.com';
+  // SOBERANIA DE ACESSO: Email Root ou Role Admin
+  const isGlobalAdmin = user?.email === 'admin@oliemusic.dev';
 
   return (
     <HashRouter>
@@ -38,39 +42,39 @@ export default function App() {
         <Suspense fallback={<LoadingScreen />}>
           <OmniSearch />
           <Routes>
-            {/* Landing & Autenticação */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/app" element={<ProfileSelector />} />
             
-            {/* Área do Aluno (Dashboard, Prática, Jogos) */}
+            {/* Jornada do Aluno */}
             <Route path="/student" element={<ProtectedRoute allowedRoles={[UserRole.Student]}><Layout /></ProtectedRoute>}>
               <Route index element={<StudentDashboard />} />
               <Route path="practice" element={<PracticeRoom />} />
-              <Route path="arcade" element={<ArcadePage />} />
-              <Route path="library" element={<LibraryPage />} />
-              <Route path="settings" element={<SettingsPage />} />
             </Route>
             
-            {/* Área do Professor (Cockpit de Aula) */}
+            {/* Jornada do Professor */}
             <Route path="/professor" element={<ProtectedRoute allowedRoles={[UserRole.Professor]}><Layout /></ProtectedRoute>}>
               <Route index element={<ProfessorDashboard />} />
-              <Route path="library" element={<LibraryPage />} />
-              <Route path="settings" element={<SettingsPage />} />
             </Route>
             
-            {/* Área Administrativa (God Mode, Diagnóstico, Banco) */}
+            {/* MAESTRO ADMIN CONSOLE (ROTA PROTEGIDA) */}
             <Route path="/admin" element={
-                <ProtectedRoute allowedRoles={isGlobalAdmin ? [UserRole.Admin, UserRole.Student, UserRole.Professor, UserRole.Manager] : [UserRole.Admin]}>
+                <ProtectedRoute allowedRoles={isGlobalAdmin ? [UserRole.Admin, UserRole.Student, UserRole.Professor, UserRole.Manager, UserRole.Guardian] : [UserRole.Admin]}>
                     <AdminLayout />
                 </ProtectedRoute>
             }>
               <Route index element={<AdminDashboard />} />
               <Route path="explorer" element={<SystemExplorer />} />
-              <Route path="db" element={<DatabaseConsole />} />
+              <Route path="tenants" element={<TenantManager />} />
+              <Route path="economy" element={<GlobalEconomy />} />
+              <Route path="gamification" element={<GamificationLab />} />
+              <Route path="security" element={<SecurityAudit />} />
+              <Route path="broadcast" element={<BroadcastCenter />} />
+              <Route path="users" element={<UserManager />} />
+              <Route path="health" element={<SystemHealth />} />
             </Route>
             
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
       </AppLoader>
