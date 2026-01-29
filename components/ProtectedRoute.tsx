@@ -1,6 +1,9 @@
+
 import React from 'react';
-import { Navigate, useLocation, Outlet } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+// FIX: Using any to bypass react-router-dom export errors
+import * as RRD from 'react-router-dom';
+const { Navigate, useLocation, Outlet } = RRD as any;
+import { useAuth } from '../contexts/AuthContext.tsx';
 
 interface ProtectedRouteProps {
   children?: React.ReactNode;

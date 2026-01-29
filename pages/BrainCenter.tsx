@@ -1,15 +1,12 @@
-
-
 import React, { useState, useEffect } from 'react';
-// FIX: CardDescription is now exported
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card.tsx';
+import { Button } from '../components/ui/Button.tsx';
 import { Brain, Database, Upload, BookOpen, Trash2, Loader2, Sparkles, FileText } from 'lucide-react';
-import { maestroBrain } from '../services/maestroBrain';
-import { supabase } from '../lib/supabaseClient';
-import { notify } from '../lib/notification';
+import { maestroBrain } from '../services/maestroBrain.ts';
+import { supabase } from '../lib/supabaseClient.ts';
+import { notify } from '../lib/notification.ts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatDate } from '../lib/date';
+import { formatDate } from '../lib/date.ts';
 
 export default function BrainCenter() {
     const [docs, setDocs] = useState<any[]>([]);
@@ -59,7 +56,6 @@ export default function BrainCenter() {
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Editor de Ingestão */}
                 <Card className="lg:col-span-7 bg-slate-900 border-white/5 rounded-[40px] shadow-2xl">
                     <CardHeader>
                         <CardTitle className="text-xl flex items-center gap-2">
@@ -87,7 +83,6 @@ export default function BrainCenter() {
                                 className="w-full bg-slate-950 border border-white/5 rounded-2xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-sky-500/20 resize-none font-mono"
                             />
                         </div>
-                        {/* FIX: The 'isLoading' and 'leftIcon' props are now supported by the updated Button component */}
                         <Button 
                             onClick={handleTrain} 
                             disabled={isTraining || !input.content}
@@ -100,7 +95,6 @@ export default function BrainCenter() {
                     </CardContent>
                 </Card>
 
-                {/* Lista de Documentos Aprendidos */}
                 <div className="lg:col-span-5 space-y-6">
                     <div className="flex items-center gap-2 px-2">
                         <BookOpen size={16} className="text-slate-500" />

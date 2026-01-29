@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+// FIX: Using any to bypass react-router-dom export errors in this environment
+import * as RRD from 'react-router-dom';
+const { useNavigate } = RRD as any;
 import { useCurrentStudent } from '../hooks/useCurrentStudent.ts';
-import { getStudentMilestones, getPracticeTrends } from '../services/dataService.ts';
+import { getStudentMilestones, getPracticeTrends, getLatestPracticeStats } from '../services/dataService.ts';
 import { getMaestroStudyPlan, getCrucibleChallenge } from '../services/aiService.ts';
 import StudentHud from '../components/StudentHud.tsx';
 import { ModuleMap } from '../components/dashboard/ModuleMap.tsx';
@@ -15,202 +17,228 @@ import { AIRecommendationCard } from '../components/dashboard/AIRecommendationCa
 import { AccuracyHeatmap } from '../components/dashboard/AccuracyHeatmap.tsx';
 import { PracticeInsights } from '../components/dashboard/PracticeInsights.tsx';
 import { CrucibleCard } from '../components/dashboard/CrucibleCard.tsx';
-import { DashboardSkeleton, Skeleton } from '../components/ui/Skeleton.tsx';
+import { DashboardSkeleton } from '../components/ui/Skeleton.tsx';
 import { Dialog, DialogContent, DialogTitle } from '../components/ui/Dialog.tsx';
-import { LearningModule } from '../types.ts';
-import { Zap, Shield, Map as MapIcon, Flag, Target, Play } from 'lucide-react';
-import { usePageTitle } from '../hooks/usePageTitle.ts';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card.tsx';
 import { Button } from '../components/ui/Button.tsx';
+import { Zap, Map as MapIcon, Flag, Play, Sparkles } from 'lucide-react';
+import { usePageTitle } from '../hooks/usePageTitle.ts';
 import { haptics } from '../lib/haptics.ts';
-import { cn } from '../lib/utils.ts';
 
 export default function StudentDashboard() {
-  usePageTitle("Minha Jornada Epic");
-  const { student, loading: studentLoading } = useCurrentStudent();
-  const navigate = useNavigate();
-  
-  const [activeTab, setActiveTab] = useState('journey');
-  const [selectedModule, setSelectedModule] = useState<LearningModule | null>(null);
-  const [milestones, setMilestones] = useState<any[]>([]);
-  const [aiRecommendation, setAiRecommendation] = useState<any | null>(null);
-  const [crucible, setCrucible] = useState<any | null>(null);
-  const [lastStats, setLastStats] = useState<any | null>(null);
-  const [loadingAI, setLoadingAI] = useState(false);
+    usePageTitle("Minha Jornada Epic");
+    const { student, loading, error } = useCurrentStudent();
+    const navigate = useNavigate();
+    const [milestones, setMilestones] = useState<any[]>([]);
+    const [trends, setTrends] = useState<any[]>([]);
+    const [latestStats, setLatestStats] = useState<any>(null);
+    const [recommendation, setRecommendation] = useState<any>(null);
+    const [crucible, setCrucible] = useState<any>(null);
+    const [selectedModule, setSelectedModule] = useState<any>(null);
 
-  const modules: LearningModule[] = [
-      { id: 'mod_1', trail_id: 't1', title: "Anatomia e Sons", description: "Conheça seu instrumento e a diferença sagrada entre Elefante e Passarinho.", order_index: 1, icon_type: 'theory', xp_reward: 50, required_missions: [] },
-      { id: 'mod_2', trail_id: 't1', title: "A Mão do Ritmo", description: "Domine o PIMA e a palhetada alternada básica para desbloquear o poder rítmico.", order_index: 2, icon_type: 'technique', xp_reward: 80, required_missions: [] },
-      { id: 'mod_3', trail_id: 't1', title: "Primeira Canção", description: "Toque 'We Will Rock You' usando o acorde Em e prove seu valor no palco.", order_index: 3, icon_type: 'repertoire', xp_reward: 100, required_missions: [] },
-      { id: 'mod_boss', trail_id: 't1', title: "O Desafio de Harry", description: "Enfrente o Mestre apresentando o Riff de Harry Potter. Vitória garantida?", order_index: 4, icon_type: 'boss', xp_reward: 250, required_missions: [] },
-  ];
+    useEffect(() => {
+        if (student) {
+            loadDashboardData();
+        }
+    }, [student]);
 
-  useEffect(() => {
-    const initAI = async () => {
-        if (!student?.id) return;
-        getStudentMilestones(student.id).then(setMilestones).catch(() => {});
-        setLoadingAI(true);
+    async function loadDashboardData() {
         try {
-            const trends = await getPracticeTrends(student.id, 5);
-            setLastStats(trends[0] || null);
-            if (trends.length > 0) {
-                const [plan, boss] = await Promise.all([
-                    getMaestroStudyPlan(student.name, trends),
-                    getCrucibleChallenge(student.name, trends[0])
-                ]);
-                setAiRecommendation(plan);
-                setCrucible(boss);
-            } else {
-                setAiRecommendation({
-                    title: "O Despertar do Maestro",
-                    description: "Realize sua primeira prática para que eu possa traçar seu perfil técnico.",
-                    focusArea: "technique",
-                    xpReward: 50,
-                    maestroInsight: "O primeiro passo é o mais importante da sinfonia."
-                });
+            const [ms, tr, stats] = await Promise.all([
+                getStudentMilestones(student!.id),
+                getPracticeTrends(student!.id),
+                getLatestPracticeStats(student!.id)
+            ]);
+            setMilestones(ms);
+            setTrends(tr);
+            setLatestStats(stats);
+            
+            // Load AI Plan and Crucible
+            const plan = await getMaestroStudyPlan(student!.name, tr);
+            setRecommendation(plan);
+            
+            if (tr.length > 0 || stats) {
+                const challenge = await getCrucibleChallenge(student!.name, stats || tr[0]);
+                setCrucible(challenge);
             }
         } catch (e) {
-            console.error("AI Recommendation Failure:", e);
-        } finally {
-            setLoadingAI(false);
+            console.error("Dashboard load error", e);
         }
+    }
+
+    const handleModuleSelect = (mod: any) => {
+        haptics.heavy();
+        setSelectedModule(mod);
     };
-    initAI();
-  }, [student?.id, student?.name]);
 
-  if (studentLoading || !student) return <DashboardSkeleton />;
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return "Bom dia";
+        if (hour < 18) return "Boa tarde";
+        return "Boa noite";
+    };
 
-  const handleStartModule = () => {
-      if (!selectedModule) return;
-      haptics.heavy();
-      navigate('/student/practice');
-  };
+    if (loading) return <DashboardSkeleton />;
+    if (error || !student) return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-6">
+            <div className="p-8 text-center text-slate-400 bg-slate-900/50 rounded-[32px] border border-white/5 max-w-md">
+                <AlertCircle className="mx-auto mb-4 text-amber-500" size={48} />
+                <h2 className="text-xl font-black text-white uppercase italic">Sincronia Pendente</h2>
+                <p className="mt-4 text-sm leading-relaxed">Seu perfil de aluno ainda não foi vinculado a esta conta. Utilize o código fornecido pelo seu professor para ativar sua jornada.</p>
+                <Button onClick={() => navigate('/student/link')} className="mt-8 w-full">Vincular Agora</Button>
+            </div>
+        </div>
+    );
 
-  return (
-    <div className="max-w-7xl mx-auto space-y-10 pb-24 animate-in fade-in duration-700">
-      <StudentHud student={student} />
-      <div className="relative">
-          <AnimatePresence mode="wait">
-            {loadingAI ? (
-                <div className="bg-slate-900/40 border-2 border-slate-800 rounded-[32px] p-8 flex items-center gap-6 animate-pulse">
-                     <div className="w-16 h-16 bg-slate-800 rounded-2xl" />
-                     <div className="flex-1 space-y-3">
-                         <Skeleton className="h-4 w-32" />
-                         <Skeleton className="h-6 w-3/4" />
-                     </div>
-                </div>
-            ) : (
-                <div className="space-y-8">
+    const MOCK_MODULES = [
+        { id: 'mod-1', trail_id: '1', title: 'Fundamentos do Elefante', description: 'Notas graves e postura inicial.', order_index: 0, icon_type: 'theory', xp_reward: 100, required_missions: [] },
+        { id: 'mod-2', trail_id: '1', title: 'O Voo do Passarinho', description: 'Notas agudas e leveza no toque.', order_index: 1, icon_type: 'technique', xp_reward: 150, required_missions: [] },
+        { id: 'mod-3', trail_id: '1', title: 'Primeiros Riffs', description: 'Músicas simples com 2 acordes.', order_index: 2, icon_type: 'repertoire', xp_reward: 200, required_missions: [] },
+        { id: 'mod-4', trail_id: '1', title: 'O Guardião das Cordas', description: 'Desafio final do módulo 1.', order_index: 3, icon_type: 'boss', xp_reward: 500, required_missions: [] },
+    ];
+
+    return (
+        <div className="space-y-8 animate-in fade-in duration-700 max-w-7xl mx-auto pb-24 px-4">
+            <div className="flex items-center gap-2 mb-2 px-1">
+                <Sparkles size={16} className="text-sky-400 animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500">
+                    {getGreeting()}, {student.name.split(' ')[0]}! Sincronia Estável.
+                </span>
+            </div>
+
+            <NoticeBoardWidget studentId={student.id} />
+            
+            <StudentHud student={student} />
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="lg:col-span-8 space-y-8">
+                    {recommendation && (
+                        <AIRecommendationCard 
+                            recommendation={recommendation} 
+                            onAction={() => navigate('/student/practice')} 
+                        />
+                    )}
+
+                    {recommendation?.maestroInsight && (
+                        <PracticeInsights 
+                            insight={recommendation.maestroInsight} 
+                            focusArea={recommendation.focusArea as any} 
+                        />
+                    )}
+
+                    <Card className="bg-slate-900 border-white/5 rounded-[48px] overflow-hidden shadow-2xl">
+                        <CardHeader className="p-8 border-b border-white/5 flex flex-row items-center justify-between bg-slate-950/20">
+                            <div>
+                                <CardTitle className="text-xl flex items-center gap-2 uppercase tracking-widest italic">
+                                    <MapIcon className="text-sky-500" /> Mapa da Jornada
+                                </CardTitle>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <ModuleMap 
+                                modules={MOCK_MODULES as any} 
+                                completedIds={student.completed_module_ids || []}
+                                onSelectModule={handleModuleSelect}
+                                avatarUrl={student.avatar_url}
+                                studentName={student.name}
+                            />
+                        </CardContent>
+                    </Card>
+
+                    {latestStats?.noteHeatmap ? (
+                        <AccuracyHeatmap heatmap={latestStats.noteHeatmap} />
+                    ) : (
+                        <div className="p-12 text-center bg-slate-900/40 rounded-[32px] border border-dashed border-slate-800">
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Toque sua primeira nota para mapear sua precisão!</p>
+                        </div>
+                    )}
+
                     {crucible && (
                         <CrucibleCard 
                             challenge={crucible} 
-                            onStart={() => navigate('/student/practice', { state: { crucible: true, targetNotes: crucible.targetNotes } })} 
+                            onStart={() => navigate('/student/practice')} 
                         />
-                    )}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <PracticeInsights 
-                            insight={aiRecommendation?.maestroInsight} 
-                            focusArea={aiRecommendation?.focusArea || 'technique'} 
-                        />
-                        <AIRecommendationCard 
-                            recommendation={aiRecommendation} 
-                            onAction={() => navigate('/student/practice', { state: { focusArea: aiRecommendation.focusArea } })} 
-                        />
-                    </div>
-                    {lastStats?.noteHeatmap && (
-                        <AccuracyHeatmap heatmap={lastStats.noteHeatmap} />
                     )}
                 </div>
-            )}
-          </AnimatePresence>
-      </div>
-      <NoticeBoardWidget studentId={student.id} />
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          <div className="lg:col-span-8 space-y-10">
-              <EvolutionCard studentId={student.id} />
-              <div className="space-y-4">
-                  <div className="flex items-center gap-3 px-2">
-                      <Flag size={14} className="text-sky-400" />
-                      <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500">Marcos da Jornada</h3>
-                  </div>
-                  <MilestoneTimeline milestones={milestones} />
-              </div>
-              <div className="flex flex-col md:flex-row justify-between items-center gap-4 px-2 border-b border-white/5 pb-6">
-                  <div className="flex items-center gap-4">
-                      <div className="p-3 bg-slate-900 rounded-2xl border border-white/10 text-sky-400">
-                          <MapIcon size={24} />
-                      </div>
-                      <div>
-                          <h3 className="text-xl font-black text-white uppercase tracking-tighter">Mundo Musical</h3>
-                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Explore a Trilha do Maestro</p>
-                      </div>
-                  </div>
-                  <div className="flex bg-slate-900/50 p-1.5 rounded-2xl border border-white/5 backdrop-blur-md">
-                    <button onClick={() => { setActiveTab('journey'); haptics.light(); }} className={cn("px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all relative", activeTab === 'journey' ? "bg-sky-600 text-white shadow-lg" : "text-slate-500 hover:text-white")}>
-                        Mapa Mundi
-                    </button>
-                    <button onClick={() => { setActiveTab('badges'); haptics.light(); }} className={cn("px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all relative", activeTab === 'badges' ? "bg-purple-600 text-white shadow-lg" : "text-slate-500 hover:text-white")}>
-                        Conquistas
-                    </button>
-                  </div>
-              </div>
-              <AnimatePresence mode="wait">
-                  {activeTab === 'journey' ? (
-                      <ModuleMap 
-                        key="map"
-                        modules={modules} 
-                        completedIds={student.completed_module_ids || []} 
-                        onSelectModule={setSelectedModule} 
-                        avatarUrl={student.avatar_url}
-                        studentName={student.name}
-                      />
-                  ) : (
-                      <div className="py-32 flex flex-col items-center justify-center gap-6 border-2 border-dashed border-slate-800 rounded-[64px] bg-slate-900/20">
-                          <Shield size={64} className="text-slate-700 animate-pulse" />
-                          <div className="text-center">
-                              <p className="text-slate-300 font-black uppercase tracking-[0.3em]">Hall da Fama</p>
-                              <p className="text-slate-600 text-xs mt-2 uppercase font-bold tracking-widest">Complete desafios para ver badges aqui!</p>
-                          </div>
-                      </div>
-                  )}
-              </AnimatePresence>
-          </div>
-          <div className="lg:col-span-4 space-y-10">
-              <ConcertHall professorId={student.professor_id} />
-              <Leaderboard professorId={student.professor_id} currentStudentId={student.id} />
-          </div>
-      </div>
-      <Dialog open={!!selectedModule} onOpenChange={() => setSelectedModule(null)}>
-          <DialogContent className="max-w-md bg-slate-950 border-slate-800 rounded-[40px] p-0 overflow-hidden shadow-2xl ring-1 ring-white/10">
-              {selectedModule && (
-                  <div className="relative">
-                      <div className="h-56 bg-gradient-to-br from-sky-600 to-indigo-800 flex items-center justify-center relative overflow-hidden">
-                          <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
-                          <motion.div initial={{ scale: 0.5, rotate: -20, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 20 }} className="bg-white/10 p-10 rounded-full backdrop-blur-xl border border-white/20 shadow-2xl">
-                              <Target size={80} className="text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]" />
-                          </motion.div>
-                      </div>
-                      <div className="p-10 space-y-8">
-                          <div className="space-y-3">
-                              <span className="text-[10px] font-black uppercase text-sky-500 tracking-[0.5em] flex items-center gap-2">
-                                  <Zap size={14} fill="currentColor" /> Novo Território Descoberto
-                              </span>
-                              <DialogTitle className="text-4xl font-black text-white uppercase tracking-tighter leading-none">{selectedModule.title}</DialogTitle>
-                          </div>
-                          <p className="text-slate-400 text-base leading-relaxed font-medium">"{selectedModule.description}"</p>
-                          <div className="bg-slate-900/80 p-6 rounded-[32px] border border-white/5 flex items-center justify-between shadow-inner">
-                              <div className="space-y-1">
-                                  <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Tesouro Garantido</p>
-                                  <p className="text-2xl font-black text-amber-500 flex items-center gap-2">+{selectedModule.xp_reward} <span className="text-xs uppercase text-slate-600">XP</span></p>
-                              </div>
-                              <Button onClick={handleStartModule} className="px-10 py-5 rounded-2xl text-xs font-black uppercase tracking-widest" leftIcon={Play}>Entrar na Fase</Button>
-                          </div>
-                      </div>
-                  </div>
-              )}
-          </DialogContent>
-      </Dialog>
-      <MaestroAIChat student={student} />
-    </div>
+
+                <aside className="lg:col-span-4 space-y-8">
+                    <EvolutionCard studentId={student.id} />
+                    
+                    <Card className="bg-slate-900 border-white/5 rounded-[32px] overflow-hidden shadow-2xl">
+                        <CardHeader className="bg-slate-950/40 p-6 border-b border-white/5">
+                            <CardTitle className="text-xs uppercase tracking-[0.3em] text-slate-500 flex items-center gap-2">
+                                <Zap size={14} className="text-amber-500" /> Ranking da Turma
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                            <Leaderboard professorId={student.professor_id} currentStudentId={student.id} />
+                        </CardContent>
+                    </Card>
+
+                    <ConcertHall professorId={student.professor_id} />
+                    
+                    <Card className="bg-slate-900 border-white/5 rounded-[32px] overflow-hidden">
+                        <CardHeader className="bg-slate-950/40 p-6 border-b border-white/5">
+                            <CardTitle className="text-xs uppercase tracking-[0.3em] text-slate-500 flex items-center gap-2">
+                                <Flag size={14} className="text-sky-500" /> Próximos Passos
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <MilestoneTimeline milestones={milestones} />
+                        </CardContent>
+                    </Card>
+                </aside>
+            </div>
+
+            <MaestroAIChat student={student} />
+
+            <Dialog open={!!selectedModule} onOpenChange={() => setSelectedModule(null)}>
+                <DialogContent className="bg-slate-900 border-slate-800 rounded-[40px] max-w-md shadow-2xl">
+                    {selectedModule && (
+                        <div className="space-y-6 text-center p-4">
+                            <div className="w-20 h-20 bg-sky-500/10 rounded-3xl flex items-center justify-center mx-auto border border-sky-500/20">
+                                <Zap size={32} className="text-sky-400" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-2xl font-black text-white uppercase tracking-tighter">
+                                    {selectedModule.title}
+                                </DialogTitle>
+                                <p className="text-slate-400 mt-2 font-medium">
+                                    {selectedModule.description}
+                                </p>
+                            </div>
+                            <div className="bg-slate-950 p-6 rounded-3xl border border-white/5 flex items-center justify-between">
+                                <div className="text-left">
+                                    <p className="text-[10px] font-black text-slate-600 uppercase">Recompensa</p>
+                                    <p className="text-xl font-black text-white">+{selectedModule.xp_reward} XP</p>
+                                </div>
+                                <Button onClick={() => { setSelectedModule(null); navigate('/student/practice'); }} leftIcon={Play}>Explorar</Button>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+        </div>
+    );
+}
+
+function AlertCircle(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </svg>
   );
 }

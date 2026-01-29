@@ -1,5 +1,5 @@
-import { supabase } from '../lib/supabaseClient';
-import { ProfessorDashboardStats, StudentGuardianOverview } from '../types';
+import { supabase } from '../lib/supabaseClient.ts';
+import { ProfessorDashboardStats, StudentGuardianOverview } from '../types.ts';
 
 export const getProfessorDashboardStats = async (professorId: string): Promise<ProfessorDashboardStats> => {
     try {

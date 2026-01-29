@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import * as RRD from 'react-router-dom';
+const { useNavigate, useLocation, Link } = RRD as any;
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card.tsx';
-import { Mail, Lock, ShieldCheck, Music, AlertCircle, Loader2, Eye, EyeOff, LogOut, RefreshCw, Terminal, Code2, Users, GraduationCap, Building2 } from 'lucide-react';
+import { Mail, Lock, ShieldCheck, Music, AlertCircle, Loader2, Eye, EyeOff, LogOut, RefreshCw, Terminal, Code2, Users, GraduationCap, Building2, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,13 +15,12 @@ import { Button } from '../components/ui/Button.tsx';
 import { cn, motionVariants } from '../lib/utils.ts';
 import { UserRole } from '../types.ts';
 
+// FIX: Casting motion components to any
+const M = motion as any;
+
 const loginSchema = z.object({
-  email: z.string()
-    .min(1, "O e-mail é obrigatório")
-    .email("Digite um endereço de e-mail válido")
-    .trim(),
-  password: z.string()
-    .min(6, "A senha deve ter no mínimo 6 caracteres")
+  email: z.string().min(1, "O e-mail é obrigatório").email("E-mail inválido").trim(),
+  password: z.string().min(6, "A senha deve ter no mínimo 6 caracteres")
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -37,13 +37,8 @@ export default function Login() {
   const [refreshing, setRefreshing] = useState(false);
   const [showDevTools, setShowDevTools] = useState(false);
 
-  const { 
-    register, 
-    handleSubmit, 
-    formState: { errors, isSubmitting } 
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-    mode: 'onTouched'
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema)
   });
 
   useEffect(() => {
@@ -52,61 +47,47 @@ export default function Login() {
         setInternalNavigating(true);
         const fromPath = location.state?.from?.pathname;
         const destination = (fromPath && fromPath !== '/login' && fromPath.startsWith(`/${role}`)) 
-          ? fromPath 
-          : `/${role}`;
-        
+          ? fromPath : `/${role}`;
         navigate(destination, { replace: true });
       } else {
         setNoRoleDetected(true);
       }
-    } else if (!user && !loading) {
+    } else {
       setNoRoleDetected(false);
     }
-  }, [user, role, loading, navigate, location]);
+  }, [user, role, loading]);
 
   const onSubmit = async (data: LoginFormData) => {
     uiSounds.playClick();
-    setNoRoleDetected(false);
     try {
       await signIn(data.email, data.password);
-      notify.success("Sinfonia iniciada!");
     } catch (err: any) {
-      console.error("[Login] Erro:", err);
-      const message = err.message === 'Invalid login credentials' 
-        ? "E-mail ou senha inválidos." 
-        : "Erro de conexão ou credenciais inválidas.";
-      notify.error(message);
+      notify.error("Credenciais inválidas ou erro de conexão.");
     }
   };
 
   const handleDevLogin = async (roleTarget: string) => {
     uiSounds.playSuccess();
-    const mockId = `dev-${roleTarget}-id`;
-    await devLogin(mockId, roleTarget);
-    notify.info(`Modo Dev Ativado: ${roleTarget.toUpperCase()}`);
+    // UUIDs reais que batem com o seed do setup.sql
+    const roleMap: Record<string, string> = {
+        admin: '45990533-ad8e-44f7-918f-70df3b2659b2',
+        professor: '65c7ca9a-028b-45d3-9736-2f1dce6221be',
+        student: '3c0c686d-fff6-404d-baf8-9f1b25e9e842'
+    };
+    await devLogin(roleMap[roleTarget] || 'mock-id', roleTarget);
   };
 
   if (internalNavigating) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
-        <Loader2 className="w-12 h-12 text-sky-500 animate-spin mb-4" />
-        <p className="text-slate-400 font-bold animate-pulse tracking-widest uppercase text-[10px]">Afinando instrumentos...</p>
+        <div className="relative mb-8">
+            <div className="absolute -inset-8 bg-sky-500/20 blur-3xl rounded-full animate-pulse" />
+            <Loader2 className="w-12 h-12 text-sky-500 animate-spin relative z-10" />
+        </div>
+        <p className="text-slate-400 font-black animate-pulse tracking-[0.3em] uppercase text-[10px]">Maestro Kernel Booting...</p>
       </div>
     );
   }
-
-  const getSuggestedRole = (emailInput: string = '') => {
-    const email = emailInput.toLowerCase().trim();
-    if (email === 'adm@adm.com') return { role: 'admin', name: 'God Mode Admin' };
-    if (email === 'p@adm.com') return { role: 'professor', name: 'Mestre Maestro' };
-    if (email === 'a@adm.com' || email === 'd@adm.com') return { role: 'student', name: 'Aluno Pro' };
-    if (email === 'r@adm.com') return { role: 'guardian', name: 'Responsável Atento' };
-    return { role: 'student', name: 'Novo Aluno' };
-  };
-
-  const { role: suggestedRole, name: suggestedName } = getSuggestedRole(user?.email || '');
-
-  const repairSql = `-- Script de Reparo RLS\nINSERT INTO public.profiles (id, email, role, full_name)\nVALUES ('${user?.id}', '${user?.email}', '${suggestedRole}', '${suggestedName}')\nON CONFLICT (id) DO UPDATE SET role = '${suggestedRole}';`;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4 relative overflow-hidden">
@@ -117,125 +98,87 @@ export default function Login() {
             onClick={() => setShowDevTools(!showDevTools)}
             className={cn(
                 "w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-2xl border-4",
-                showDevTools 
-                    ? "bg-purple-600 border-white text-white rotate-90" 
-                    : "bg-slate-900 border-purple-500/50 text-purple-400 hover:scale-110 animate-pulse-purple"
+                showDevTools ? "bg-purple-600 border-white text-white rotate-90" : "bg-slate-900 border-purple-500/50 text-purple-400"
             )}
           >
               <Code2 size={24} />
           </button>
       </div>
 
-      <motion.div 
-        variants={motionVariants.container as any}
-        initial="hidden"
-        animate="show"
-        className="w-full max-w-md space-y-8 relative z-10"
-      >
+      <M.div variants={motionVariants.container as any} initial="hidden" animate="show" className="w-full max-w-md space-y-8 relative z-10">
         <div className="text-center space-y-2">
-          <motion.div variants={motionVariants.slideUp as any} className="flex justify-center mb-6">
-            <div className="relative p-6 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl">
+          <M.div variants={motionVariants.slideUp as any} className="flex justify-center mb-6">
+            <div className="relative p-6 bg-slate-900 border border-slate-800 rounded-[32px] shadow-2xl">
               <Music size={48} className="text-sky-400" />
+              <Sparkles className="absolute -top-2 -right-2 text-sky-500 animate-pulse" />
             </div>
-          </motion.div>
-          <motion.h1 variants={motionVariants.slideUp as any} className="text-4xl font-black text-white tracking-tighter">
+          </M.div>
+          <M.h1 variants={motionVariants.slideUp as any} className="text-4xl font-black text-white tracking-tighter uppercase italic">
             OlieMusic <span className="text-sky-500">GCM</span>
-          </motion.h1>
+          </M.h1>
         </div>
 
-        <motion.div variants={motionVariants.slideUp as any}>
-          <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-xl shadow-2xl overflow-hidden ring-1 ring-white/5">
-            <CardHeader className="space-y-1 pb-6 text-center border-b border-slate-800/50">
-              <CardTitle className="text-2xl font-bold text-white tracking-tight">Login Maestro</CardTitle>
+        <M.div variants={motionVariants.slideUp as any}>
+          <Card className="border-slate-800 bg-slate-900/60 backdrop-blur-xl shadow-2xl overflow-hidden rounded-[40px]">
+            <CardHeader className="space-y-1 pb-6 text-center border-b border-white/5">
+              <CardTitle className="text-xl font-black text-white uppercase tracking-widest">Acesso Maestro</CardTitle>
             </CardHeader>
 
             <CardContent className="pt-8">
               <AnimatePresence mode="wait">
-                {showDevTools ? (
-                    <motion.div
-                        key="dev-tools"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="mb-6 p-6 bg-purple-600/10 border border-purple-500/30 rounded-[32px] shadow-inner"
-                    >
-                        <p className="text-[10px] font-black uppercase text-purple-400 mb-4 flex items-center gap-2">
-                            <Terminal size={12} /> Bypass Maestro (DevMode)
-                        </p>
-                        <div className="grid grid-cols-2 gap-3">
-                            <button onClick={() => handleDevLogin(UserRole.Student)} className="p-4 bg-slate-900/80 border border-purple-500/30 rounded-2xl text-[10px] font-black uppercase text-purple-300 hover:bg-purple-600 hover:text-white transition-all flex flex-col items-center gap-2">
-                                <Users size={20} /> Aluno
-                            </button>
-                            <button onClick={() => handleDevLogin(UserRole.Professor)} className="p-4 bg-slate-900/80 border border-purple-500/30 rounded-2xl text-[10px] font-black uppercase text-purple-300 hover:bg-purple-600 hover:text-white transition-all flex flex-col items-center gap-2">
-                                <GraduationCap size={20} /> Mestre
-                            </button>
-                            <button onClick={() => handleDevLogin(UserRole.Manager)} className="p-4 bg-slate-900/80 border border-purple-500/30 rounded-2xl text-[10px] font-black uppercase text-purple-300 hover:bg-purple-600 hover:text-white transition-all flex flex-col items-center gap-2">
-                                <Building2 size={20} /> Gestor
-                            </button>
-                            <button onClick={() => handleDevLogin(UserRole.Admin)} className="p-4 bg-slate-900/80 border border-purple-500/30 rounded-2xl text-[10px] font-black uppercase text-purple-300 hover:bg-purple-600 hover:text-white transition-all flex flex-col items-center gap-2">
-                                <ShieldCheck size={20} /> Admin
-                            </button>
-                        </div>
-                    </motion.div>
-                ) : null}
+                {showDevTools && (
+                    <M.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="mb-6 grid grid-cols-2 gap-3 bg-purple-600/5 p-4 rounded-3xl border border-purple-500/20">
+                        <button onClick={() => handleDevLogin('admin')} className="p-3 bg-slate-900 rounded-xl text-[9px] font-black uppercase text-purple-400 border border-purple-500/20 hover:bg-purple-600 hover:text-white transition-all">Super Admin</button>
+                        <button onClick={() => handleDevLogin('professor')} className="p-3 bg-slate-900 rounded-xl text-[9px] font-black uppercase text-purple-400 border border-purple-500/20 hover:bg-purple-600 hover:text-white transition-all">Professor</button>
+                        <button onClick={() => handleDevLogin('student')} className="p-3 bg-slate-900 rounded-xl text-[9px] font-black uppercase text-purple-400 border border-purple-500/20 hover:bg-purple-600 hover:text-white transition-all">Aluno Demo</button>
+                        <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="p-3 bg-red-950/20 rounded-xl text-[9px] font-black uppercase text-red-500 border border-red-500/20">Reset Kernel</button>
+                    </M.div>
+                )}
 
                 {noRoleDetected ? (
-                  <motion.div 
-                    key="no-role"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="space-y-6"
-                  >
-                    <div className="p-6 rounded-2xl border bg-amber-500/10 border-amber-500/30 space-y-4">
-                      <div className="flex items-center gap-3 font-bold text-amber-400">
-                        <AlertCircle size={24} />
-                        Perfil Incompleto
+                  <M.div key="no-role" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 text-center">
+                    <div className="p-8 rounded-[32px] border bg-amber-500/5 border-amber-500/20 space-y-4">
+                      <AlertCircle size={48} className="text-amber-500 mx-auto" />
+                      <div>
+                        <h3 className="text-lg font-black text-white uppercase tracking-tight">Sincronia Pendente</h3>
+                        <p className="text-xs text-slate-400 leading-relaxed mt-2">
+                          Usuário autenticado, mas seu perfil não foi localizado na camada pública. Isso pode ser um delay de rede.
+                        </p>
                       </div>
-                      <p className="text-sm text-slate-300 leading-relaxed">
-                        Usuário autenticado, mas o perfil não foi localizado na tabela pública.
-                      </p>
                     </div>
                     
                     <div className="flex flex-col gap-3">
-                      {/* FIX: The 'variant', 'isLoading' and 'leftIcon' props are now supported by the updated Button component */}
-                      <Button variant="primary" className="w-full" onClick={() => { setRefreshing(true); refreshProfile().then(() => setRefreshing(false)); }} isLoading={refreshing} leftIcon={RefreshCw}>
-                        Sincronizar
+                      <Button variant="primary" className="w-full py-6 rounded-2xl font-black uppercase tracking-widest" onClick={() => { setRefreshing(true); refreshProfile().then(() => setRefreshing(false)); }} isLoading={refreshing} leftIcon={RefreshCw}>
+                        Forçar Sincronia
                       </Button>
-                      {/* FIX: The 'variant' and 'leftIcon' props are now supported by the updated Button component */}
-                      <Button variant="ghost" className="w-full text-xs" onClick={() => { signOut(); setNoRoleDetected(false); }} leftIcon={LogOut}>
-                        Trocar Conta
+                      <Button variant="ghost" className="w-full text-[10px] font-black uppercase text-slate-500" onClick={signOut} leftIcon={LogOut}>
+                        Sair e tentar outra conta
                       </Button>
                     </div>
-                  </motion.div>
+                  </M.div>
                 ) : (
                   <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">E-mail</label>
-                      <div className="relative group">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
-                          <Mail size={18} />
-                        </div>
-                        <input {...register("email")} type="email" placeholder="maestro@oliemusic.com" disabled={isSubmitting} className="block w-full bg-slate-950 border border-slate-800 rounded-xl py-4 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all" />
+                      <div className="relative">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
+                        <input {...register("email")} type="email" placeholder="maestro@oliemusic.com" className="block w-full bg-slate-950 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white focus:ring-2 focus:ring-sky-500/20 outline-none transition-all" />
                       </div>
-                      {errors.email && <p className="text-[10px] text-red-400 mt-1 ml-1 font-bold">{errors.email.message}</p>}
+                      {errors.email && <p className="text-[10px] text-red-400 mt-1 ml-1 font-bold">{errors.email.message as string}</p>}
                     </div>
 
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Senha</label>
-                      <div className="relative group">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
-                          <Lock size={18} />
-                        </div>
-                        <input {...register("password")} type={showPassword ? "text" : "password"} placeholder="••••••••" disabled={isSubmitting} className="block w-full bg-slate-950 border border-slate-800 rounded-xl py-4 pl-12 pr-12 text-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 transition-all" />
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
+                        <input {...register("password")} type={showPassword ? "text" : "password"} placeholder="••••••••" className="block w-full bg-slate-950 border border-white/5 rounded-2xl py-4 pl-12 pr-12 text-white focus:ring-2 focus:ring-sky-500/20 outline-none transition-all" />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-sky-400">
                           {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
                       </div>
-                      {errors.password && <p className="text-[10px] text-red-400 mt-1 ml-1 font-bold">{errors.password.message}</p>}
                     </div>
                     
-                    {/* FIX: The 'isLoading' and 'leftIcon' props are now supported by the updated Button component */}
-                    <Button type="submit" isLoading={isSubmitting} className="w-full py-4 text-sm font-black uppercase tracking-widest shadow-xl" leftIcon={ShieldCheck}>
+                    <Button type="submit" isLoading={isSubmitting} className="w-full py-8 rounded-3xl text-sm font-black uppercase tracking-[0.2em] shadow-xl shadow-sky-900/20" leftIcon={ShieldCheck}>
                       Entrar no Estúdio
                     </Button>
                   </form>
@@ -243,14 +186,14 @@ export default function Login() {
               </AnimatePresence>
             </CardContent>
           </Card>
-        </motion.div>
+        </M.div>
         
-        <motion.div variants={motionVariants.slideUp as any} className="text-center">
+        <M.div variants={motionVariants.slideUp as any} className="text-center">
           <Link to="/" className="text-slate-600 hover:text-sky-400 text-[10px] font-black uppercase tracking-[0.2em] transition-all">
             ← Ver Perfis da Sinfonia
           </Link>
-        </motion.div>
-      </motion.div>
+        </M.div>
+      </M.div>
     </div>
   );
 }

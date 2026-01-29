@@ -1,14 +1,13 @@
-
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Square, Wand2, Save, Trash2, Music, Sparkles } from 'lucide-react';
-import { ChordBlock } from '../../types';
-import { studioEngine } from '../../lib/studioEngine';
-import { getCreativeLyrics } from '../../services/aiService';
-import { haptics } from '../../lib/haptics';
-import { Button } from '../ui/Button';
-import { cn } from '../../lib/utils';
-import { notify } from '../../lib/notification';
+import { ChordBlock } from '../../types.ts';
+import { studioEngine } from '../../lib/studioEngine.ts';
+import { getCreativeLyrics } from '../../services/aiService.ts';
+import { haptics } from '../../lib/haptics.ts';
+import { Button } from '../ui/Button.tsx';
+import { cn } from '../../lib/utils.ts';
+import { notify } from '../../lib/notification.ts';
 
 const PALETTE: ChordBlock[] = [
     { id: 'I', degree: 'I', label: 'C (Feliz)', color: 'bg-yellow-400', notes: ['C3', 'E3', 'G3'] },
@@ -29,7 +28,6 @@ export const BlockSequencer: React.FC = () => {
         setSequence([...sequence, { ...block, id: `${block.id}-${Date.now()}` }]);
         haptics.light();
         
-        // Detecção de Cadência Mágica (Pop Progression)
         const degrees = [...sequence, block].map(b => b.degree);
         const lastFour = degrees.slice(-4).join('-');
         if (lastFour === 'I-V-vi-IV') {
@@ -60,7 +58,6 @@ export const BlockSequencer: React.FC = () => {
 
     return (
         <div className="space-y-10 p-4">
-            {/* Timeline de Construção */}
             <div className="bg-slate-900/60 p-10 rounded-[64px] border-4 border-dashed border-white/5 min-h-[220px] relative overflow-hidden flex items-center gap-4">
                 <AnimatePresence>
                     {sequence.length === 0 && (
@@ -92,7 +89,6 @@ export const BlockSequencer: React.FC = () => {
                 </AnimatePresence>
             </div>
 
-            {/* Paleta de Acordes */}
             <div className="flex flex-wrap justify-center gap-4">
                 {PALETTE.map(block => (
                     <button
@@ -108,7 +104,6 @@ export const BlockSequencer: React.FC = () => {
                 ))}
             </div>
 
-            {/* Controles Principais */}
             <div className="flex justify-center items-center gap-6">
                 <button
                     onClick={isPlaying ? handleStop : handlePlay}
@@ -130,7 +125,6 @@ export const BlockSequencer: React.FC = () => {
                 </Button>
             </div>
 
-            {/* Resultado da Letra */}
             <AnimatePresence>
                 {lyrics && (
                     <motion.div

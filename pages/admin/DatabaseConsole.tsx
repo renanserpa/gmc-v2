@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/Card.tsx';
+import { Button } from '../../components/ui/Button.tsx';
 import { 
     Database, ShieldAlert, CheckCircle2, AlertTriangle, 
     Copy, RefreshCw, Terminal, Activity, Server, Code2 
 } from 'lucide-react';
-import { databaseService, TableStatus } from '../../services/databaseService';
-import { GCM_DB_SCHEMA } from '../../data/schemaDefaults';
-import { notify } from '../../lib/notification';
-import { haptics } from '../../lib/haptics';
+import { databaseService, TableStatus } from '../../services/databaseService.ts';
+import { GCM_DB_SCHEMA } from '../../data/schemaDefaults.ts';
+import { notify } from '../../lib/notification.ts';
+import { haptics } from '../../lib/haptics.ts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '../../lib/utils';
+import { cn } from '../../lib/utils.ts';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../components/ui/Tooltip.tsx';
 
 export default function DatabaseConsole() {
     const [diagnostics, setDiagnostics] = useState<TableStatus[]>([]);
@@ -66,17 +67,25 @@ export default function DatabaseConsole() {
                         onClick={runDiagnostic} 
                         isLoading={loading}
                         leftIcon={RefreshCw}
-                        className="px-8 rounded-2xl text-[10px]"
+                        className="px-8 rounded-2xl text-[10px] font-black uppercase tracking-widest"
                     >
-                        Re-scan
+                        Rodar Diagnóstico
                     </Button>
-                    <Button 
-                        onClick={copySQL}
-                        leftIcon={Copy}
-                        className="px-8 rounded-2xl text-[10px]"
-                    >
-                        Copiar DDL
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button 
+                                onClick={copySQL}
+                                leftIcon={Copy}
+                                className="px-8 rounded-2xl text-[10px] font-black uppercase tracking-widest"
+                            >
+                                Copiar DDL
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-slate-950 border-sky-500/30 p-4">
+                            <p className="font-black uppercase text-[10px] text-sky-400 mb-1">Categoria: Infraestrutura</p>
+                            <p className="text-xs text-slate-300 font-medium leading-relaxed">Copia o script SQL completo de restauração do banco.</p>
+                        </TooltipContent>
+                    </Tooltip>
                 </div>
             </header>
 

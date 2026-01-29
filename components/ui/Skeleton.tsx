@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '../../lib/utils';
+import { cn } from '../../lib/utils.ts';
 
 interface SkeletonProps {
   className?: string;
@@ -14,7 +14,6 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   height,
   width
 }) => {
-  // Usa animate-glow-pulse para um efeito mais suave e premium
   const baseStyles = "animate-glow-pulse bg-slate-800 rounded-md";
   
   let variantStyles = "";
@@ -46,7 +45,6 @@ export const Skeleton: React.FC<SkeletonProps> = ({
 export const DashboardSkeleton = () => {
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12 animate-in fade-in duration-500">
-       {/* HUD Skeleton */}
        <div className="w-full h-64 bg-slate-900 rounded-[48px] border border-white/5 p-8 flex flex-col justify-between relative overflow-hidden">
           <div className="flex justify-between items-start">
              <div className="space-y-4">
@@ -62,7 +60,6 @@ export const DashboardSkeleton = () => {
           </div>
        </div>
 
-       {/* Actions Skeleton */}
        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Skeleton variant="rectangular" height={100} />
           <Skeleton variant="rectangular" height={100} />
@@ -70,7 +67,6 @@ export const DashboardSkeleton = () => {
           <Skeleton variant="rectangular" height={100} />
        </div>
 
-       {/* Grid Skeleton */}
        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8 space-y-6">
              <Skeleton variant="text" width={200} />

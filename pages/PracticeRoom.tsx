@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+// FIX: Using any to bypass react-router-dom export errors
+import * as RRD from 'react-router-dom';
+const { useLocation } = RRD as any;
 import { useCurrentStudent } from '../hooks/useCurrentStudent';
 import { getStudentRepertoire, savePracticeSession } from '../services/dataService';
 import { logPracticeSession } from '../services/gamificationService';

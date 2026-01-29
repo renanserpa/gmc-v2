@@ -1,7 +1,6 @@
-
 import React from 'react';
 import ReactPlayer from 'react-player';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/Card.tsx';
 import { PlayCircle } from 'lucide-react';
 
 interface VideoPlayerProps {

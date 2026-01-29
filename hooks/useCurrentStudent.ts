@@ -1,9 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabaseClient';
-import { Student } from '../types';
-import { getLevelInfo } from '../services/gamificationService';
-import { logger } from '../lib/logger';
+import { useAuth } from '../contexts/AuthContext.tsx';
+import { supabase } from '../lib/supabaseClient.ts';
+import { Student } from '../types.ts';
+import { getLevelInfo } from '../services/gamificationService.ts';
+import { logger } from '../lib/logger.ts';
 
 export function useCurrentStudent() {
   const { user } = useAuth();

@@ -1,7 +1,5 @@
-// Caminho: src/components/ui/Card.tsx
 import * as React from "react"
-// IMPORTANTE: Caminho relativo estrito (sobe 2 níveis)
-import { cn } from "../../lib/utils"
+import { cn } from "../../lib/utils.ts"
 
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
   <div ref={ref} className={cn("rounded-xl border bg-card text-card-foreground shadow", className)} {...props} />
@@ -18,7 +16,6 @@ const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HT
 ))
 CardTitle.displayName = "CardTitle"
 
-// FIX: Added CardDescription component
 const CardDescription = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>

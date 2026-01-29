@@ -1,6 +1,5 @@
-
-import { supabase } from '../lib/supabaseClient';
-import { StoreItem, StoreOrder } from '../types';
+import { supabase } from '../lib/supabaseClient.ts';
+import { StoreItem, StoreOrder } from '../types.ts';
 
 export const getStoreItems = async (): Promise<StoreItem[]> => {
   try {

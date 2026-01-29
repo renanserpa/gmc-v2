@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '../contexts/AuthContext';
-import { getFirstStudentForGuardian, getStudentOverviewForGuardian } from '../services/analyticsService';
+import { useAuth } from '../contexts/AuthContext.tsx';
+import { getFirstStudentForGuardian, getStudentOverviewForGuardian } from '../services/analyticsService.ts';
 
 export function useGuardianData() {
     const { user } = useAuth();

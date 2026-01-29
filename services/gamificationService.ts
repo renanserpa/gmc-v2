@@ -1,8 +1,7 @@
-
-import { supabase } from '../lib/supabaseClient';
-import { config } from '../config';
-import { notify } from '../lib/notification';
-import { haptics } from '../lib/haptics';
+import { supabase } from '../lib/supabaseClient.ts';
+import { config } from '../config.ts';
+import { notify } from '../lib/notification.ts';
+import { haptics } from '../lib/haptics.ts';
 
 const LEVEL_THRESHOLDS = config.gamification.levels;
 

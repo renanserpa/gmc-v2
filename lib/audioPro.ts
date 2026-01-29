@@ -1,5 +1,4 @@
-
-import { audioManager } from './audioManager';
+import { audioManager } from './audioManager.ts';
 
 export interface MusicalNote {
     id: string;

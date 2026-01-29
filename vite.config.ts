@@ -1,37 +1,21 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-/**
- * Configuração OlieMusic GCM Maestro
- */
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      // Points '@' to the project root, which is conceptually the 'src' directory.
-      // FIX: Replace `__dirname` with `.` to resolve to the current working directory and avoid TypeScript errors.
-      '@': path.resolve('./'),
+      /**
+       * Mapeia '@' para a raiz do projeto.
+       * Conforme as diretrizes, a raiz atua como o diretório 'src'.
+       */
+      '@': path.resolve(__dirname, './'),
     },
-    // Garante a priorização de arquivos TypeScript e React na resolução de módulos
-    extensions: ['.tsx', '.ts', '.jsx', '.js', '.json', '.mjs'],
-  },
-  server: {
-    host: true,
-    port: 3000,
-    hmr: {
-      overlay: true
-    }
-  },
-  // Otimização de dependências críticas para o tempo de execução
-  optimizeDeps: {
-    include: [
-      'react', 
-      'react-dom', 
-      'react-router-dom', 
-      'framer-motion', 
-      'lucide-react', 
-      '@supabase/supabase-js'
-    ]
+    extensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
   }
 });

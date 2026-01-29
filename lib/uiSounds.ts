@@ -1,4 +1,4 @@
-import { audioManager } from './audioManager';
+import { audioManager } from './audioManager.ts';
 
 class UISoundEngine {
   isMuted: boolean;

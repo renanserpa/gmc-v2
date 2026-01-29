@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-// FIX: CardDescription is now exported
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card.tsx';
 import { GraduationCap, Award, Brain, Sparkles, Target, Layers, Piano } from 'lucide-react';
-import { usePageTitle } from '../hooks/usePageTitle';
-import { useAuth } from '../contexts/AuthContext';
-import { Button } from '../components/ui/Button';
-import { cn } from '../lib/utils';
-import { haptics } from '../lib/haptics';
-import { uiSounds } from '../lib/uiSounds';
-import { supabase } from '../lib/supabaseClient';
+import { usePageTitle } from '../hooks/usePageTitle.ts';
+import { useAuth } from '../contexts/AuthContext.tsx';
+import { Button } from '../components/ui/Button.tsx';
+import { cn } from '../lib/utils.ts';
+import { haptics } from '../lib/haptics.ts';
+import { uiSounds } from '../lib/uiSounds.ts';
+import { supabase } from '../lib/supabaseClient.ts';
 
 const COURSES: any[] = [
     {

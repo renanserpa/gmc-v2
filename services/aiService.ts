@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Student } from "../types";
-import { SessionStats } from "../lib/audioPro";
+import { Student } from "../types.ts";
+import { SessionStats } from "../lib/audioPro.ts";
 
 export const getMaestroStudyPlan = async (studentName: string, trends: SessionStats[]) => {
     try {

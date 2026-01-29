@@ -5,8 +5,8 @@ export const config = {
   },
   app: {
     name: 'OlieMusic GCM',
-    version: 'v1.0 Pilot',
-    description: 'Plataforma de ensino musical gamificada',
+    version: 'v1.1 Pilot-Stable',
+    description: 'Plataforma de ensino musical gamificada com engine de áudio profissional.',
   },
   gamification: {
     levels: [

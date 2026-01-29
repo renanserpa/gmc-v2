@@ -1,9 +1,12 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Star, Sparkles, X } from 'lucide-react';
-import { LottiePlayer } from './LottiePlayer';
-import { Button } from './Button';
-import { uiSounds } from '../../lib/uiSounds';
+import { LottiePlayer } from './LottiePlayer.tsx';
+import { Button } from './Button.tsx';
+import { uiSounds } from '../../lib/uiSounds.ts';
+
+// FIX: Casting motion components to any to bypass property errors
+const M = motion as any;
 
 interface LevelUpModalProps {
   level: number;
@@ -22,18 +25,18 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ level, isOpen, onClo
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <M.div
+            initial={{ opacity: 0 } as any}
+            animate={{ opacity: 1 } as any}
+            exit={{ opacity: 0 } as any}
             className="absolute inset-0 bg-slate-950/90 backdrop-blur-md"
             onClick={onClose}
           />
           
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.8, opacity: 0, y: 20 }}
+          <M.div
+            initial={{ scale: 0.8, opacity: 0, y: 20 } as any}
+            animate={{ scale: 1, opacity: 1, y: 0 } as any}
+            exit={{ scale: 0.8, opacity: 0, y: 20 } as any}
             className="relative bg-slate-900 border border-sky-500/30 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl shadow-sky-500/20"
           >
             <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-40 h-40">
@@ -78,7 +81,7 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ level, isOpen, onClo
             >
               <X size={24} />
             </button>
-          </motion.div>
+          </M.div>
         </div>
       )}
     </AnimatePresence>

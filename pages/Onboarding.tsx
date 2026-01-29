@@ -1,5 +1,8 @@
+
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// FIX: Using any to bypass react-router-dom export errors
+import * as RRD from 'react-router-dom';
+const { useNavigate } = RRD as any;
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { useCurrentStudent } from '../hooks/useCurrentStudent.ts';
 import { updateStudent } from '../services/dataService.ts';

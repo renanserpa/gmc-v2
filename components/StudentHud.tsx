@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { Student, PlayerAchievement, Profile } from '../types.ts';
 import { getPlayerAchievements } from '../services/gamificationService.ts';
@@ -9,13 +10,16 @@ import { supabase } from '../lib/supabaseClient.ts';
 import { cn } from '../lib/utils.ts';
 import { useAccessibility } from '../contexts/AccessibilityContext.tsx';
 
+// FIX: Casting motion components to any to bypass property errors
+const M = motion as any;
+
 interface StudentHudProps {
   student: Student;
 }
 
 const StatCard: React.FC<any> = ({ icon: Icon, label, value, colorClass, bgColorClass, borderColorClass, isStreak }) => (
     /* Use any to bypass Framer Motion's internal signature conflict */
-    <motion.div 
+    <M.div 
         whileHover={{ y: -2 } as any}
         className={cn("bg-slate-950/40 p-5 rounded-[28px] border flex items-center gap-5 relative overflow-hidden", borderColorClass)}
     >
@@ -26,7 +30,7 @@ const StatCard: React.FC<any> = ({ icon: Icon, label, value, colorClass, bgColor
             <p className="text-[9px] text-slate-600 uppercase font-black tracking-widest mb-1">{label}</p>
             <p className="text-xl font-black text-white tracking-tighter">{value}</p>
         </div>
-    </motion.div>
+    </M.div>
 );
 
 export default function StudentHud({ student }: StudentHudProps) {
@@ -95,20 +99,20 @@ export default function StudentHud({ student }: StudentHudProps) {
             isKids ? "rounded-[64px] border-sky-500/20" : "rounded-[48px]"
         )}>
             {/* Use any to bypass Framer Motion properties error */}
-            <motion.div animate={{ opacity: [0.03, 0.08, 0.03] } as any} transition={{ duration: 10, repeat: Infinity } as any} className="absolute top-0 right-0 p-64 bg-sky-500/10 blur-[150px] pointer-events-none" />
+            <M.div animate={{ opacity: [0.03, 0.08, 0.03] } as any} transition={{ duration: 10, repeat: Infinity } as any} className="absolute top-0 right-0 p-64 bg-sky-500/10 blur-[150px] pointer-events-none" />
             
             <CardHeader className="relative z-10 p-10 pb-6 border-none">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
                     <div className="flex items-center gap-8">
                         <div className="relative group">
                             {/* Use any to bypass Framer Motion properties error */}
-                            <motion.div 
+                            <M.div 
                                 style={{ filter: avatarEffects.filter }}
                                 className="relative z-10"
                                 whileHover={{ scale: 1.05 } as any}
                             >
                                 <UserAvatar src={student.avatar_url} name={student.name} size={isKids ? "xl" : "lg"} className="border-4 border-white/10 shadow-2xl" />
-                            </motion.div>
+                            </M.div>
                             
                             {avatarEffects.glowColor && (
                                 <div className={cn("absolute inset-0 blur-3xl rounded-full opacity-30 animate-pulse", glowClass)} />
@@ -145,13 +149,13 @@ export default function StudentHud({ student }: StudentHudProps) {
                     </div>
                     
                     {/* Use any to bypass Framer Motion properties error */}
-                    <motion.div whileHover={{ scale: 1.02 } as any} className="bg-slate-900/60 backdrop-blur-xl border border-white/5 p-6 px-10 rounded-[32px] shadow-2xl flex flex-col items-center">
+                    <M.div whileHover={{ scale: 1.02 } as any} className="bg-slate-900/60 backdrop-blur-xl border border-white/5 p-6 px-10 rounded-[32px] shadow-2xl flex flex-col items-center">
                         <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1">{isKids ? 'Minhas Moedas' : 'Olie Coins'}</span>
                         <div className="flex items-center gap-3 text-yellow-500">
                             <Coins className={isKids ? "w-10 h-10" : "w-6 h-6"} fill="currentColor"/>
                             <span className={cn("font-black tracking-tighter", isKids ? "text-6xl" : "text-4xl")}>{student.coins}</span>
                         </div>
-                    </motion.div>
+                    </M.div>
                 </div>
             </CardHeader>
             
@@ -163,7 +167,7 @@ export default function StudentHud({ student }: StudentHudProps) {
                             {[...Array(5)].map((_, i) => {
                                 const active = animatedProgress > (i * 20);
                                 return (
-                                    <motion.div 
+                                    <M.div 
                                         key={i}
                                         animate={(active ? { scale: [1, 1.2, 1], rotate: [0, 5, -5, 0] } : {}) as any}
                                         transition={{ duration: 2, repeat: Infinity } as any}
@@ -175,7 +179,7 @@ export default function StudentHud({ student }: StudentHudProps) {
                                                 active ? "text-yellow-400 fill-current drop-shadow-[0_0_15px_#facc15]" : "text-slate-800"
                                             )} 
                                         />
-                                    </motion.div>
+                                    </M.div>
                                 );
                             })}
                         </div>
@@ -187,7 +191,7 @@ export default function StudentHud({ student }: StudentHudProps) {
                                 <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em]">Experiência Maestro</span>
                                 <div className="flex items-baseline gap-2">
                                     {/* Use any to bypass Framer Motion properties error */}
-                                    <motion.span key={student.xp} initial={{ scale: 1.2, color: '#38bdf8' } as any} animate={{ scale: 1, color: '#fff' } as any} className="text-5xl font-black tracking-tighter">{student.xp}</motion.span>
+                                    <M.span key={student.xp} initial={{ scale: 1.2, color: '#38bdf8' } as any} animate={{ scale: 1, color: '#fff' } as any} className="text-5xl font-black tracking-tighter">{student.xp}</M.span>
                                     <span className="text-slate-700 font-black text-sm">/ {student.xpToNextLevel} XP</span>
                                 </div>
                             </div>
@@ -201,14 +205,14 @@ export default function StudentHud({ student }: StudentHudProps) {
                         </div>
                         <div className="h-5 bg-slate-950 rounded-full border border-white/5 p-1 shadow-inner relative overflow-hidden">
                             {/* Use any to bypass Framer Motion properties error */}
-                            <motion.div 
+                            <M.div 
                                 initial={{ width: 0 } as any} 
                                 animate={{ width: `${animatedProgress}%` } as any} 
                                 transition={{ duration: 2, ease: "circOut" } as any} 
                                 className="h-full bg-gradient-to-r from-sky-600 via-sky-400 to-sky-500 rounded-full relative"
                             >
                                  <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent)] -translate-x-full animate-[shimmer_2s_infinite]" />
-                            </motion.div>
+                            </M.div>
                         </div>
                     </div>
                 )}

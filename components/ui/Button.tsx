@@ -1,9 +1,8 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { type VariantProps, cva } from "class-variance-authority"
-// IMPORTANTE: Caminho relativo subindo 2 níveis
-import { cn } from "../../lib/utils"
-import { haptics } from '../../lib/haptics'
+import { cn } from "../../lib/utils.ts"
+import { haptics } from '../../lib/haptics.ts'
 import { Loader2 } from "lucide-react";
 
 const buttonVariants = cva(
@@ -17,7 +16,6 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        // FIX: Added custom variants used in the app
         primary: "bg-sky-600 text-white hover:bg-sky-500",
         danger: "bg-red-600 text-white hover:bg-red-500",
         purple: "bg-purple-600 text-white hover:bg-purple-500",
@@ -36,7 +34,6 @@ const buttonVariants = cva(
   }
 )
 
-// FIX: Changed interface to type to correctly extend VariantProps from cva.
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
   VariantProps<typeof buttonVariants> & {
   asChild?: boolean,
@@ -46,7 +43,6 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
 };
 
 
-// FIX: Updated component to handle new props
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, isLoading, leftIcon: LeftIcon, rightIcon: RightIcon, children, onClick, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"

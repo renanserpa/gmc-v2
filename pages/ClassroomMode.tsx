@@ -1,52 +1,89 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { MaestroAudioPro } from '../lib/audioPro';
-import { TablatureView } from '../components/tools/TablatureView';
-import { Fretboard } from '../components/tools/Fretboard';
-import { CAGEDLayer } from '../components/tools/CAGEDLayer';
-import { GrooveCircle } from '../components/tools/GrooveCircle';
-import { LessonPlaylist } from '../components/dashboard/LessonPlaylist';
-import { Leaderboard } from '../components/Leaderboard';
-import { MaestroLiveTip } from '../components/tools/MaestroLiveTip';
-import { CollectiveEnergyMeter } from '../components/tools/CollectiveEnergyMeter';
-import { AccuracyMeter } from '../components/tools/AccuracyMeter';
-import { BossRaidHUD } from '../components/tools/BossRaidHUD';
-import { DynamicZoneHUD } from '../components/tools/DynamicZoneHUD';
-import { useScreenMode } from '../hooks/useScreenMode';
-import { usePitchDetector } from '../hooks/usePitchDetector';
-import { useAuth } from '../contexts/AuthContext';
-import { classroomService, ClassroomCommand } from '../services/classroomService';
-import { getClassVerdict } from '../services/aiService';
-import { LessonStep, BossState } from '../types';
-import { Play, Pause, Monitor, Zap, Trophy, Flame, Star, Sparkles, Brain, Activity, Target } from 'lucide-react';
-import { haptics } from '../lib/haptics';
-import { cn } from '../lib/utils';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import * as RRD from 'react-router-dom';
+const { useSearchParams } = RRD as any;
+import { MaestroAudioPro } from '../lib/audioPro.ts';
+import { Fretboard } from '../components/tools/Fretboard.tsx';
+import { CAGEDLayer } from '../components/tools/CAGEDLayer.tsx';
+import { GrooveCircle } from '../components/tools/GrooveCircle.tsx';
+import { FeedbackOverlay } from '../components/classroom/FeedbackOverlay.tsx';
+import { useScreenMode } from '../hooks/useScreenMode.ts';
+import { useAudioAnalyst } from '../hooks/useAudioAnalyst.ts';
+import { useAuth } from '../contexts/AuthContext.tsx';
+import { classroomService } from '../services/classroomService.ts';
+import { LessonStep } from '../types.ts';
+import { Monitor, Zap, Sparkles } from 'lucide-react';
+import { haptics } from '../lib/haptics.ts';
+import { cn } from '../lib/utils.ts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import confetti from 'canvas-confetti';
+
+// Componente interno para partículas de sucesso
+// FIX: Added React.FC to SuccessBurst props to handle internal key property correctly
+const SuccessBurst: React.FC<{ x: number; y: number }> = ({ x, y }) => (
+  <motion.div
+    initial={{ opacity: 1 }}
+    animate={{ opacity: 0 }}
+    exit={{ opacity: 0 }}
+    className="absolute pointer-events-none z-[100]"
+    style={{ left: x, top: y }}
+  >
+    {[...Array(8)].map((_, i) => (
+      <motion.div
+        key={i}
+        initial={{ x: 0, y: 0, scale: 1 }}
+        animate={{ 
+          x: Math.cos(i * 45 * (Math.PI / 180)) * 60,
+          y: Math.sin(i * 45 * (Math.PI / 180)) * 60,
+          scale: 0
+        }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="absolute w-2 h-2 bg-sky-400 rounded-full shadow-[0_0_10px_#38bdf8]"
+      />
+    ))}
+  </motion.div>
+);
 
 export default function ClassroomMode() {
     const [searchParams] = useSearchParams();
     const classId = searchParams.get('classId') || 'demo-class';
-    const { user } = useAuth();
-    const { isTvMode, setIsTvMode } = useScreenMode();
+    const { isTvMode } = useScreenMode();
     
     const audioPro = useRef(new MaestroAudioPro());
     const [isPlaying, setIsPlaying] = useState(false);
-    const [bpm, setBpm] = useState(120);
     const [currentBeat, setCurrentBeat] = useState(0);
     const [currentShape, setCurrentShape] = useState('E');
-    const [currentStep, setCurrentStep] = useState<LessonStep | null>(null);
-    const [performanceStatus, setPerformanceStatus] = useState<Record<string, 'hit' | 'miss'>>({});
-    const [lastPerf, setLastPerf] = useState({ cents: 0, timing: 0, precision: 'miss' as any });
+    const [combo, setCombo] = useState(0);
+    const [bursts, setBursts] = useState<{ id: number; x: number; y: number }[]>([]);
 
-    const steps: LessonStep[] = [
-        { id: 'step_1', title: 'Exploração CAGED', type: 'theory', duration_mins: 10, content: '\\tuning E2 A2 D3 G3 B3 E4 . 0.6 2.6' }
-    ];
+    // Define a nota alvo baseada no Tom e Shape (Ex: C Major = nota 60)
+    // Para o protótipo, usaremos a tônica de C (nota MIDI 60)
+    const targetNoteIdx = 60; 
 
-    const detectedNote = usePitchDetector(audioPro.current, isPlaying);
+    // Analista de áudio avançado
+    const performance = useAudioAnalyst(isPlaying, targetNoteIdx, 'beginner');
+
+    // Efeito: Gatilho de Feedback Visual
+    useEffect(() => {
+        if (performance.isDetected && performance.isInTune) {
+            haptics.success();
+            setCombo(prev => prev + 1);
+            
+            // Adiciona explosão (posição central simulada no fretboard para este exemplo)
+            const newBurst = { 
+                id: Date.now(), 
+                x: window.innerWidth / 2 + (Math.random() * 100 - 50), 
+                y: window.innerHeight / 2 + (Math.random() * 100 - 50)
+            };
+            setBursts(prev => [...prev, newBurst]);
+            
+            // Auto-limpeza das partículas
+            setTimeout(() => {
+                setBursts(prev => prev.filter(b => b.id !== newBurst.id));
+            }, 700);
+        } else if (performance.isDetected && !performance.isInTune) {
+            // Se errou a afinação ou a nota, reseta o combo
+            setCombo(0);
+        }
+    }, [performance.isInTune, performance.isDetected]);
 
     useEffect(() => {
         audioPro.current.onBeat = (beat) => setCurrentBeat(beat);
@@ -54,7 +91,6 @@ export default function ClassroomMode() {
             if (cmd.type === 'PLAY') setIsPlaying(true);
             if (cmd.type === 'PAUSE') setIsPlaying(false);
         });
-        if (!currentStep) setCurrentStep(steps[0]);
         return () => {
             unsubscribe();
             audioPro.current.dispose();
@@ -62,32 +98,84 @@ export default function ClassroomMode() {
     }, [classId]);
 
     return (
-        <div className={cn("min-h-screen transition-all duration-700 relative", isTvMode ? "bg-slate-950 p-12 overflow-hidden" : "p-6")}>
+        <div className={cn("min-h-screen transition-all duration-700 relative overflow-hidden", isTvMode ? "bg-slate-950 p-12" : "bg-slate-950 p-6")}>
+            {/* Camada de Feedback Visual (Partículas) */}
+            <AnimatePresence>
+                {bursts.map(b => (
+                    <SuccessBurst key={b.id} x={b.x} y={b.y} />
+                ))}
+            </AnimatePresence>
+
+            {/* Overlay de Performance Maestro */}
+            <FeedbackOverlay 
+                performance={performance}
+                comboCount={combo}
+                timing={null} // Implementação futura de timing rítmico
+            />
+
             <header className="rounded-[48px] border border-white/5 bg-slate-900/60 backdrop-blur-3xl shadow-2xl p-8 flex justify-between items-center relative z-10 mb-10">
                 <div className="flex items-center gap-8">
                     <div className="bg-sky-500 w-20 h-20 rounded-3xl flex items-center justify-center shadow-lg">
                         <Monitor size={32} className="text-white" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-black text-white uppercase tracking-tighter">{currentStep?.title}</h1>
-                        <p className="text-[10px] font-black text-sky-500 tracking-widest uppercase mt-2">Teoria Visual Integrada</p>
+                        <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Módulo CAGED: {currentShape}</h1>
+                        <p className="text-[10px] font-black text-sky-500 tracking-widest uppercase mt-2 flex items-center gap-2">
+                           <Sparkles size={12} /> Alvo Neural: Nota {targetNoteIdx % 12 === 0 ? 'Dó' : 'Afinando...'}
+                        </p>
                     </div>
                 </div>
-                <GrooveCircle bpm={bpm} currentTime={0} isPlaying={isPlaying} externalPulse={currentBeat} mode="konnakkol" />
+                <div className="flex items-center gap-6">
+                    <div className="text-right">
+                        <p className="text-[10px] font-black text-slate-500 uppercase">Status do Aluno</p>
+                        <p className={cn("text-xs font-black uppercase transition-colors", performance.isDetected ? "text-emerald-400" : "text-slate-600")}>
+                            {performance.isDetected ? (performance.isInTune ? 'Sincronizado!' : 'Desafinado') : 'Aguardando Som...'}
+                        </p>
+                    </div>
+                    <GrooveCircle bpm={120} currentTime={0} isPlaying={isPlaying} externalPulse={currentBeat} mode="konnakkol" />
+                </div>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 relative z-10">
-                <main className="lg:col-span-12 space-y-10 relative">
-                    <div className="relative group">
-                        <Fretboard rootKey="C" detectedNoteIdx={detectedNote} className="opacity-90" />
-                        <CAGEDLayer 
-                            rootNote="C" 
-                            currentShape={currentShape} 
-                            onShapeChange={setCurrentShape} 
-                        />
+            <main className="relative z-10">
+                <div className="relative group perspective-1000">
+                    {/* Brilho ambiental quando detectado */}
+                    <AnimatePresence>
+                        {performance.isInTune && (
+                            <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 0.15 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 bg-sky-400 blur-[120px] rounded-full pointer-events-none"
+                            />
+                        )}
+                    </AnimatePresence>
+
+                    <Fretboard 
+                        rootKey="C" 
+                        detectedNoteIdx={performance.noteIdx} 
+                        upcomingNoteIdx={targetNoteIdx % 12}
+                        className={cn("opacity-95 transition-all duration-300", performance.isInTune && "border-emerald-500/50")} 
+                    />
+                    <CAGEDLayer 
+                        rootNote="C" 
+                        currentShape={currentShape} 
+                        onShapeChange={setCurrentShape} 
+                    />
+                </div>
+
+                <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-slate-900/40 p-6 rounded-[32px] border border-white/5 flex items-center gap-4">
+                        <div className={cn("p-3 rounded-2xl", performance.isInTune ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-950 text-slate-700")}>
+                            <Zap size={20} />
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Precisão Atual</p>
+                            <p className="text-xl font-black text-white">{performance.isDetected ? `${100 - Math.abs(performance.cents)}%` : '--'}</p>
+                        </div>
                     </div>
-                </main>
-            </div>
+                    {/* Espaço para outros widgets do dashboard de sala de aula */}
+                </div>
+            </main>
         </div>
     );
 }

@@ -1,98 +1,79 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext.tsx';
-import { useTheme } from '../contexts/ThemeContext.tsx';
 import { 
     getStudentsByTeacher, 
-    getLessonsByTeacher, 
-    getMissionsByTeacher,
     getProfessorAuditLogs,
-    getMusicClasses
+    getMusicClasses,
+    getLessonsByTeacher,
+    getMissionsByTeacher
 } from '../services/dataService.ts';
 import { getProfessorDashboardStats } from '../services/analyticsService.ts';
-import { Student } from '../types.ts';
-import { supabase } from '../lib/supabaseClient.ts';
 
-// Mock data for dev environment
-const MOCK_STUDENTS: Student[] = [
-    // FIX: Added 'coins' property to satisfy the Student type.
-    { id: 'dev-student-1', name: 'Lucas "Riff" Oliveira', instrument: 'Guitarra', xp: 1250, coins: 125, current_level: 5, current_streak_days: 8, professor_id: 'dev-prof-id', auth_user_id: null, avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Lucas', xpToNextLevel: 1350, invite_code: null, guardian_id: null, completed_module_ids: [] },
-    // FIX: Added 'coins' property to satisfy the Student type.
-    { id: 'dev-student-2', name: 'Beatriz "Melody" Costa', instrument: 'Violão', xp: 800, coins: 80, current_level: 4, current_streak_days: 3, professor_id: 'dev-prof-id', auth_user_id: null, avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Beatriz', xpToNextLevel: 1000, invite_code: null, guardian_id: null, completed_module_ids: [] },
-    // FIX: Added 'coins' property to satisfy the Student type.
-    { id: 'dev-student-3', name: 'Enzo "Groove" Silva', instrument: 'Baixo', xp: 450, coins: 45, current_level: 3, current_streak_days: 12, professor_id: 'dev-prof-id', auth_user_id: null, avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Enzo', xpToNextLevel: 700, invite_code: null, guardian_id: null, completed_module_ids: [] }
-];
+// Higienizador de Dados: Previne quebras por campos nulos ou schema desalinhado
+const sanitizeStudent = (s: any) => ({
+    ...s,
+    name: s.name || "Aluno sem Nome",
+    xp: s.xp || 0,
+    level: s.level || 1,
+    school_grade: s.school_grade || "Não Informado",
+    instrument: s.instrument || "Nenhum",
+    current_streak_days: s.current_streak_days || 0
+});
 
-const MOCK_CLASSES = [
-    { id: 'class-1', name: 'Iniciantes GCM', start_time: '18:00', days_of_week: ['Segunda', 'Quarta'], age_group: '7-10 anos', professor_id: 'dev-prof-id' },
-    { id: 'class-2', name: 'Intermediário Rock', start_time: '19:00', days_of_week: ['Terça', 'Quinta'], age_group: '11-14 anos', professor_id: 'dev-prof-id' }
-];
-
-const MOCK_STATS = { totalStudents: MOCK_STUDENTS.length };
-const MOCK_AUDIT = MOCK_STUDENTS.map(s => ({ id: s.id, students: s, event_type: 'PRACTICE_SESSION', xp_amount: 30, created_at: new Date().toISOString() }));
-
-
+/**
+ * Hook de Dados do Professor com Proteção de Kernel
+ */
 export function useProfessorData() {
-    const { user } = useAuth();
-    const { activeSchool } = useTheme();
-    const queryClient = useQueryClient();
+    const { user, role } = useAuth();
     const teacherId = user?.id;
     
-    // Dev mode check to prevent real API calls with mock users
-    const isDevMode = user?.email?.endsWith('@oliemusic.dev') || localStorage.getItem('oliemusic_dev_user_id');
+    const isProfessor = role === 'professor' || role === 'admin';
 
-    const studentsQuery = useQuery({
-        queryKey: ['professorStudents', teacherId, activeSchool?.id],
+    const { data, isLoading, error } = useQuery({
+        queryKey: ['professor-cockpit-data', teacherId],
         queryFn: async () => {
-            if (isDevMode) return MOCK_STUDENTS;
-            if (!teacherId) return [];
+            if (!teacherId || !isProfessor) return null;
+
             try {
-                const { data } = await supabase.rpc('get_students_by_context', {
-                    p_school_id: activeSchool?.id || null
-                });
-                return (data || []) as Student[];
+                // Carregamento Atômico
+                const [stats, rawStudents, classes, auditLogs, lessons, missions] = await Promise.all([
+                    getProfessorDashboardStats(teacherId),
+                    getStudentsByTeacher(teacherId),
+                    getMusicClasses(teacherId),
+                    getProfessorAuditLogs(teacherId),
+                    getLessonsByTeacher(teacherId),
+                    getMissionsByTeacher(teacherId)
+                ]);
+
+                // Validação de Integridade na Camada de Hook
+                const students = (rawStudents || []).map(sanitizeStudent);
+
+                return { 
+                    stats, 
+                    students, 
+                    classes: classes || [], 
+                    auditLogs: auditLogs || [], 
+                    lessons: lessons || [], 
+                    missions: missions || [] 
+                };
             } catch (e) {
-                return await getStudentsByTeacher(teacherId);
+                console.error("[Kernel Data Error]:", e);
+                throw new Error("Falha na sincronização do kernel de dados.");
             }
         },
-        enabled: !!teacherId
-    });
-
-    const classesQuery = useQuery({
-        queryKey: ['professorClasses', teacherId],
-        queryFn: () => {
-            if (isDevMode) return Promise.resolve(MOCK_CLASSES);
-            return teacherId ? getMusicClasses(teacherId) : Promise.resolve([]);
-        },
-        enabled: !!teacherId
-    });
-
-    const statsQuery = useQuery({
-        queryKey: ['professorStats', teacherId, activeSchool?.id],
-        queryFn: async () => {
-            if (isDevMode) return MOCK_STATS;
-            if (!teacherId) return { totalStudents: 0 };
-            const data = await getProfessorDashboardStats(teacherId);
-            return data || { totalStudents: 0 };
-        },
-        enabled: !!teacherId
-    });
-
-    const auditQuery = useQuery({
-        queryKey: ['professorAuditLogs', teacherId],
-        queryFn: async () => {
-            if (isDevMode) return MOCK_AUDIT;
-            if (!teacherId) return [];
-            return await getProfessorAuditLogs(teacherId);
-        },
-        enabled: !!teacherId
+        enabled: !!teacherId && isProfessor,
+        staleTime: 1000 * 60 * 5,
+        retry: 1
     });
 
     return {
-        stats: statsQuery.data || { totalStudents: 0 },
-        students: studentsQuery.data || [],
-        classes: classesQuery.data || [],
-        auditLogs: auditQuery.data || [],
-        isLoading: statsQuery.isLoading || studentsQuery.isLoading || auditQuery.isLoading || classesQuery.isLoading,
-        error: statsQuery.error || studentsQuery.error || auditQuery.error || classesQuery.error
+        stats: data?.stats || { totalStudents: 0, upcomingLessonsCount: 0, pendingMissionsCount: 0, recentCompletedMissionsCount: 0 },
+        students: data?.students || [],
+        classes: data?.classes || [],
+        lessons: data?.lessons || [],
+        missions: data?.missions || [],
+        auditLogs: data?.auditLogs || [],
+        isLoading,
+        error: error ? "Erro de integridade de dados detectado." : null
     };
 }

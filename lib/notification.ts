@@ -1,5 +1,5 @@
 import { toast, ToastOptions } from 'react-toastify';
-import { uiSounds } from './uiSounds';
+import { uiSounds } from './uiSounds.ts';
 
 const defaultOptions: ToastOptions = {
     position: "bottom-right",

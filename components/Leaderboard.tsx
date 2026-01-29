@@ -1,9 +1,13 @@
+
 import React, { useEffect, useState } from 'react';
 import { getLeaderboard } from '../services/gamificationService.ts';
 import { UserAvatar } from './ui/UserAvatar.tsx';
 import { Trophy, Flame, Star, Crown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../lib/utils.ts';
+
+// FIX: Casting motion components to any to bypass property errors
+const M = motion as any;
 
 interface LeaderboardProps {
   professorId: string;
@@ -34,10 +38,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ professorId, currentSt
         const isCurrent = player.id === currentStudentId;
         
         return (
-          <motion.div
+          <M.div
             key={player.id}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, x: -10 } as any}
+            animate={{ opacity: 1, x: 0 } as any}
             transition={{ delay: idx * 0.05 }}
             className={cn(
               "flex items-center gap-4 p-3 rounded-2xl border transition-all",
@@ -77,7 +81,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ professorId, currentSt
                 <Star size={10} className="text-sky-400" fill="currentColor" /> {player.xp}
               </div>
             </div>
-          </motion.div>
+          </M.div>
         );
       })}
     </div>

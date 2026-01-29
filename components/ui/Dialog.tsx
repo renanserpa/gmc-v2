@@ -1,8 +1,12 @@
+
 import React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils.ts';
+
+// FIX: Casting motion components to any to bypass property errors
+const M = motion as any;
 
 const Dialog = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
@@ -42,10 +46,10 @@ const DialogContent = React.forwardRef<
         )}
         {...props}
       >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        <M.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 } as any}
+          animate={{ opacity: 1, scale: 1, y: 0 } as any}
+          exit={{ opacity: 0, scale: 0.95, y: 20 } as any}
           transition={{ duration: 0.3, ease: 'easeOut' }}
         >
           {children}
@@ -53,7 +57,7 @@ const DialogContent = React.forwardRef<
             <X className="h-4 w-4 text-slate-400" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
-        </motion.div>
+        </M.div>
       </DialogPrimitive.Content>
     </AnimatePresence>
   </DialogPortal>
