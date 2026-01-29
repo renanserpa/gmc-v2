@@ -8,12 +8,16 @@ export const generateAccessCode = () => {
   return `GCM-${digits}`;
 };
 
+/**
+ * Busca logs de gamificação para o cockpit do professor.
+ * Usa xp_events como fonte primária de auditoria.
+ */
 export const getProfessorAuditLogs = async (professorId: string) => {
     const { data, error } = await supabase
         .from('xp_events')
         .select(`
             *,
-            students!inner (
+            students:player_id (
                 name,
                 professor_id,
                 avatar_url
@@ -23,7 +27,10 @@ export const getProfessorAuditLogs = async (professorId: string) => {
         .order('created_at', { ascending: false })
         .limit(50);
     
-    if (error) throw error;
+    if (error) {
+        console.error("[DataService] Erro ao buscar logs de XP:", error);
+        return [];
+    }
     return data || [];
 };
 

@@ -1,65 +1,60 @@
 -- ==============================================================================
--- OLIEMUSIC GCM - INFRAESTRUTURA MESTRE V3.4 (PERMISSÕES CORRIGIDAS)
--- Resolve o erro 42501 (Permission Denied)
+-- OLIEMUSIC GCM - INFRAESTRUTURA MESTRE V3.5 (POLÍTICAS DE GAMIFICAÇÃO)
+-- Resolve o erro 42501 na tabela xp_events
 -- ==============================================================================
 
--- 1. GARANTIR DONO E ESCOLA PADRÃO
-INSERT INTO public.schools (id, name) 
-VALUES ('00000000-0000-0000-0000-000000000000', 'OlieMusic Matriz')
-ON CONFLICT (id) DO NOTHING;
+-- 1. CRIAÇÃO DA TABELA DE EVENTOS DE XP (Se não existir)
+CREATE TABLE IF NOT EXISTS public.xp_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    player_id UUID REFERENCES public.students(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL,
+    xp_amount INTEGER DEFAULT 0,
+    coins_amount INTEGER DEFAULT 0,
+    context_type TEXT, -- 'mission', 'lesson', 'practice'
+    context_id TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
 
--- 2. RESET DE PERMISSÕES DA TABELA PROFILES (Auto-Healing)
-ALTER TABLE IF EXISTS public.profiles OWNER TO postgres;
+-- 2. GARANTIR RLS ATIVO
+ALTER TABLE public.xp_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
--- 3. GARANTIR GRANTS (O erro 42501 geralmente é falta disso)
-GRANT USAGE ON SCHEMA public TO anon, authenticated;
-GRANT ALL ON public.profiles TO postgres;
-GRANT SELECT, INSERT, UPDATE ON public.profiles TO anon, authenticated;
-GRANT SELECT ON public.schools TO anon, authenticated;
+-- 3. PERMISSÕES DE LEITURA (SELECT) PARA XP_EVENTS
+-- Política: Alunos vêem seus próprios eventos.
+DROP POLICY IF EXISTS "Alunos vêem seus próprios XP" ON public.xp_events;
+CREATE POLICY "Alunos vêem seus próprios XP" ON public.xp_events
+FOR SELECT USING (
+    EXISTS (
+        SELECT 1 FROM public.students 
+        WHERE students.id = xp_events.player_id 
+        AND students.auth_user_id = auth.uid()
+    )
+);
 
--- 4. REPOSICIONAR RLS POLICIES
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+-- Política: Professores vêem os XP dos seus alunos.
+DROP POLICY IF EXISTS "Professores vêem XP dos seus alunos" ON public.xp_events;
+CREATE POLICY "Professores vêem XP dos seus alunos" ON public.xp_events
+FOR SELECT USING (
+    EXISTS (
+        SELECT 1 FROM public.students 
+        WHERE students.id = xp_events.player_id 
+        AND students.professor_id = auth.uid()
+    )
+);
 
-DROP POLICY IF EXISTS "Leitura pública de perfis" ON public.profiles;
-CREATE POLICY "Leitura pública de perfis" ON public.profiles 
-FOR SELECT USING (true);
+-- 4. PERMISSÕES DE LEITURA PARA AUDIT_LOGS
+DROP POLICY IF EXISTS "Professores vêem logs dos seus alunos" ON public.audit_logs;
+CREATE POLICY "Professores vêem logs dos seus alunos" ON public.audit_logs
+FOR SELECT USING (
+    professor_id = auth.uid() OR 
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+);
 
-DROP POLICY IF EXISTS "Usuários podem criar seu próprio perfil" ON public.profiles;
-CREATE POLICY "Usuários podem criar seu próprio perfil" ON public.profiles 
-FOR INSERT WITH CHECK (true); -- Permitir inserção para self-healing via AuthContext
+-- 5. GRANTS EXPLICITOS
+GRANT SELECT ON public.xp_events TO authenticated;
+GRANT SELECT ON public.audit_logs TO authenticated;
+GRANT INSERT ON public.xp_events TO authenticated;
 
-DROP POLICY IF EXISTS "Auto-gestão de perfil" ON public.profiles;
-CREATE POLICY "Auto-gestão de perfil" ON public.profiles 
-FOR UPDATE USING (auth.uid() = id);
-
--- 5. TRIGGER DE AUTO-PROFILING (SECURITY DEFINER é vital aqui)
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger AS $$
-BEGIN
-  INSERT INTO public.profiles (id, email, full_name, role, school_id)
-  VALUES (
-    new.id, 
-    new.email, 
-    COALESCE(new.raw_user_meta_data->>'full_name', 'Novo Usuário'),
-    COALESCE(new.raw_user_meta_data->>'role', 'student'),
-    '00000000-0000-0000-0000-000000000000'
-  )
-  ON CONFLICT (id) DO UPDATE SET
-    email = EXCLUDED.email,
-    full_name = COALESCE(public.profiles.full_name, EXCLUDED.full_name);
-  RETURN new;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER; -- Executa com privilégios de admin
-
--- 6. BACKFILL DE SEGURANÇA
-INSERT INTO public.profiles (id, email, full_name, role, school_id)
-VALUES 
-    ('45990533-ad8e-44f7-918f-70df3b2659b2', 'adm@adm.com', 'Super Maestro (Admin)', 'admin', '00000000-0000-0000-0000-000000000000'),
-    ('65c7ca9a-028b-45d3-9736-2f1dce6221be', 'p@adm.com', 'Renan Serpa (Professor)', 'professor', '00000000-0000-0000-0000-000000000000'),
-    ('cd7859d9-55d8-4af6-8926-80ca207f5525', 'd@adm.com', 'Gestor Unidade 1', 'manager', '00000000-0000-0000-0000-000000000000'),
-    ('ddbce67a-f49e-4765-b1ed-f77a3281e7db', 'r@adm.com', 'Responsável Atento', 'guardian', '00000000-0000-0000-0000-000000000000'),
-    ('3c0c686d-fff6-404d-baf8-9f1b25e9e842', 'a@adm.com', 'Lucca Maestro (Aluno)', 'student', '00000000-0000-0000-0000-000000000000')
-ON CONFLICT (id) DO UPDATE SET 
-    role = EXCLUDED.role, 
-    full_name = EXCLUDED.full_name,
-    email = EXCLUDED.email;
+-- 6. CORREÇÃO DE INTEGRIDADE: Garantir que a Role do Professor está correta
+-- (Exemplo para p@adm.com se tornar professor se não for)
+UPDATE public.profiles SET role = 'professor' WHERE email = 'p@adm.com';

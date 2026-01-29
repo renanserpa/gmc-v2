@@ -12,6 +12,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<any>;
   refreshProfile: () => Promise<void>;
+  devLogin: (userId: string, role: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -23,6 +24,10 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  /**
+   * Sincroniza o perfil do banco com a sessão de autenticação.
+   * Se o perfil não existir, realiza um reparo atômico (Upsert).
+   */
   const syncProfile = async (currentUser: User) => {
     try {
       // 1. Tentar buscar Perfil Principal
@@ -38,18 +43,13 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
         return;
       }
 
-      // 2. Fallback: Tentar buscar na tabela de Estudantes (Vínculo alternativo)
-      const { data: studentData } = await supabase
-        .from('students')
-        .select('name, instrument, professor_id')
-        .eq('auth_user_id', currentUser.id)
-        .maybeSingle();
+      // 2. Protocolo de Reparo: O usuário existe no Auth mas não no Public.Profiles
+      console.warn("[Kernel] Perfil ausente. Iniciando Protocolo de Reparo...");
+      
+      const defaultRole = currentUser.email === 'adm@adm.com' ? 'admin' : (currentUser.user_metadata?.role || 'student');
+      const defaultName = currentUser.user_metadata?.full_name || 'Usuário Maestro';
 
-      // 3. Auto-Reparo: Upsert Profiling
-      const defaultName = studentData?.name || currentUser.user_metadata?.full_name || 'Usuário Maestro';
-      const defaultRole = currentUser.user_metadata?.role || 'student';
-
-      const { data: newProfile, error: upsertError } = await supabase
+      const { data: repairedProfile, error: upsertError } = await supabase
         .from('profiles')
         .upsert({
           id: currentUser.id,
@@ -61,9 +61,9 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
         .select()
         .single();
 
-      if (newProfile) {
-        setProfile(newProfile as Profile);
-        setRole(newProfile.role);
+      if (repairedProfile) {
+        setProfile(repairedProfile as Profile);
+        setRole(repairedProfile.role);
       }
     } catch (e) {
       console.error("[Kernel Sync Failed]:", e);
@@ -71,17 +71,21 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   useEffect(() => {
+    // Carregamento inicial da sessão
     supabase.auth.getSession().then(({ data: { session } }) => {
+      const u = session?.user ?? null;
       setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) syncProfile(session.user);
+      setUser(u);
+      if (u) syncProfile(u);
       setLoading(false);
     });
 
+    // Escuta mudanças de estado (Login/Logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
       const u = session?.user ?? null;
+      setSession(session);
       setUser(u);
+      
       if (u) {
         setLoading(true);
         await syncProfile(u);
@@ -95,15 +99,27 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const devLogin = async (userId: string, targetRole: string) => {
+    localStorage.setItem('oliemusic_dev_user_id', userId);
+    localStorage.setItem('oliemusic_dev_role', targetRole);
+    setRole(targetRole);
+    // Força recarregamento para limpar caches de hooks
+    window.location.reload();
+  };
+
   const value = {
     session,
     user,
     profile,
     role,
     loading,
-    signOut: async () => { await supabase.auth.signOut(); },
+    signOut: async () => { 
+        localStorage.removeItem('oliemusic_dev_role');
+        await supabase.auth.signOut(); 
+    },
     signIn: (email: string, password: string) => supabase.auth.signInWithPassword({ email, password }),
-    refreshProfile: async () => { if (user) await syncProfile(user); }
+    refreshProfile: async () => { if (user) await syncProfile(user); },
+    devLogin
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

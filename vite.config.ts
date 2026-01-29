@@ -11,11 +11,17 @@ export default defineConfig({
   resolve: {
     alias: {
       /**
-       * Mapeia '@' para a raiz do projeto.
-       * Conforme as diretrizes, a raiz atua como o diretório 'src'.
+       * Mapeia '@' para a raiz atual no Google AI Studio.
+       * Suporta legados enquanto priorizamos caminhos relativos no código.
        */
       '@': path.resolve(__dirname, './'),
     },
     extensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
+  },
+  // Garante que o servidor de dev entenda a raiz como base
+  root: './',
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
   }
 });

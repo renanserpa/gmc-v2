@@ -1,22 +1,24 @@
 import React, { Suspense, lazy } from 'react';
 import * as RRD from 'react-router-dom';
-const { HashRouter, Routes, Route } = RRD as any;
+const { HashRouter, Routes, Route, Navigate } = RRD as any;
+
 import { UserRole } from './types.ts';
+import { useAuth } from './contexts/AuthContext.tsx';
+import { AppLoader } from './components/AppLoader.tsx';
+import { OmniSearch } from './components/layout/OmniSearch.tsx';
 import ProtectedRoute from './components/ProtectedRoute.tsx';
 import Layout from './components/Layout.tsx';
 import AdminLayout from './layouts/AdminLayout.tsx';
-import { OmniSearch } from './components/layout/OmniSearch.tsx';
-import { AppLoader } from './components/AppLoader.tsx';
-import { useAuth } from './contexts/AuthContext.tsx';
 import LoadingScreen from './components/ui/LoadingScreen.tsx';
 
-// Lazy loading com caminhos relativos rigorosos (Removidos @/ e legados)
+// Lazy loading de Views com caminhos relativos puros
 const LandingPage = lazy(() => import('./pages/LandingPage.tsx'));
 const Login = lazy(() => import('./pages/Login.tsx'));
 const ProfileSelector = lazy(() => import('./pages/ProfileSelector.tsx'));
 const StudentDashboard = lazy(() => import('./pages/StudentDashboard.tsx'));
-const ArcadePage = lazy(() => import('./pages/ArcadePage.tsx'));
 const PracticeRoom = lazy(() => import('./pages/PracticeRoom.tsx'));
+const ArcadePage = lazy(() => import('./pages/ArcadePage.tsx'));
+const LibraryPage = lazy(() => import('./pages/LibraryPage.tsx'));
 const ProfessorDashboard = lazy(() => import('./pages/ProfessorDashboard.tsx'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard.tsx'));
 const SystemExplorer = lazy(() => import('./pages/admin/SystemExplorer.tsx'));
@@ -27,7 +29,7 @@ const NotFound = lazy(() => import('./pages/NotFound.tsx'));
 export default function App() {
   const { user } = useAuth();
   
-  // LOGICA DE SEGURANÇA GLOBAL: adm@adm.com sempre tem acesso admin
+  // Regra de Ouro: adm@adm.com é o Root do Kernel
   const isGlobalAdmin = user?.email === 'adm@adm.com';
 
   return (
@@ -36,26 +38,30 @@ export default function App() {
         <Suspense fallback={<LoadingScreen />}>
           <OmniSearch />
           <Routes>
+            {/* Landing & Autenticação */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/app" element={<ProfileSelector />} />
             
-            {/* Área do Aluno - Proteção por Role */}
+            {/* Área do Aluno (Dashboard, Prática, Jogos) */}
             <Route path="/student" element={<ProtectedRoute allowedRoles={[UserRole.Student]}><Layout /></ProtectedRoute>}>
               <Route index element={<StudentDashboard />} />
-              <Route path="arcade" element={<ArcadePage />} />
               <Route path="practice" element={<PracticeRoom />} />
-            </Route>
-            
-            {/* Área do Professor - Proteção por Role */}
-            <Route path="/professor" element={<ProtectedRoute allowedRoles={[UserRole.Professor]}><Layout /></ProtectedRoute>}>
-              <Route index element={<ProfessorDashboard />} />
+              <Route path="arcade" element={<ArcadePage />} />
+              <Route path="library" element={<LibraryPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
             
-            {/* Área Administrativa - Proteção Global */}
+            {/* Área do Professor (Cockpit de Aula) */}
+            <Route path="/professor" element={<ProtectedRoute allowedRoles={[UserRole.Professor]}><Layout /></ProtectedRoute>}>
+              <Route index element={<ProfessorDashboard />} />
+              <Route path="library" element={<LibraryPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+            </Route>
+            
+            {/* Área Administrativa (God Mode, Diagnóstico, Banco) */}
             <Route path="/admin" element={
-                <ProtectedRoute allowedRoles={isGlobalAdmin ? [UserRole.Admin, UserRole.Student, UserRole.Professor] : [UserRole.Admin]}>
+                <ProtectedRoute allowedRoles={isGlobalAdmin ? [UserRole.Admin, UserRole.Student, UserRole.Professor, UserRole.Manager] : [UserRole.Admin]}>
                     <AdminLayout />
                 </ProtectedRoute>
             }>

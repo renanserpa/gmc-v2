@@ -35,24 +35,26 @@ CREATE TABLE IF NOT EXISTS public.students (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     class_id UUID REFERENCES public.classes(id) ON DELETE SET NULL,
-    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     avatar_url TEXT,
     instrument TEXT,
     xp INTEGER DEFAULT 0,
     coins INTEGER DEFAULT 0,
-    level INTEGER DEFAULT 1,
-    streak_days INTEGER DEFAULT 0,
+    current_level INTEGER DEFAULT 1,
+    current_streak_days INTEGER DEFAULT 0,
+    professor_id UUID REFERENCES public.profiles(id),
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 5. Tabela de Missões (Missions)
-CREATE TABLE IF NOT EXISTS public.missions (
+-- 5. Tabela de Eventos de XP (Gamificação)
+CREATE TABLE IF NOT EXISTS public.xp_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    title TEXT NOT NULL,
-    description TEXT,
-    xp_reward INTEGER DEFAULT 30,
-    coins_reward INTEGER DEFAULT 5,
-    type TEXT DEFAULT 'practice',
+    player_id UUID REFERENCES public.students(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL,
+    xp_amount INTEGER DEFAULT 0,
+    coins_amount INTEGER DEFAULT 0,
+    context_type TEXT,
+    context_id TEXT,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -66,27 +68,5 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 7. Configuração de Segurança (RLS)
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.classes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.missions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
-
--- Políticas Básicas (Permitir leitura para autenticados)
-DO $$ 
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow authenticated read') THEN
-        CREATE POLICY "Allow authenticated read" ON public.profiles FOR SELECT TO authenticated USING (true);
-        CREATE POLICY "Allow authenticated read" ON public.classes FOR SELECT TO authenticated USING (true);
-        CREATE POLICY "Allow authenticated read" ON public.students FOR SELECT TO authenticated USING (true);
-        CREATE POLICY "Allow authenticated read" ON public.missions FOR SELECT TO authenticated USING (true);
-        CREATE POLICY "Allow authenticated read" ON public.audit_logs FOR SELECT TO authenticated USING (true);
-    END IF;
-END $$;
-
--- OVERRIDE ADMIN: RENAN SERPA
-UPDATE public.profiles 
-SET role = 'admin', school_id = '00000000-0000-0000-0000-000000000000'
-WHERE full_name = 'Renan Serpa';
+-- 7. Políticas de RLS omitidas para brevidade no DDL de visualização
 `;
