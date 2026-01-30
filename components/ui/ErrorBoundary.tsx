@@ -1,3 +1,4 @@
+
 import React, { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Terminal } from 'lucide-react';
 
@@ -11,16 +12,17 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  // Added props member to fix property 'props' does not exist error
-  public props: Props;
-
   public state: State = {
     hasError: false,
     error: null
   };
+  
+  // FIX: Explicitly defined props to resolve "Property 'props' does not exist on type 'ErrorBoundary'" error in specific compiler contexts
+  public props: Props;
 
   constructor(props: Props) {
     super(props);
+    // FIX: Manual assignment of props to satisfy strict compiler checks for class members
     this.props = props;
   }
 
@@ -65,7 +67,8 @@ export class ErrorBoundary extends Component<Props, State> {
       );
     }
 
-    // FIX: Accessing children through this.props
     return this.props.children;
   }
 }
+
+export default ErrorBoundary;

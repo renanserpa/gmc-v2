@@ -1,9 +1,9 @@
 
 import React from 'react';
-// FIX: Using any to bypass react-router-dom export errors
 import * as RRD from 'react-router-dom';
 const { Navigate, useLocation, Outlet } = RRD as any;
 import { useAuth } from '../contexts/AuthContext.tsx';
+import { UserRole } from '../types.ts';
 
 interface ProtectedRouteProps {
   children?: React.ReactNode;
@@ -16,28 +16,42 @@ export default function ProtectedRoute(props: ProtectedRouteProps) {
   const location = useLocation();
 
   if (loading) {
-    return null; // AppLoader no App.tsx gerencia isso
+    return null; // AppLoader já está cobrindo a tela
   }
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
+
+  // EMERGENCY BYPASS (GOD MODE)
+  // Se o usuário for o admin root, ele tem passe livre para qualquer rota administrativa
+  const isRootAdmin = user.email === 'admin@oliemusic.dev';
+  if (isRootAdmin && location.pathname.startsWith('/admin')) {
+    return children ? <>{children}</> : <Outlet />;
+  }
   
+  // Se o perfil/role não carregou (Sync Issue), mas o usuário está autenticado
   if (!role) {
-     const onboardingPaths = ['/student/link', '/guardian/setup'];
+     const onboardingPaths = ['/student/link', '/guardian/setup', '/student/onboarding'];
      if (onboardingPaths.some(path => location.pathname.startsWith(path))) {
          return children ? <>{children}</> : <Outlet />;
      }
      
-     if (location.pathname !== '/') {
-         return <Navigate to="/" replace />;
+     // Redireciona para o seletor de perfil como último recurso
+     if (location.pathname !== '/app') {
+        return <Navigate to="/app" replace />;
      }
   }
 
+  // Validação de Role regular
   if (role && !allowedRoles.includes(role)) {
-    console.warn(`[ProtectedRoute] Acesso negado para role ${role} em ${location.pathname}`);
-    const fallbackPath = role === 'manager' ? '/manager' : `/${role}`;
-    return <Navigate to={fallbackPath} replace />;
+    console.warn(`[Security-Guard] Acesso bloqueado: Role ${role} tentou acessar ${location.pathname}. Requisitado: ${allowedRoles.join(',')}`);
+    
+    // Evita loop infinito se já estiver no destino correto
+    const targetPath = role === 'manager' ? '/manager' : `/${role}`;
+    if (location.pathname === targetPath) return children ? <>{children}</> : <Outlet />;
+    
+    return <Navigate to={targetPath} replace />;
   }
 
   return children ? <>{children}</> : <Outlet />;

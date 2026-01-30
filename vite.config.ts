@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './'),
+      // FIX: Use path.resolve('.') to get the absolute path of the current directory, avoiding typing issues with the global process object.
+      '@': path.resolve('.'),
     },
   },
   build: {
