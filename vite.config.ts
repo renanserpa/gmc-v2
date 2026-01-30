@@ -11,17 +11,23 @@ export default defineConfig({
   resolve: {
     alias: {
       /**
-       * Mapeia '@' para a raiz atual no Google AI Studio.
-       * Suporta legados enquanto priorizamos caminhos relativos no código.
+       * Configura o alias '@' para o diretório raiz absoluto.
+       * Como este projeto segue uma estrutura plana onde o código-fonte reside na raiz,
+       * o mapeamento para '.' garante que caminhos como '@/components/...' funcionem
+       * tanto no Vite quanto via importmaps nativos.
        */
-      '@': path.resolve(__dirname, './'),
+      '@': path.resolve(__dirname, '.'),
     },
+    // Extensões suportadas para resolução automática de módulos
     extensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
   },
-  // Garante que o servidor de dev entenda a raiz como base
-  root: './',
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    sourcemap: true,
+  },
+  server: {
+    port: 3000,
+    strictPort: true,
   }
 });

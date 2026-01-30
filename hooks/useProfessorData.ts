@@ -1,51 +1,74 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { supabase } from '../lib/supabaseClient.ts';
 
 export function useProfessorData() {
-    const { user, role } = useAuth();
+    const { user } = useAuth();
     const teacherId = user?.id;
 
     return useQuery({
-        queryKey: ['professor-contract-data-v4', teacherId],
+        queryKey: ['professor-dashboard-composite', teacherId],
         queryFn: async () => {
             if (!teacherId) return null;
 
-            // Busca atômica de Students, Classes e Atividades da Semana
-            const [resStudents, resClasses, resEvents] = await Promise.all([
-                supabase.from('students').select('*').eq('professor_id', teacherId),
-                supabase.from('music_classes').select('*').eq('professor_id', teacherId),
-                supabase.from('xp_events').select('xp_amount, created_at').gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+            // Busca paralela para otimização de banda e latência
+            const [resStudents, resClasses, resAudit] = await Promise.all([
+                // 1. Alunos vinculados
+                supabase.from('students')
+                    .select('*')
+                    .eq('professor_id', teacherId)
+                    .order('xp', { ascending: false }),
+
+                // 2. Turmas agendadas
+                supabase.from('music_classes')
+                    .select('*')
+                    .eq('professor_id', teacherId)
+                    .order('start_time', { ascending: true }),
+
+                // 3. Logs de Atividade (XP Events) via Join Relacional
+                supabase.from('xp_events')
+                    .select('*, students!inner(name, avatar_url, professor_id)')
+                    .eq('students.professor_id', teacherId)
+                    .order('created_at', { ascending: false })
+                    .limit(20)
             ]);
 
             const students = resStudents.data || [];
             const classes = resClasses.data || [];
-            const recentEvents = resEvents.data || [];
+            const auditLogs = resAudit.data || [];
 
-            // Cálculos de Métrica
+            // Agregação de KPIs
             const totalXp = students.reduce((acc, s) => acc + (s.xp || 0), 0);
             const avgXp = students.length > 0 ? Math.round(totalXp / students.length) : 0;
             
-            // Agrupamento de XP por dia para o gráfico
-            const chartData = recentEvents.reduce((acc: any, curr) => {
-                const day = new Date(curr.created_at).toLocaleDateString('pt-BR', { weekday: 'short' });
-                acc[day] = (acc[day] || 0) + curr.xp_amount;
-                return acc;
-            }, {});
+            // Mapeamento de Evolução Rítmica/Técnica (Últimos 7 dias)
+            const daysMap: Record<string, number> = {};
+            auditLogs.forEach(log => {
+                const day = new Date(log.created_at).toLocaleDateString('pt-BR', { weekday: 'short' });
+                daysMap[day] = (daysMap[day] || 0) + log.xp_amount;
+            });
+
+            const evolution = Object.entries(daysMap).map(([name, value]) => ({ 
+                name: name.toUpperCase(), 
+                value 
+            }));
 
             return {
                 students,
                 classes,
-                isNewTeacher: classes.length === 0,
+                auditLogs,
+                isNewTeacher: classes.length === 0 && students.length === 0,
                 stats: {
                     totalStudents: students.length,
                     avgXp,
-                    weeklyGrowth: recentEvents.length
+                    weeklyEvents: auditLogs.length,
+                    activeSessions: classes.length
                 },
-                evolution: Object.entries(chartData).map(([name, value]) => ({ name, value }))
+                evolution
             };
         },
         enabled: !!teacherId,
-        staleTime: 1000 * 60 * 2 // 2 minutos de cache
+        staleTime: 1000 * 60 * 2 // Cache de 2 minutos para evitar overfetching
     });
 }

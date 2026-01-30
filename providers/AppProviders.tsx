@@ -1,9 +1,11 @@
+
 import React, { ReactNode } from 'react';
 import { AuthProvider } from '../contexts/AuthContext.tsx';
+import { AdminProvider } from '../contexts/AdminContext.tsx';
 import { GamificationProvider } from '../contexts/GamificationEventContext.tsx';
 import { TuningProvider } from '../contexts/TuningContext.tsx';
 import { AccessibilityProvider } from '../contexts/AccessibilityContext.tsx';
-import { ThemeProvider } from '../contexts/ThemeContext.tsx'; // Importado
+import { ThemeProvider } from '../contexts/ThemeContext.tsx';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer } from 'react-toastify';
 import { ErrorBoundary } from '../components/ErrorBoundary.tsx';
@@ -26,20 +28,22 @@ export const AppProviders = ({ children }: { children?: ReactNode }) => {
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <AuthProvider>
-            <ThemeProvider> {/* Novo Provider */}
-                <AccessibilityProvider>
-                  <GamificationProvider>
-                      <TuningProvider>
-                          {children}
-                          <ToastContainer 
-                              position="bottom-right"
-                              theme="dark"
-                              toastClassName="bg-slate-800 text-slate-100 border border-slate-700"
-                          />
-                      </TuningProvider>
-                  </GamificationProvider>
-                </AccessibilityProvider>
-            </ThemeProvider>
+            <AdminProvider>
+              <ThemeProvider>
+                  <AccessibilityProvider>
+                    <GamificationProvider>
+                        <TuningProvider>
+                            {children}
+                            <ToastContainer 
+                                position="bottom-right"
+                                theme="dark"
+                                toastClassName="bg-slate-800 text-slate-100 border border-slate-700"
+                            />
+                        </TuningProvider>
+                    </GamificationProvider>
+                  </AccessibilityProvider>
+              </ThemeProvider>
+            </AdminProvider>
           </AuthProvider>
         </TooltipProvider>
       </QueryClientProvider>

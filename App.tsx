@@ -1,3 +1,4 @@
+
 import React, { Suspense, lazy } from 'react';
 import * as RRD from 'react-router-dom';
 const { HashRouter, Routes, Route, Navigate } = RRD as any;
@@ -21,6 +22,8 @@ const UserManager = lazy(() => import('./pages/admin/UserManager.tsx'));
 const SystemHealth = lazy(() => import('./pages/admin/SystemHealth.tsx'));
 const GamificationLab = lazy(() => import('./pages/admin/GamificationLab.tsx'));
 const SecurityAudit = lazy(() => import('./pages/admin/SecurityAudit.tsx'));
+const ArchitectureBoard = lazy(() => import('./pages/admin/ArchitectureBoard.tsx'));
+const BrainCenter = lazy(() => import('./pages/BrainCenter.tsx'));
 
 // Views de Usuários
 const LandingPage = lazy(() => import('./pages/LandingPage.tsx'));
@@ -29,6 +32,11 @@ const ProfileSelector = lazy(() => import('./pages/ProfileSelector.tsx'));
 const StudentDashboard = lazy(() => import('./pages/StudentDashboard.tsx'));
 const PracticeRoom = lazy(() => import('./pages/PracticeRoom.tsx'));
 const ProfessorDashboard = lazy(() => import('./pages/ProfessorDashboard.tsx'));
+const TaskManager = lazy(() => import('./pages/TaskManager.tsx'));
+const LibraryPage = lazy(() => import('./pages/LibraryPage.tsx'));
+const NoticeBoardPage = lazy(() => import('./pages/NoticeBoardPage.tsx'));
+const ClassroomRemote = lazy(() => import('./pages/ClassroomRemote.tsx'));
+const TeacherAcademy = lazy(() => import('./pages/TeacherAcademy.tsx'));
 
 export default function App() {
   const { user } = useAuth();
@@ -50,11 +58,18 @@ export default function App() {
             <Route path="/student" element={<ProtectedRoute allowedRoles={[UserRole.Student]}><Layout /></ProtectedRoute>}>
               <Route index element={<StudentDashboard />} />
               <Route path="practice" element={<PracticeRoom />} />
+              <Route path="tasks" element={<TaskManager />} />
+              <Route path="library" element={<LibraryPage />} />
             </Route>
             
-            {/* Jornada do Professor */}
+            {/* Jornada do Professor - Rotas Protegidas */}
             <Route path="/professor" element={<ProtectedRoute allowedRoles={[UserRole.Professor]}><Layout /></ProtectedRoute>}>
               <Route index element={<ProfessorDashboard />} />
+              <Route path="classroom" element={<ClassroomRemote />} />
+              <Route path="tasks" element={<TaskManager />} />
+              <Route path="library" element={<LibraryPage />} />
+              <Route path="notices" element={<NoticeBoardPage />} />
+              <Route path="academy" element={<TeacherAcademy />} />
             </Route>
             
             {/* MAESTRO ADMIN CONSOLE (ROTA PROTEGIDA) */}
@@ -65,6 +80,8 @@ export default function App() {
             }>
               <Route index element={<AdminDashboard />} />
               <Route path="explorer" element={<SystemExplorer />} />
+              <Route path="orchestrator" element={<ArchitectureBoard />} />
+              <Route path="brain" element={<BrainCenter />} />
               <Route path="tenants" element={<TenantManager />} />
               <Route path="economy" element={<GlobalEconomy />} />
               <Route path="gamification" element={<GamificationLab />} />

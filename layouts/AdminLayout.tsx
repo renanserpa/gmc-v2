@@ -1,11 +1,13 @@
+
 import React from 'react';
+// FIX: Using any to bypass react-router-dom export errors
 import * as RRD from 'react-router-dom';
 const { NavLink, Outlet, Navigate, useNavigate } = RRD as any;
 import { 
     LayoutDashboard, Users, Building2, Terminal, 
     Activity, ShieldAlert, LogOut, 
     Network, Megaphone, Coins, ShieldCheck, Zap,
-    Award, Fingerprint, Box, Cpu
+    Award, Fingerprint, Box, Cpu, Brain, Layers
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { GodModeBar } from '../components/admin/GodModeBar.tsx';
@@ -58,6 +60,19 @@ export default function AdminLayout() {
                         <NavLink to="/admin/explorer" className={navItemClass}>
                             <Activity size={18} /> War Room (Kernel)
                         </NavLink>
+                        <NavLink to="/admin/orchestrator" className={navItemClass}>
+                            <Layers size={18} /> Orquestrador
+                        </NavLink>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <p className="px-6 text-[9px] font-black text-slate-700 uppercase tracking-[0.5em] mb-4">Inteligência</p>
+                        <NavLink to="/admin/brain" className={navItemClass}>
+                            <Brain size={18} /> Cérebro Neural
+                        </NavLink>
+                        <NavLink to="/admin/gamification" className={navItemClass}>
+                            <Award size={18} /> Lab Progressão
+                        </NavLink>
                     </div>
 
                     <div className="space-y-1.5">
@@ -70,9 +85,6 @@ export default function AdminLayout() {
                         </NavLink>
                         <NavLink to="/admin/economy" className={navItemClass}>
                             <Coins size={18} /> Economia Global
-                        </NavLink>
-                        <NavLink to="/admin/gamification" className={navItemClass}>
-                            <Award size={18} /> Lab Progressão
                         </NavLink>
                     </div>
 

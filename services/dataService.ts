@@ -1,7 +1,9 @@
+
 import { supabase } from '../lib/supabaseClient.ts';
-import { Student, MusicClass, Notice, Mission, AttendanceStatus, Lesson, ContentLibraryItem, School, Profile } from '../types.ts';
+import { Student, MusicClass, Notice, Mission, AttendanceStatus, Lesson, ContentLibraryItem, School, Profile, MissionStatus } from '../types.ts';
 import { Star, Zap, Trophy, Flag } from 'lucide-react';
 import { SessionStats } from '../lib/audioPro.ts';
+import { applyXpEvent } from './gamificationService.ts';
 
 // --- ADMIN SERVICES ---
 
@@ -34,7 +36,6 @@ export const createAdminSchool = async (schoolData: Partial<School> & { slug: st
 };
 
 export const createAdminProfessor = async (profData: { email: string, full_name: string, school_id?: string }) => {
-    // 1. Criar Perfil (Nota: Em produção isso deve ser precedido por um invite no Auth)
     const { data: profile, error: pError } = await supabase
         .from('profiles')
         .insert([{
@@ -51,7 +52,6 @@ export const createAdminProfessor = async (profData: { email: string, full_name:
         throw pError;
     }
 
-    // 2. Se houver escola, vincular na tabela de junção para permissões multitenant
     if (profData.school_id && profile) {
         const { error: linkError } = await supabase
             .from('professor_schools')
@@ -66,55 +66,74 @@ export const createAdminProfessor = async (profData: { email: string, full_name:
     return profile;
 };
 
-export const getSystemConfig = async (key: string) => {
+// --- MISSION SERVICES ---
+
+export const getMissionsByStudent = async (studentId: string): Promise<Mission[]> => {
     const { data, error } = await supabase
-        .from('system_configs')
-        .select('value')
-        .eq('key', key)
-        .maybeSingle();
+        .from('missions')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false });
     
-    return data?.value || null;
+    return data || [];
 };
 
-export const updateSystemConfig = async (key: string, value: any) => {
-    const { error } = await supabase
-        .from('system_configs')
-        .upsert({ key, value, updated_at: new Date().toISOString() });
-    
+export const updateMissionStatus = async (missionId: string, studentId: string, status: MissionStatus, xpReward: number) => {
+    const { data, error } = await supabase
+        .from('missions')
+        .update({ status })
+        .eq('id', missionId)
+        .select()
+        .single();
+
+    if (error) throw error;
+
+    if (status === MissionStatus.Done) {
+        await applyXpEvent({
+            studentId,
+            eventType: 'MISSION_COMPLETE',
+            xpAmount: xpReward,
+            contextType: 'mission',
+            contextId: missionId
+        });
+    }
+
+    return data;
+};
+
+export const updateMission = async (missionId: string, updates: Partial<Mission>) => {
+  const { data, error } = await supabase
+    .from('missions')
+    .update(updates)
+    .eq('id', missionId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const deleteMission = async (missionId: string) => {
+    const { error } = await supabase.from('missions').delete().eq('id', missionId);
     if (error) throw error;
     return true;
 };
 
-// --- RESTO DOS SERVIÇOS EXISTENTES MANTIDOS ---
+export const createMission = async (mission: Partial<Mission>) => {
+  const { data, error } = await supabase.from('missions').insert([mission]).select().single();
+  if (error) throw error;
+  return data;
+};
+
+// --- RESTO DOS SERVIÇOS EXISTENTES ---
 export const generateAccessCode = () => {
   const digits = Math.floor(100 + Math.random() * 900);
   return `GCM-${digits}`;
 };
 
-export const getProfessorAuditLogs = async (professorId: string) => {
-    const { data: myStudents } = await supabase.from('students').select('id').eq('professor_id', professorId);
-    if (!myStudents || myStudents.length === 0) return [];
-    const studentIds = myStudents.map(s => s.id);
-    const { data, error } = await supabase.from('xp_events').select('*, students:player_id (name, avatar_url)').in('player_id', studentIds).order('created_at', { ascending: false }).limit(50);
-    return data || [];
-};
-
-export const savePracticeSession = async (studentId: string, stats: SessionStats) => {
-    const { data, error } = await supabase.from('practice_sessions').insert([{
-        student_id: studentId,
-        duration_seconds: stats.durationSeconds,
-        total_score: stats.totalScore,
-        avg_precision: stats.averagePrecision,
-        avg_stability: stats.avgStability,
-        max_combo: stats.maxCombo,
-        note_heatmap: stats.noteHeatmap,
-        dynamic_range: stats.dynamicRange,
-        flow_factor: stats.flowFactor,
-        resonance_score: stats.resonanceScore,
-        created_at: new Date().toISOString()
-    }]).select().single();
-    if (error) throw error;
-    return data;
+export const getSystemStats = async () => {
+    const { count: totalStudents } = await supabase.from('students').select('*', { count: 'exact', head: true });
+    const { count: totalProfs } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'professor');
+    return { totalStudents: totalStudents || 0, activeMissions: 0, totalContent: 0, totalProfs: totalProfs || 0 };
 };
 
 export const getLatestPracticeStats = async (studentId: string): Promise<SessionStats | null> => {
@@ -128,6 +147,15 @@ export const getLatestPracticeStats = async (studentId: string): Promise<Session
     };
 };
 
+export const getStudentMilestones = async (studentId: string) => {
+    const { data } = await supabase.from('xp_events').select('*').eq('player_id', studentId).order('created_at', { ascending: true });
+    if (!data) return [];
+    const iconMap: any = { 'FIRST_SYNC': Star, 'LEVEL_UP': Trophy, 'PRACTICE_SESSION': Zap, 'MISSION_COMPLETE': Flag };
+    return data.filter(e => ['FIRST_SYNC', 'LEVEL_UP', 'MISSION_COMPLETE'].includes(e.event_type)).map(e => ({
+        id: e.id, title: e.event_type.replace('_', ' '), date: e.created_at, icon: iconMap[e.event_type] || Star, xp: e.xp_amount
+    }));
+};
+
 export const getPracticeTrends = async (studentId: string, limit = 5): Promise<SessionStats[]> => {
     const { data, error } = await supabase.from('practice_sessions').select('*').eq('student_id', studentId).order('created_at', { ascending: false }).limit(limit);
     if (error || !data) return [];
@@ -139,26 +167,6 @@ export const getPracticeTrends = async (studentId: string, limit = 5): Promise<S
     }));
 };
 
-export const getStudentMilestones = async (studentId: string) => {
-    const { data } = await supabase.from('xp_events').select('*').eq('player_id', studentId).order('created_at', { ascending: true });
-    if (!data) return [];
-    const iconMap: any = { 'FIRST_SYNC': Star, 'LEVEL_UP': Trophy, 'PRACTICE_SESSION': Zap, 'MISSION_COMPLETE': Flag };
-    return data.filter(e => ['FIRST_SYNC', 'LEVEL_UP', 'MISSION_COMPLETE'].includes(e.event_type)).map(e => ({
-        id: e.id, title: e.event_type.replace('_', ' '), date: e.created_at, icon: iconMap[e.event_type] || Star, xp: e.xp_amount
-    }));
-};
-
-export const getContentLibrary = async (professorId: string): Promise<ContentLibraryItem[]> => {
-  const { data } = await supabase.from('content_library').select('*').eq('professor_id', professorId).order('created_at', { ascending: false });
-  return data || [];
-};
-
-export const addLibraryItem = async (item: Partial<ContentLibraryItem>) => {
-  const { data, error } = await supabase.from('content_library').insert([item]).select().single();
-  if (error) throw error;
-  return data;
-};
-
 export const getNotices = async (targetId: string, type: 'all' | 'class' | 'student' = 'all'): Promise<Notice[]> => {
   let query = supabase.from('notices').select('*').order('created_at', { ascending: false });
   if (type === 'class') query = query.eq('target_audience', targetId);
@@ -167,14 +175,13 @@ export const getNotices = async (targetId: string, type: 'all' | 'class' | 'stud
   return data || [];
 };
 
-export const createNotice = async (notice: Partial<Notice>) => {
-  const { data, error } = await supabase.from('notices').insert([notice]).select().single();
-  if (error) throw error;
-  return data;
+export const getMusicClasses = async (professorId: string): Promise<MusicClass[]> => {
+  const { data } = await supabase.from('music_classes').select('*').eq('professor_id', professorId).order('start_time', { ascending: true });
+  return data || [];
 };
 
-export const getLessonsByTeacher = async (professorId: string): Promise<Lesson[]> => {
-  const { data } = await supabase.from('lessons').select('*').eq('professor_id', professorId).order('date', { ascending: true });
+export const getStudentsByTeacher = async (professorId: string): Promise<Student[]> => {
+  const { data } = await supabase.from('students').select('*').eq('professor_id', professorId);
   return data || [];
 };
 
@@ -194,14 +201,46 @@ export const getTodayAttendanceForClass = async (classId: string): Promise<Recor
     return map;
 };
 
-export const getMusicClasses = async (professorId: string): Promise<MusicClass[]> => {
-  const { data } = await supabase.from('music_classes').select('*').eq('professor_id', professorId).order('start_time', { ascending: true });
+export const updateStudent = async (id: string, updates: Partial<Student>) => {
+    const { data, error } = await supabase.from('students').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    return data;
+};
+
+export const getContentLibrary = async (professorId: string): Promise<ContentLibraryItem[]> => {
+  const { data } = await supabase.from('content_library').select('*').eq('professor_id', professorId).order('created_at', { ascending: false });
   return data || [];
 };
 
-export const getStudentsByTeacher = async (professorId: string): Promise<Student[]> => {
-  const { data } = await supabase.from('students').select('*').eq('professor_id', professorId);
-  return data || [];
+export const addLibraryItem = async (item: Partial<ContentLibraryItem>) => {
+  const { data, error } = await supabase.from('content_library').insert([item]).select().single();
+  if (error) throw error;
+  return data;
+};
+
+export const linkGuardianAccount = async (code: string) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, message: "Sessão expirada." };
+  const { data, error = null } = await supabase.from('students').update({ guardian_id: user.id }).eq('access_code', code).select().maybeSingle();
+  if (error || !data) return { success: false, message: "Código não encontrado ou já vinculado." };
+  return { success: true };
+};
+
+export const getStudentAttendanceRate = async (studentId: string): Promise<number> => {
+    const { data } = await supabase.from('attendance_logs').select('status').eq('student_id', studentId);
+    if (!data || data.length === 0) return 100;
+    const presents = data.filter(a => a.status === 'present' || a.status === 'late').length;
+    return Math.round((presents / data.length) * 100);
+};
+
+export const giveHighFive = async (hallId: string) => {
+    const { data, error } = await supabase.rpc('increment_concert_hall_high_fives', { p_hall_id: hallId });
+    if (error) {
+        const { data: current } = await supabase.from('concert_hall').select('high_fives_count').eq('id', hallId).single();
+        if (current) await supabase.from('concert_hall').update({ high_fives_count: (current.high_fives_count || 0) + 1 }).eq('id', hallId);
+        return true;
+    }
+    return data;
 };
 
 export const getStudentDetailedStats = async (studentId: string) => {
@@ -214,88 +253,93 @@ export const getStudentDetailedStats = async (studentId: string) => {
     return { xpHistory: xpHistory.data || [], recordings: recordings.data || [], repertoire: repertoire.data || [], achievements: achievements.data || [] };
 };
 
-export const createStudent = async (student: Partial<Student>) => {
-    const code = generateAccessCode();
-    const { data, error } = await supabase.from('students').insert([{ ...student, access_code: code, invite_code: code, xp: 0, coins: 0, current_level: 1, current_streak_days: 0 }]).select().single();
-    if (error) throw error;
-    return data;
-};
+// --- FIX: Missing services added to resolve build errors ---
 
-export const updateStudent = async (id: string, updates: Partial<Student>) => {
-    const { data, error } = await supabase.from('students').update(updates).eq('id', id).select().single();
-    if (error) throw error;
-    return data;
-};
-
-export const getMissionsByTeacher = async (professorId: string): Promise<Mission[]> => {
-  const { data } = await supabase.from('missions').select('*').eq('professor_id', professorId).order('created_at', { ascending: false });
-  return data || [];
-};
-
-export const createMission = async (mission: Partial<Mission>) => {
-  const { data, error } = await supabase.from('missions').insert([mission]).select().single();
-  if (error) throw error;
-  return data;
-};
-
-export const getMissionsByStudent = async (studentId: string): Promise<Mission[]> => {
-    const { data } = await supabase.from('missions').select('*').eq('student_id', studentId).order('position', { ascending: true });
-    return data || [];
-};
-
+/**
+ * Vincular conta de aluno usando código de acesso
+ */
 export const linkStudentAccount = async (code: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, message: "Sessão expirada." };
-    const { data, error } = await supabase.from('students').update({ auth_user_id: user.id }).eq('invite_code', code).select().maybeSingle();
-    if (error || !data) return { success: false, message: "Código não encontrado ou já utilizado." };
-    return { success: true };
-};
-
-export const getSystemStats = async () => {
-    const { count: totalStudents } = await supabase.from('students').select('*', { count: 'exact', head: true });
-    const { count: totalProfs } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'professor');
-    return { totalStudents: totalStudents || 0, activeMissions: 0, totalContent: 0, totalProfs: totalProfs || 0 };
-};
-
-export const updateLessonStatus = async (lessonId: string, status: string) => {
-  const { data, error } = await supabase.from('lessons').update({ status }).eq('id', lessonId).select().single();
-  if (error) throw error;
-  return data;
-};
-
-export const linkGuardianAccount = async (code: string) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, message: "Sessão expirada." };
-  const { data, error } = await supabase.from('students').update({ guardian_id: user.id }).eq('access_code', code).select().maybeSingle();
-  if (error || !data) return { success: false, message: "Código não encontrado ou já vinculado." };
+  
+  const { data, error } = await supabase
+    .from('students')
+    .update({ auth_user_id: user.id })
+    .eq('access_code', code)
+    .select()
+    .maybeSingle();
+
+  if (error || !data) return { success: false, message: "Código inválido ou já utilizado." };
   return { success: true };
 };
 
-export const getStudentAttendanceRate = async (studentId: string): Promise<number> => {
-    const { data } = await supabase.from('attendance_logs').select('status').eq('student_id', studentId);
-    if (!data || data.length === 0) return 100;
-    const presents = data.filter(a => a.status === 'present' || a.status === 'late').length;
-    return Math.round((presents / data.length) * 100);
-};
-
-export const savePerformanceRecording = async (payload: any) => {
-  const { data, error } = await supabase.from('performance_recordings').insert([payload]).select().single();
-  if (error) throw error;
-  return data;
-};
-
+/**
+ * Busca o repertório (músicas) do aluno
+ */
 export const getStudentRepertoire = async (studentId: string) => {
-    const { data, error } = await supabase.from('student_songs').select('*, songs(*)').eq('student_id', studentId);
+    const { data, error } = await supabase
+        .from('student_songs')
+        .select('*, songs(*)')
+        .eq('student_id', studentId);
     if (error) throw error;
     return data || [];
 };
 
-export const giveHighFive = async (hallId: string) => {
-    const { data, error } = await supabase.rpc('increment_concert_hall_high_fives', { p_hall_id: hallId });
-    if (error) {
-        const { data: current } = await supabase.from('concert_hall').select('high_fives_count').eq('id', hallId).single();
-        if (current) await supabase.from('concert_hall').update({ high_fives_count: (current.high_fives_count || 0) + 1 }).eq('id', hallId);
-        return true;
-    }
+/**
+ * Salva uma sessão de prática
+ */
+export const savePracticeSession = async (studentId: string, stats: SessionStats) => {
+    const { data, error } = await supabase.from('practice_sessions').insert([{
+        student_id: studentId,
+        duration_seconds: stats.durationSeconds,
+        avg_precision: stats.averagePrecision,
+        total_score: stats.totalScore,
+        max_combo: stats.maxCombo,
+        avg_stability: stats.avgStability,
+        note_heatmap: stats.noteHeatmap,
+        flow_factor: stats.flowFactor,
+        resonance_score: stats.resonanceScore
+    }]).select().single();
+
+    if (error) throw error;
     return data;
+};
+
+/**
+ * Cria um novo aviso
+ */
+export const createNotice = async (notice: Partial<Notice>) => {
+    const { data, error } = await supabase.from('notices').insert([notice]).select().single();
+    if (error) throw error;
+    return data;
+};
+
+/**
+ * Busca uma configuração do sistema (ex: multiplicador de XP)
+ */
+export const getSystemConfig = async (key: string): Promise<string | null> => {
+    const { data, error } = await supabase
+        .from('knowledge_docs')
+        .select('content')
+        .eq('title', key.toUpperCase())
+        .maybeSingle();
+    
+    if (error) return null;
+    return data?.content || null;
+};
+
+/**
+ * Atualiza uma configuração do sistema
+ */
+export const updateSystemConfig = async (key: string, value: string) => {
+    const { error } = await supabase
+        .from('knowledge_docs')
+        .upsert({
+            title: key.toUpperCase(),
+            content: value,
+            tokens: 0
+        }, { onConflict: 'title' });
+    
+    if (error) throw error;
+    return true;
 };
