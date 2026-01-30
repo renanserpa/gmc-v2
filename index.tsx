@@ -1,24 +1,18 @@
 import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App.tsx';
-import { AppProviders } from './providers/AppProviders.tsx';
-import { ErrorBoundary } from './components/ui/ErrorBoundary.tsx';
-import './index.css';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './index.css'; // Certifique-se de que este arquivo existe ou remova esta linha
 
-const rootElement = document.getElementById('root');
+const container = document.getElementById('root');
 
-if (!rootElement) {
-  throw new Error("Elemento #root não encontrado. Verifique seu arquivo index.html.");
+if (!container) {
+  throw new Error("Não foi possível encontrar o elemento root. Verifique seu index.html");
 }
 
-const root = ReactDOM.createRoot(rootElement);
+const root = createRoot(container);
 
 root.render(
   <React.StrictMode>
-    <ErrorBoundary>
-      <AppProviders>
-        <App />
-      </AppProviders>
-    </ErrorBoundary>
+    <App />
   </React.StrictMode>
 );

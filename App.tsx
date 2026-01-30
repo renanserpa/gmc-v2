@@ -1,7 +1,6 @@
-
 import React, { Suspense, lazy } from 'react';
-import * as RRD from 'react-router-dom';
-const { HashRouter, Routes, Route, Navigate } = RRD as any;
+// Correção na importação do Router: Removido o cast "as any" para garantir tipagem e resolução de módulos
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import { UserRole } from './types.ts';
 import { useAuth } from './contexts/AuthContext.tsx';
@@ -11,8 +10,9 @@ import ProtectedRoute from './components/ProtectedRoute.tsx';
 import Layout from './components/Layout.tsx';
 import AdminLayout from './layouts/AdminLayout.tsx';
 import LoadingScreen from './components/ui/LoadingScreen.tsx';
+import ErrorBoundary from './components/ui/ErrorBoundary.tsx';
 
-// Lazy loading de Views Administrativas
+// Lazy loading com comentários de "Magic Comments" para ajudar o Vite a nomear os chunks
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard.tsx'));
 const SystemExplorer = lazy(() => import('./pages/admin/SystemExplorer.tsx'));
 const TenantManager = lazy(() => import('./pages/admin/TenantManager.tsx'));
@@ -25,7 +25,6 @@ const SecurityAudit = lazy(() => import('./pages/admin/SecurityAudit.tsx'));
 const ArchitectureBoard = lazy(() => import('./pages/admin/ArchitectureBoard.tsx'));
 const BrainCenter = lazy(() => import('./pages/BrainCenter.tsx'));
 
-// Views de Usuários
 const LandingPage = lazy(() => import('./pages/LandingPage.tsx'));
 const Login = lazy(() => import('./pages/Login.tsx'));
 const ProfileSelector = lazy(() => import('./pages/ProfileSelector.tsx'));
@@ -41,60 +40,83 @@ const TeacherAcademy = lazy(() => import('./pages/TeacherAcademy.tsx'));
 export default function App() {
   const { user } = useAuth();
   
-  // SOBERANIA DE ACESSO: Email Root ou Role Admin
+  // SOBERANIA DE ACESSO: Validação rigorosa de Admin
   const isGlobalAdmin = user?.email === 'admin@oliemusic.dev';
 
   return (
-    <HashRouter>
-      <AppLoader>
-        <Suspense fallback={<LoadingScreen />}>
-          <OmniSearch />
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/app" element={<ProfileSelector />} />
-            
-            {/* Jornada do Aluno */}
-            <Route path="/student" element={<ProtectedRoute allowedRoles={[UserRole.Student]}><Layout /></ProtectedRoute>}>
-              <Route index element={<StudentDashboard />} />
-              <Route path="practice" element={<PracticeRoom />} />
-              <Route path="tasks" element={<TaskManager />} />
-              <Route path="library" element={<LibraryPage />} />
-            </Route>
-            
-            {/* Jornada do Professor - Rotas Protegidas */}
-            <Route path="/professor" element={<ProtectedRoute allowedRoles={[UserRole.Professor]}><Layout /></ProtectedRoute>}>
-              <Route index element={<ProfessorDashboard />} />
-              <Route path="classroom" element={<ClassroomRemote />} />
-              <Route path="tasks" element={<TaskManager />} />
-              <Route path="library" element={<LibraryPage />} />
-              <Route path="notices" element={<NoticeBoardPage />} />
-              <Route path="academy" element={<TeacherAcademy />} />
-            </Route>
-            
-            {/* MAESTRO ADMIN CONSOLE (ROTA PROTEGIDA) */}
-            <Route path="/admin" element={
-                <ProtectedRoute allowedRoles={isGlobalAdmin ? [UserRole.Admin, UserRole.Student, UserRole.Professor, UserRole.Manager, UserRole.Guardian] : [UserRole.Admin]}>
+    <ErrorBoundary> {/* Adicionado para capturar erros de carregamento de módulos */}
+      <HashRouter>
+        <AppLoader>
+          <Suspense fallback={<LoadingScreen />}>
+            <OmniSearch />
+            <Routes>
+              {/* Rotas Públicas */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/app" element={<ProfileSelector />} />
+              
+              {/* Jornada do Aluno */}
+              <Route 
+                path="/student" 
+                element={
+                  <ProtectedRoute allowedRoles={[UserRole.Student]}>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<StudentDashboard />} />
+                <Route path="practice" element={<PracticeRoom />} />
+                <Route path="tasks" element={<TaskManager />} />
+                <Route path="library" element={<LibraryPage />} />
+              </Route>
+              
+              {/* Jornada do Professor */}
+              <Route 
+                path="/professor" 
+                element={
+                  <ProtectedRoute allowedRoles={[UserRole.Professor]}>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<ProfessorDashboard />} />
+                <Route path="classroom" element={<ClassroomRemote />} />
+                <Route path="tasks" element={<TaskManager />} />
+                <Route path="library" element={<LibraryPage />} />
+                <Route path="notices" element={<NoticeBoardPage />} />
+                <Route path="academy" element={<TeacherAcademy />} />
+              </Route>
+              
+              {/* MAESTRO ADMIN CONSOLE */}
+              <Route 
+                path="/admin" 
+                element={
+                  <ProtectedRoute 
+                    allowedRoles={isGlobalAdmin ? Object.values(UserRole) : [UserRole.Admin]}
+                  >
                     <AdminLayout />
-                </ProtectedRoute>
-            }>
-              <Route index element={<AdminDashboard />} />
-              <Route path="explorer" element={<SystemExplorer />} />
-              <Route path="orchestrator" element={<ArchitectureBoard />} />
-              <Route path="brain" element={<BrainCenter />} />
-              <Route path="tenants" element={<TenantManager />} />
-              <Route path="economy" element={<GlobalEconomy />} />
-              <Route path="gamification" element={<GamificationLab />} />
-              <Route path="security" element={<SecurityAudit />} />
-              <Route path="broadcast" element={<BroadcastCenter />} />
-              <Route path="users" element={<UserManager />} />
-              <Route path="health" element={<SystemHealth />} />
-            </Route>
-            
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </AppLoader>
-    </HashRouter>
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<AdminDashboard />} />
+                <Route path="explorer" element={<SystemExplorer />} />
+                <Route path="orchestrator" element={<ArchitectureBoard />} />
+                <Route path="brain" element={<BrainCenter />} />
+                <Route path="tenants" element={<TenantManager />} />
+                <Route path="economy" element={<GlobalEconomy />} />
+                <Route path="gamification" element={<GamificationLab />} />
+                <Route path="security" element={<SecurityAudit />} />
+                <Route path="broadcast" element={<BroadcastCenter />} />
+                <Route path="users" element={<UserManager />} />
+                <Route path="health" element={<SystemHealth />} />
+              </Route>
+              
+              {/* Fallback para evitar 404 dinâmico */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </AppLoader>
+      </HashRouter>
+    </ErrorBoundary>
   );
 }
