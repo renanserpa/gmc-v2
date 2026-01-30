@@ -1,10 +1,9 @@
 
 import React, { useEffect, useState } from 'react';
-// FIX: Using any to bypass react-router-dom export errors
 import * as RRD from 'react-router-dom';
 const { Link, useNavigate } = RRD as any;
 import { UserRole } from '../types.ts';
-import { Users, Music, Shield, LayoutDashboard, ArrowRight, Building2, Sparkles, LogOut, Code2, Terminal, RefreshCw, Trash2 } from 'lucide-react';
+import { Users, Music, Shield, LayoutDashboard, ArrowRight, Building2, Sparkles, LogOut, Code2, Terminal, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '../components/ui/Card.tsx';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,8 +11,8 @@ import { uiSounds } from '../lib/uiSounds.ts';
 import { cn } from '../lib/utils.ts';
 import { notify } from '../lib/notification.ts';
 import { haptics } from '../lib/haptics.ts';
+import LoadingScreen from '../components/ui/LoadingScreen.tsx';
 
-// FIX: Casting motion components to any to bypass property errors
 const M = motion as any;
 
 const profiles = [
@@ -29,8 +28,13 @@ export default function ProfileSelector() {
     const navigate = useNavigate();
     const [showDevTools, setShowDevTools] = useState(false);
 
+    /**
+     * STAFF OPTIMIZATION: Fast-Track Redirect
+     * Se o usuário já possui um papel definido, redirecionamos imediatamente para evitar cliques extras.
+     */
     useEffect(() => {
         if (!loading && user && role) {
+            haptics.medium();
             const targetPath = role === 'manager' ? '/manager' : `/${role}`;
             navigate(targetPath, { replace: true });
         }
@@ -43,54 +47,32 @@ export default function ProfileSelector() {
         notify.info(`Modo Dev Ativado: ${roleTarget.toUpperCase()}`);
     };
 
-    /**
-     * Reseta o ambiente para o estado original de fábrica.
-     * Limpa localStorage, sessionStorage e IndexedDB.
-     */
     const handleEnvironmentPurge = () => {
         haptics.heavy();
-        uiSounds.playError();
-        
-        if (confirm("🚨 LIMPEZA DE AMBIENTE: Deseja apagar permanentemente todos os dados de cache, sessões salvas e credenciais? Você retornará ao estado inicial da aplicação.")) {
-            // 1. Limpa Armazenamento Síncrono
+        if (confirm("🚨 RESET DE FÁBRICA: Deseja apagar permanentemente todos os dados locais?")) {
             localStorage.clear();
             sessionStorage.clear();
-            
-            // 2. Limpa Banco de Dados Offline (Cache de Áudio)
-            try {
-                indexedDB.deleteDatabase('OlieMusicCache');
-            } catch (e) {
-                console.warn("[Kernel] Falha ao deletar IndexedDB:", e);
-            }
-
-            notify.warning("Purgando dados... Reiniciando.");
-            
-            // 3. Força recarregamento da aplicação
-            setTimeout(() => {
-                window.location.href = '/';
-            }, 800);
+            window.location.href = '/';
         }
     };
 
-    if (loading) return null;
+    if (loading || (user && role)) return <LoadingScreen />;
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 p-6 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 -z-10"></div>
             
-            {/* BARRA SUPERIOR DE UTILITÁRIOS */}
             <div className="absolute top-0 left-0 right-0 z-50 p-6 flex justify-center">
                 <M.button 
-                    initial={{ opacity: 0, y: -20 } as any}
-                    animate={{ opacity: 1, y: 0 } as any}
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
                     onClick={handleEnvironmentPurge}
                     className="bg-slate-900/40 hover:bg-red-600/20 text-slate-500 hover:text-red-400 border border-white/5 hover:border-red-500/30 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.3em] transition-all flex items-center gap-3 backdrop-blur-xl shadow-2xl group"
                 >
-                    <Trash2 size={14} className="group-hover:animate-bounce" /> Limpar Ambiente (Factory Reset)
+                    <Trash2 size={14} className="group-hover:animate-bounce" /> Factory Reset
                 </M.button>
             </div>
 
-            {/* Botão Flutuante DevMode */}
             <div className="fixed bottom-6 right-6 z-[200]">
                 <button 
                     onClick={() => setShowDevTools(!showDevTools)}
@@ -105,33 +87,24 @@ export default function ProfileSelector() {
                 </button>
             </div>
 
-            {/* Painel Dev Flutuante */}
             <AnimatePresence>
                 {showDevTools && (
                     <M.div 
-                        initial={{ opacity: 0, scale: 0.9, y: 20 } as any}
-                        animate={{ opacity: 1, scale: 1, y: 0 } as any}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 } as any}
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         className="fixed bottom-24 right-6 w-64 bg-slate-900 border-2 border-purple-500/30 rounded-[40px] shadow-2xl z-[200] p-6 overflow-hidden"
                     >
-                        <div className="absolute inset-0 bg-purple-500/5 pointer-events-none" />
                         <div className="relative space-y-4">
                             <p className="text-[10px] font-black uppercase text-purple-400 tracking-widest flex items-center gap-2">
                                 <Terminal size={12} /> Maestro Dev Tool
                             </p>
                             <div className="space-y-2">
-                                <button onClick={() => handleDevLogin('student')} className="w-full p-3 bg-slate-950 rounded-2xl border border-white/5 text-[10px] font-black uppercase text-slate-300 hover:bg-purple-600 hover:text-white transition-all flex items-center gap-3">
-                                    <Music size={14} /> Sou Aluno (Dev)
-                                </button>
-                                <button onClick={() => handleDevLogin('professor')} className="w-full p-3 bg-slate-950 rounded-2xl border border-white/5 text-[10px] font-black uppercase text-slate-300 hover:bg-purple-600 hover:text-white transition-all flex items-center gap-3">
-                                    <Users size={14} /> Sou Professor (Dev)
-                                </button>
-                                <button onClick={() => handleDevLogin('manager')} className="w-full p-3 bg-slate-950 rounded-2xl border border-white/5 text-[10px] font-black uppercase text-slate-300 hover:bg-purple-600 hover:text-white transition-all flex items-center gap-3">
-                                    <Building2 size={14} /> Sou Gestor (Dev)
-                                </button>
-                                <button onClick={() => handleDevLogin('admin')} className="w-full p-3 bg-slate-950 rounded-2xl border border-white/5 text-[10px] font-black uppercase text-slate-300 hover:bg-purple-600 hover:text-white transition-all flex items-center gap-3">
-                                    <Shield size={14} /> Sou Admin (Dev)
-                                </button>
+                                {['student', 'professor', 'admin'].map(r => (
+                                    <button key={r} onClick={() => handleDevLogin(r)} className="w-full p-3 bg-slate-950 rounded-2xl border border-white/5 text-[10px] font-black uppercase text-slate-300 hover:bg-purple-600 hover:text-white transition-all">
+                                        Sou {r} (Dev)
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     </M.div>
@@ -146,17 +119,14 @@ export default function ProfileSelector() {
                     <h1 className="text-6xl md:text-8xl font-black text-white tracking-tight uppercase leading-none italic">
                         Olie<span className="text-sky-500">Music</span>
                     </h1>
-                    <p className="text-lg text-slate-500 max-w-2xl mx-auto font-medium tracking-tight leading-relaxed">
-                        Escolha como você deseja participar da orquestra hoje.
-                    </p>
                 </header>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
                     {profiles.map(({ role: profileRole, path, label, description, icon: Icon, color, glow }, idx) => (
                         <M.div 
                             key={path}
-                            initial={{ opacity: 0, y: 20 } as any}
-                            animate={{ opacity: 1, y: 0 } as any}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: idx * 0.1 }}
                         >
                             <Link 
@@ -186,16 +156,10 @@ export default function ProfileSelector() {
                     ))}
                 </div>
 
-                <footer className="text-center pt-8 space-y-8">
-                    {!user ? (
-                        <Link to="/login" className="text-slate-600 hover:text-sky-400 text-xs font-black uppercase tracking-[0.3em] transition-all border-b border-transparent hover:border-sky-500/50 pb-1">
-                            Já possui conta Maestro? Sincronizar Agora
-                        </Link>
-                    ) : (
+                <footer className="text-center pt-8">
+                    {user && (
                         <div className="flex flex-col items-center gap-4">
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                Logado como: <span className="text-slate-300 ml-1">{user.email}</span>
-                            </p>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Logado como: <span className="text-slate-300 ml-1">{user.email}</span></p>
                             <button onClick={signOut} className="flex items-center gap-2 text-red-500/60 hover:text-red-400 text-[10px] font-black uppercase tracking-[0.3em] transition-all">
                                 <LogOut size={12} /> Sair da conta
                             </button>

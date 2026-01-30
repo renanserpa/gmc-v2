@@ -1,7 +1,9 @@
+
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient.ts';
 import { Profile } from '../types.ts';
+import { logger } from '../lib/logger.ts';
 
 interface AuthContextType {
   session: Session | null;
@@ -25,65 +27,67 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   /**
-   * Sincroniza o perfil do banco com a sessão de autenticação.
-   * Se o perfil não existir, realiza um reparo atômico (Upsert).
+   * STAFF DIAGNOSTIC: Sincroniza o perfil garantindo que o RLS não bloqueie a leitura inicial.
+   * Adicionado tratamento para erro 42501 (Permission Denied).
    */
   const syncProfile = async (currentUser: User) => {
+    logger.info(`[Auth] Iniciando sincronia para UUID: ${currentUser.id}`);
+    
     try {
-      // 1. Tentar buscar Perfil Principal
       const { data: profileData, error: pError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', currentUser.id)
         .maybeSingle();
 
+      if (pError) {
+        if (pError.code === '42501') {
+          logger.error("[Auth] Falha de RLS detectada. O usuário não tem permissão para ler o próprio perfil.", pError);
+        }
+        throw pError;
+      }
+
       if (profileData) {
+        logger.debug(`[Auth] Perfil localizado. Role: ${profileData.role}`);
         setProfile(profileData as Profile);
         setRole(profileData.role);
         return;
       }
 
-      // 2. Protocolo de Reparo: O usuário existe no Auth mas não no Public.Profiles
-      console.warn("[Kernel] Perfil ausente. Iniciando Protocolo de Reparo...");
+      // Protocolo de Auto-Reparo: Criação de perfil on-the-fly se não existir
+      logger.warn("[Auth] Perfil ausente no DB. Executando auto-reparo...");
       
-      const defaultRole = currentUser.email === 'adm@adm.com' ? 'admin' : (currentUser.user_metadata?.role || 'student');
-      const defaultName = currentUser.user_metadata?.full_name || 'Usuário Maestro';
-
+      const metadataRole = currentUser.user_metadata?.role || 'student';
       const { data: repairedProfile, error: upsertError } = await supabase
         .from('profiles')
         .upsert({
           id: currentUser.id,
           email: currentUser.email!,
-          full_name: defaultName,
-          role: defaultRole,
-          school_id: '00000000-0000-0000-0000-000000000000'
+          full_name: currentUser.user_metadata?.full_name || 'Músico Maestro',
+          role: metadataRole,
+          school_id: currentUser.user_metadata?.school_id || null
         }, { onConflict: 'id' })
         .select()
         .single();
+
+      if (upsertError) throw upsertError;
 
       if (repairedProfile) {
         setProfile(repairedProfile as Profile);
         setRole(repairedProfile.role);
       }
-    } catch (e) {
-      console.error("[Kernel Sync Failed]:", e);
+    } catch (e: any) {
+      logger.error("[Auth] Falha crítica na sincronia do Kernel de Identidade.", e);
     }
   };
 
   useEffect(() => {
-    // Carregamento inicial da sessão
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const u = session?.user ?? null;
-      setSession(session);
-      setUser(u);
-      if (u) syncProfile(u);
-      setLoading(false);
-    });
-
-    // Escuta mudanças de estado (Login/Logout)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const u = session?.user ?? null;
-      setSession(session);
+    // Escuta mudanças de estado com Cleanup robusto
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+      logger.info(`[Auth] Evento de Sessão: ${event}`);
+      const u = currentSession?.user ?? null;
+      
+      setSession(currentSession);
       setUser(u);
       
       if (u) {
@@ -93,17 +97,29 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
       } else {
         setProfile(null);
         setRole(null);
+        setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Carregamento inicial (Pre-boot)
+    supabase.auth.getSession().then(({ data: { session: initSession } }) => {
+      if (initSession?.user) {
+        syncProfile(initSession.user).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      logger.debug("[Auth] Encerrando subscrição de estado.");
+      subscription.unsubscribe();
+    };
   }, []);
 
   const devLogin = async (userId: string, targetRole: string) => {
     localStorage.setItem('oliemusic_dev_user_id', userId);
     localStorage.setItem('oliemusic_dev_role', targetRole);
     setRole(targetRole);
-    // Força recarregamento para limpar caches de hooks
     window.location.reload();
   };
 
@@ -117,7 +133,11 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
         localStorage.removeItem('oliemusic_dev_role');
         await supabase.auth.signOut(); 
     },
-    signIn: (email: string, password: string) => supabase.auth.signInWithPassword({ email, password }),
+    signIn: async (email: string, password: string) => {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        return data;
+    },
     refreshProfile: async () => { if (user) await syncProfile(user); },
     devLogin
   };
