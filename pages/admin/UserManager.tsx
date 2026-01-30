@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { 
     Users, Search, Shield, ShieldAlert, Key, 
@@ -14,6 +15,8 @@ import { cn } from '../../lib/utils.ts';
 import { haptics } from '../../lib/haptics.ts';
 import { formatDate } from '../../lib/date.ts';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const M = motion as any;
 
 export default function UserManager() {
     const [users, setUsers] = useState<any[]>([]);
@@ -82,12 +85,12 @@ export default function UserManager() {
     };
 
     const filteredUsers = users.filter(u => 
-        u.full_name?.toLowerCase().includes(search.toLowerCase()) || 
-        u.email?.toLowerCase().includes(search.toLowerCase())
+        (u.full_name?.toLowerCase().includes(search.toLowerCase())) || 
+        (u.email?.toLowerCase().includes(search.toLowerCase()))
     );
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-8 animate-in fade-in duration-500 pb-20">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900/40 p-8 rounded-[40px] border border-white/5 backdrop-blur-xl">
                 <div>
                     <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">Identity <span className="text-purple-500">Manager</span></h1>
@@ -194,7 +197,6 @@ export default function UserManager() {
                 </CardContent>
             </Card>
 
-            {/* Modal: Novo Professor */}
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                 <DialogContent className="bg-slate-900 border-slate-800 rounded-[40px] max-w-lg p-10 shadow-2xl">
                     <DialogHeader className="space-y-4">

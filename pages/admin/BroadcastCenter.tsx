@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
@@ -18,12 +19,12 @@ export default function BroadcastCenter() {
         haptics.heavy();
         
         try {
-            // Persiste na tabela de avisos
+            // Persiste na tabela de avisos com autoridade Root
             const { error } = await supabase.from('notices').insert({
                 title: 'COMUNICADO MASTER ROOT',
                 message: message,
                 target_audience: target,
-                professor_id: '00000000-0000-0000-0000-000000000000' // ID reservado Sistema
+                professor_id: '00000000-0000-0000-0000-000000000000' // ID reservado para Sistema Maestro
             });
 
             if (error) throw error;
@@ -55,15 +56,19 @@ export default function BroadcastCenter() {
                         <Zap size={20} className="text-sky-400" /> Novo Alerta de Kernel
                     </CardTitle>
                     <div className="flex gap-2">
-                        {['all', 'professors', 'students'].map(t => (
+                        {[
+                            { id: 'all', label: 'Todos' },
+                            { id: 'professors', label: 'Mestres' },
+                            { id: 'students', label: 'Alunos' }
+                        ].map(t => (
                             <button 
-                                key={t} onClick={() => setTarget(t)}
+                                key={t.id} onClick={() => setTarget(t.id)}
                                 className={cn(
                                     "px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
-                                    target === t ? "bg-red-600 text-white shadow-lg" : "bg-slate-900 text-slate-500 border border-white/5"
+                                    target === t.id ? "bg-red-600 text-white shadow-lg" : "bg-slate-900 text-slate-500 border border-white/5"
                                 )}
                             >
-                                {t}
+                                {t.label}
                             </button>
                         ))}
                     </div>
