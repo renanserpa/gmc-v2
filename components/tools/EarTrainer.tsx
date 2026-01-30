@@ -11,6 +11,8 @@ import { applyXpEvent } from '../../services/gamificationService';
 import { useAuth } from '../../contexts/AuthContext';
 import { notify } from '../../lib/notification';
 import { motion, AnimatePresence } from 'framer-motion';
+// FIX: Integrated useCurrentStudent to access correctly identified student profile and school_id
+import { useCurrentStudent } from '../../hooks/useCurrentStudent';
 
 // FIX: Casting motion components to any to bypass property errors
 const M = motion as any;
@@ -22,6 +24,8 @@ const OPTIONS: { label: string, type: IntervalType }[] = [
 
 export const EarTrainer: React.FC = () => {
     const { user } = useAuth();
+    // FIX: Accessing student profile to obtain proper student.id and student.school_id
+    const { student } = useCurrentStudent();
     const engine = useRef(new EarTrainerEngine());
     const [gameState, setGameState] = useState<'idle' | 'playing' | 'answered'>('idle');
     const [target, setTarget] = useState<IntervalType | null>(null);
@@ -44,14 +48,17 @@ export const EarTrainer: React.FC = () => {
             const newStreak = streak + 1;
             setStreak(newStreak);
             
-            if (newStreak === 5) {
+            // FIX: Validating student existence before rewarding XP
+            if (newStreak === 5 && student) {
                 haptics.heavy();
                 notify.success("MAESTRIA AUDITIVA! +50 XP");
+                // FIX: Passing correct student.id and mandatory school_id to satisfy tenancy and typing constraints
                 await applyXpEvent({
-                    studentId: user.id,
+                    studentId: student.id,
                     eventType: 'EAR_TRAINING_MASTERY',
                     xpAmount: 50,
-                    contextType: 'tools'
+                    contextType: 'tools',
+                    schoolId: student.school_id || ""
                 });
                 setStreak(0);
             }
@@ -101,4 +108,4 @@ export const EarTrainer: React.FC = () => {
                                 </Button>
                             </M.div>
                         ) : (
-                            <M.div initial={{ opacity: 0 } as any} animate={{ opacity: 
+                            <M.div initial={{ opacity: 0 } as any} animate={{ opacity:

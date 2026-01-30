@@ -10,6 +10,8 @@ import { haptics } from '../../lib/haptics';
 import { notify } from '../../lib/notification';
 import { applyXpEvent } from '../../services/gamificationService';
 import { useAuth } from '../../contexts/AuthContext';
+// FIX: Integrated useCurrentStudent to access correctly identified student profile and school_id
+import { useCurrentStudent } from '../../hooks/useCurrentStudent';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -28,6 +30,8 @@ const EXERCISES = [
 
 export const TechniqueGym: React.FC = () => {
     const { user } = useAuth();
+    // FIX: Accessing student profile to obtain proper student.id and student.school_id
+    const { student } = useCurrentStudent();
     const [type, setType] = useState<keyof typeof RENAN_SERPA_TABS>('spider_walk_v1');
     const [isTraining, setIsTraining] = useState(false);
     const [loopCount, setLoopCount] = useState(0);
@@ -49,13 +53,16 @@ export const TechniqueGym: React.FC = () => {
             haptics.success();
             if (isTraining) api.player.play();
             
-            if (loopCount === 4) {
+            // FIX: Ensuring student exists and providing correct schoolId to satisfy tenancy constraints
+            if (loopCount === 4 && student) {
                  notify.success("BADGE DESBLOQUEADA: O Domador de Aranhas! 🕷️✨");
+                 // FIX: Updated applyXpEvent call with student specific ID and schoolId
                  applyXpEvent({
-                    studentId: user.id,
+                    studentId: student.id,
                     eventType: 'MISSION_COMPLETE',
                     xpAmount: 100,
-                    contextType: 'tools'
+                    contextType: 'tools',
+                    schoolId: student.school_id || ""
                  });
             }
         });

@@ -1,3 +1,4 @@
+
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { supabase } from '../lib/supabaseClient.ts';
@@ -16,15 +17,16 @@ export function useCurrentStudent() {
 
       const devUserId = localStorage.getItem('oliemusic_dev_user_id');
       const devRole = localStorage.getItem('oliemusic_dev_role');
+      const isTestDomain = user.email?.endsWith('@adm.com');
       
-      // PRIORIDADE: MODO DEV - Retorna mock se estiver em ambiente de teste
-      if ((devUserId === user.id && devRole) || user.email?.endsWith('@oliemusic.dev')) {
+      // PRIORIDADE: MODO DEV OU TEST DOMAIN
+      if ((devUserId === user.id && devRole) || user.email?.endsWith('@oliemusic.dev') || isTestDomain) {
         const levelInfo = getLevelInfo(1250);
         return {
           id: 'student-mock-uuid',
           auth_user_id: user.id,
           professor_id: 'dev-prof-id',
-          name: 'Aluno Pro (Dev Mode)',
+          name: isTestDomain ? `Músico ${user.email?.split('@')[0].toUpperCase()}` : 'Aluno Pro (Dev Mode)',
           instrument: 'Guitarra',
           avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`,
           xp: 1250,
@@ -46,15 +48,9 @@ export function useCurrentStudent() {
           .eq('auth_user_id', user.id)
           .maybeSingle();
 
-        if (error) {
-          if (error.code === '42501') {
-              logger.warn("Acesso negado (RLS). Recomendado: Use o ícone de código na tela de login para Modo Dev.");
-              return null;
-          }
-          throw error;
-        }
-
+        if (error) throw error;
         if (!data) return null;
+
         const levelInfo = getLevelInfo(data.xp || 0);
         return { ...data, xpToNextLevel: levelInfo.xpToNextLevel } as Student;
       } catch (err: any) {

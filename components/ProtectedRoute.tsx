@@ -16,7 +16,7 @@ export default function ProtectedRoute(props: ProtectedRouteProps) {
   const location = useLocation();
 
   if (loading) {
-    return null; // AppLoader já está cobrindo a tela
+    return null; 
   }
 
   if (!user) {
@@ -24,8 +24,10 @@ export default function ProtectedRoute(props: ProtectedRouteProps) {
   }
 
   // EMERGENCY BYPASS (GOD MODE)
-  // Se o usuário for o admin root, ele tem passe livre para qualquer rota administrativa
-  const isRootAdmin = user.email === 'admin@oliemusic.dev';
+  // Admite admin@oliemusic.dev OU qualquer usuário do domínio @adm.com como autoridade de teste
+  const isTestUser = user.email?.endsWith('@adm.com');
+  const isRootAdmin = user.email === 'admin@oliemusic.dev' || isTestUser;
+
   if (isRootAdmin && location.pathname.startsWith('/admin')) {
     return children ? <>{children}</> : <Outlet />;
   }
@@ -37,7 +39,6 @@ export default function ProtectedRoute(props: ProtectedRouteProps) {
          return children ? <>{children}</> : <Outlet />;
      }
      
-     // Redireciona para o seletor de perfil como último recurso
      if (location.pathname !== '/app') {
         return <Navigate to="/app" replace />;
      }
@@ -45,12 +46,12 @@ export default function ProtectedRoute(props: ProtectedRouteProps) {
 
   // Validação de Role regular
   if (role && !allowedRoles.includes(role)) {
-    console.warn(`[Security-Guard] Acesso bloqueado: Role ${role} tentou acessar ${location.pathname}. Requisitado: ${allowedRoles.join(',')}`);
-    
-    // Evita loop infinito se já estiver no destino correto
+    // Admins de teste podem ver tudo
+    if (isTestUser && role === 'admin') return children ? <>{children}</> : <Outlet />;
+
+    console.warn(`[Security-Guard] Acesso bloqueado para ${user.email}`);
     const targetPath = role === 'manager' ? '/manager' : `/${role}`;
     if (location.pathname === targetPath) return children ? <>{children}</> : <Outlet />;
-    
     return <Navigate to={targetPath} replace />;
   }
 

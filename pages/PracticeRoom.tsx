@@ -5,7 +5,7 @@ import * as RRD from 'react-router-dom';
 const { useLocation } = RRD as any;
 import { useCurrentStudent } from '../hooks/useCurrentStudent';
 import { getStudentRepertoire, savePracticeSession } from '../services/dataService';
-import { logPracticeSession } from '../services/gamificationService';
+// FIX: Removed invalid logPracticeSession import which was causing a build error
 import { getPracticeSessionFeedback } from '../services/aiService';
 import { MaestroAudioPro } from '../lib/audioPro';
 import { audioManager } from '../lib/audioManager';

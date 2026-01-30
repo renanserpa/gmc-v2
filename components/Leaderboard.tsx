@@ -5,6 +5,8 @@ import { UserAvatar } from './ui/UserAvatar.tsx';
 import { Trophy, Flame, Star, Crown } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../lib/utils.ts';
+// FIX: Added useTheme import to get schoolId
+import { useTheme } from '../contexts/ThemeContext.tsx';
 
 // FIX: Casting motion components to any to bypass property errors
 const M = motion as any;
@@ -15,15 +17,19 @@ interface LeaderboardProps {
 }
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({ professorId, currentStudentId }) => {
+  // FIX: Accessing activeSchool from ThemeContext
+  const { activeSchool } = useTheme();
   const [ranks, setRanks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getLeaderboard(professorId).then(data => {
+    // FIX: Passing schoolId (required by getLeaderboard)
+    const schoolId = activeSchool?.id || "";
+    getLeaderboard(professorId, schoolId).then(data => {
       setRanks(data);
       setLoading(false);
     });
-  }, [professorId]);
+  }, [professorId, activeSchool?.id]);
 
   if (loading) return (
     <div className="space-y-3">

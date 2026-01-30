@@ -89,12 +89,15 @@ export const updateMissionStatus = async (missionId: string, studentId: string, 
     if (error) throw error;
 
     if (status === MissionStatus.Done) {
+        // FIX: Fetch student details to obtain school_id for the gamification engine to satisfy tenancy requirements
+        const { data: student } = await supabase.from('students').select('school_id').eq('id', studentId).single();
         await applyXpEvent({
             studentId,
             eventType: 'MISSION_COMPLETE',
             xpAmount: xpReward,
             contextType: 'mission',
-            contextId: missionId
+            contextId: missionId,
+            schoolId: student?.school_id || ""
         });
     }
 
@@ -220,7 +223,7 @@ export const addLibraryItem = async (item: Partial<ContentLibraryItem>) => {
 
 export const linkGuardianAccount = async (code: string) => {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { success: false, message: "Sessão expirada." };
+  if (!user) return { success: false, message: "Sessmainão expirada." };
   const { data, error = null } = await supabase.from('students').update({ guardian_id: user.id }).eq('access_code', code).select().maybeSingle();
   if (error || !data) return { success: false, message: "Código não encontrado ou já vinculado." };
   return { success: true };
