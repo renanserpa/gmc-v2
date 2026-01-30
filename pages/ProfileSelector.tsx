@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import * as RRD from 'react-router-dom';
 const { Link, useNavigate } = RRD as any;
@@ -19,7 +18,8 @@ const profiles = [
     { role: UserRole.Professor, path: '/professor', label: 'Sou Professor', description: 'Gestão de turmas e cockpit de aula', icon: Users, color: 'text-sky-400', glow: 'bg-sky-500/10' },
     { role: UserRole.Student, path: '/student', label: 'Sou Aluno', description: 'Minhas missões e jornada musical', icon: Music, color: 'text-purple-400', glow: 'bg-purple-500/10' },
     { role: UserRole.Guardian, path: '/guardian', label: 'Sou Responsável', description: 'Acompanhamento pedagógico do filho', icon: Shield, color: 'text-green-400', glow: 'bg-green-500/10' },
-    { role: UserRole.Manager, path: '/manager', label: 'Sou Gestor', description: 'Dashboard da Unidade de Ensino', icon: Building2, color: 'text-orange-400', glow: 'bg-orange-500/10' },
+    // Fix: Corrected UserRole.Manager to UserRole.SchoolManager which is the actual enum property in types.ts
+    { role: UserRole.SchoolManager, path: '/manager', label: 'Sou Gestor', description: 'Dashboard da Unidade de Ensino', icon: Building2, color: 'text-orange-400', glow: 'bg-orange-500/10' },
     { role: UserRole.Admin, path: '/admin', label: 'Sou Admin', description: 'Controle Global e God Mode', icon: LayoutDashboard, color: 'text-red-400', glow: 'bg-red-500/10' }
 ];
 

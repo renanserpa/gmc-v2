@@ -1,9 +1,10 @@
+
 import React, { useEffect, useState } from 'react';
 import * as RRD from 'react-router-dom';
 const { useNavigate, useLocation, Link } = RRD as any;
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card.tsx';
-import { Mail, Lock, ShieldCheck, Music, AlertCircle, Loader2, Eye, EyeOff, LogOut, RefreshCw, Terminal, Code2, Users, GraduationCap, Building2, Sparkles } from 'lucide-react';
+import { Mail, Lock, ShieldCheck, Music, AlertCircle, Loader2, Eye, EyeOff, LogOut, RefreshCw, Code2, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,9 +14,7 @@ import { uiSounds } from '../lib/uiSounds.ts';
 import { usePageTitle } from '../hooks/usePageTitle.ts';
 import { Button } from '../components/ui/Button.tsx';
 import { cn, motionVariants } from '../lib/utils.ts';
-import { UserRole } from '../types.ts';
 
-// FIX: Casting motion components to any
 const M = motion as any;
 
 const loginSchema = z.object({
@@ -27,7 +26,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
   usePageTitle("Acessar Plataforma");
-  const { signIn, signOut, refreshProfile, devLogin, user, role, loading } = useAuth();
+  const { signIn, signOut, refreshProfile, user, role, loading, getDashboardPath } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -35,9 +34,13 @@ export default function Login() {
   const [internalNavigating, setInternalNavigating] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [showDevTools, setShowDevTools] = useState(false);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
+  // FIX: Initialized useForm to handle form registration, submission, and validation states
+  const { 
+    register, 
+    handleSubmit, 
+    formState: { errors, isSubmitting } 
+  } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema)
   });
 
@@ -45,17 +48,20 @@ export default function Login() {
     if (user && !loading) {
       if (role) {
         setInternalNavigating(true);
+        const targetPath = getDashboardPath(role);
+        
+        // Se viemos de uma URL protegida, tentamos voltar para lá, 
+        // mas validamos se o caminho começa com a role permitida
         const fromPath = location.state?.from?.pathname;
-        const destination = (fromPath && fromPath !== '/login' && fromPath.startsWith(`/${role}`)) 
-          ? fromPath : `/${role}`;
+        const destination = (fromPath && fromPath !== '/login' && fromPath.startsWith(targetPath)) 
+          ? fromPath : targetPath;
+        
         navigate(destination, { replace: true });
       } else {
         setNoRoleDetected(true);
       }
-    } else {
-      setNoRoleDetected(false);
     }
-  }, [user, role, loading]);
+  }, [user, role, loading, navigate]);
 
   const onSubmit = async (data: LoginFormData) => {
     uiSounds.playClick();
@@ -64,17 +70,6 @@ export default function Login() {
     } catch (err: any) {
       notify.error("Credenciais inválidas ou erro de conexão.");
     }
-  };
-
-  const handleDevLogin = async (roleTarget: string) => {
-    uiSounds.playSuccess();
-    // UUIDs reais que batem com o seed do setup.sql
-    const roleMap: Record<string, string> = {
-        admin: '45990533-ad8e-44f7-918f-70df3b2659b2',
-        professor: '65c7ca9a-028b-45d3-9736-2f1dce6221be',
-        student: '3c0c686d-fff6-404d-baf8-9f1b25e9e842'
-    };
-    await devLogin(roleMap[roleTarget] || 'mock-id', roleTarget);
   };
 
   if (internalNavigating) {
@@ -93,18 +88,6 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4 relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-sky-900/20 via-slate-950 to-slate-950 -z-10"></div>
       
-      <div className="fixed bottom-6 right-6 z-[200]">
-          <button 
-            onClick={() => setShowDevTools(!showDevTools)}
-            className={cn(
-                "w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-2xl border-4",
-                showDevTools ? "bg-purple-600 border-white text-white rotate-90" : "bg-slate-900 border-purple-500/50 text-purple-400"
-            )}
-          >
-              <Code2 size={24} />
-          </button>
-      </div>
-
       <M.div variants={motionVariants.container as any} initial="hidden" animate="show" className="w-full max-w-md space-y-8 relative z-10">
         <div className="text-center space-y-2">
           <M.div variants={motionVariants.slideUp as any} className="flex justify-center mb-6">
@@ -126,15 +109,6 @@ export default function Login() {
 
             <CardContent className="pt-8">
               <AnimatePresence mode="wait">
-                {showDevTools && (
-                    <M.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="mb-6 grid grid-cols-2 gap-3 bg-purple-600/5 p-4 rounded-3xl border border-purple-500/20">
-                        <button onClick={() => handleDevLogin('admin')} className="p-3 bg-slate-900 rounded-xl text-[9px] font-black uppercase text-purple-400 border border-purple-500/20 hover:bg-purple-600 hover:text-white transition-all">Super Admin</button>
-                        <button onClick={() => handleDevLogin('professor')} className="p-3 bg-slate-900 rounded-xl text-[9px] font-black uppercase text-purple-400 border border-purple-500/20 hover:bg-purple-600 hover:text-white transition-all">Professor</button>
-                        <button onClick={() => handleDevLogin('student')} className="p-3 bg-slate-900 rounded-xl text-[9px] font-black uppercase text-purple-400 border border-purple-500/20 hover:bg-purple-600 hover:text-white transition-all">Aluno Demo</button>
-                        <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="p-3 bg-red-950/20 rounded-xl text-[9px] font-black uppercase text-red-500 border border-red-500/20">Reset Kernel</button>
-                    </M.div>
-                )}
-
                 {noRoleDetected ? (
                   <M.div key="no-role" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 text-center">
                     <div className="p-8 rounded-[32px] border bg-amber-500/5 border-amber-500/20 space-y-4">

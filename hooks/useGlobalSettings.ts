@@ -13,8 +13,9 @@ export function useGlobalSettings() {
         };
 
         // 2. Escuta Broadcasts de Alerta Master
+        // Fix: Explicitly cast 'postgres_changes' to any to avoid type overload mismatch in strict environments
         const channel = supabase.channel('global_broadcast')
-            .on('postgres_changes', { event: 'INSERT', table: 'notices', filter: 'target_audience=eq.all' }, payload => {
+            .on('postgres_changes' as any, { event: 'INSERT', table: 'notices', filter: 'target_audience=eq.all' } as any, (payload: any) => {
                 setActiveBroadcast(payload.new.message);
             })
             .subscribe();

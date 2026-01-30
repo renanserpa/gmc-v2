@@ -15,6 +15,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<any>;
   refreshProfile: () => Promise<void>;
   devLogin: (userId: string, role: string) => Promise<void>;
+  getDashboardPath: (role: string | null) => string;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -26,83 +27,80 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const resolveVirtualRole = (email: string): string => {
-    if (email.startsWith('adm@') || email.startsWith('a@')) return 'admin';
-    if (email.startsWith('p@')) return 'professor';
-    if (email.startsWith('r@')) return 'guardian';
-    if (email.startsWith('g@')) return 'manager';
-    return 'student';
+  // Mapeador central de Roles para Caminhos de URL
+  const getDashboardPath = (userRole: string | null): string => {
+    if (!userRole) return '/login';
+    switch (userRole) {
+      case 'super_admin':
+      case 'admin':
+        return '/admin';
+      case 'school_manager':
+      case 'manager':
+        return '/manager';
+      case 'professor':
+        return '/professor';
+      case 'student':
+        return '/student';
+      case 'guardian':
+        return '/guardian';
+      default:
+        return '/app';
+    }
   };
 
   const syncProfile = async (currentUser: User) => {
-    logger.info(`[Auth-Sync] Resolvendo identidade para: ${currentUser.email}`);
-    
     try {
-      const { data: profileData, error: pError } = await supabase
+      logger.info(`[Auth-Sync] Sincronizando perfil: ${currentUser.email}`);
+      
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', currentUser.id)
         .maybeSingle();
 
-      if (profileData) {
-        setProfile(profileData as Profile);
-        setRole(profileData.role);
-      } else if (currentUser.email?.endsWith('@adm.com')) {
-        // VIRTUAL IDENTITY PROXY: Permite acesso mesmo sem registro no DB
-        const virtualRole = resolveVirtualRole(currentUser.email);
-        logger.warn(`[Auth-Virtual] Usuário de teste detectado. Injetando role: ${virtualRole}`);
-        setRole(virtualRole);
-        setProfile({
-          id: currentUser.id,
-          email: currentUser.email,
-          full_name: `Test User (${virtualRole.toUpperCase()})`,
-          role: virtualRole,
-          created_at: new Date().toISOString()
-        } as Profile);
+      if (error) throw error;
+
+      if (data) {
+        setProfile(data as Profile);
+        setRole(data.role);
       } else {
-        const metadataRole = currentUser.user_metadata?.role || 'student';
-        setRole(metadataRole);
+        const metaRole = currentUser.user_metadata?.role || 'student';
+        setRole(metaRole);
+        logger.warn("[Auth-Sync] Perfil DB ausente. Usando metadados.");
       }
-    } catch (e: any) {
-      logger.error("[Auth-Fatal] Erro ao sincronizar perfil", e);
+    } catch (e) {
+      logger.error("[Auth-Sync] Falha crítica", e);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session: initSession } }) => {
+      setSession(initSession);
+      const u = initSession?.user ?? null;
+      setUser(u);
+      if (u) syncProfile(u);
+      else setLoading(false);
+    });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       const u = currentSession?.user ?? null;
       setSession(currentSession);
       setUser(u);
       
-      if (u) {
+      if (u && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
         setLoading(true);
         await syncProfile(u);
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         setProfile(null);
         setRole(null);
         setLoading(false);
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session: initSession } }) => {
-      if (initSession?.user) {
-        syncProfile(initSession.user);
-      } else {
-        setLoading(false);
-      }
-    }).catch(() => setLoading(false));
-
     return () => subscription.unsubscribe();
   }, []);
-
-  const devLogin = async (userId: string, targetRole: string) => {
-    localStorage.setItem('oliemusic_dev_user_id', userId);
-    localStorage.setItem('oliemusic_dev_role', targetRole);
-    setRole(targetRole);
-    window.location.reload();
-  };
 
   const value = {
     session,
@@ -110,18 +108,27 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
     profile,
     role,
     loading,
-    signOut: async () => { 
-        localStorage.removeItem('oliemusic_dev_role');
-        localStorage.removeItem('oliemusic_dev_user_id');
-        await supabase.auth.signOut(); 
+    getDashboardPath,
+    signOut: async () => {
+      await supabase.auth.signOut();
+      localStorage.clear();
+      window.location.href = '/login';
     },
     signIn: async (email: string, password: string) => {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        return data;
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      return data;
     },
-    refreshProfile: async () => { if (user) await syncProfile(user); },
-    devLogin
+    refreshProfile: async () => {
+      if (user) {
+        setLoading(true);
+        await syncProfile(user);
+      }
+    },
+    devLogin: async (id: string, r: string) => {
+      setRole(r);
+      window.location.reload();
+    }
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

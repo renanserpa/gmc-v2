@@ -12,7 +12,7 @@ import AdminLayout from '@/layouts/AdminLayout';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
 
-// Lazy loading com Error Resilience
+// Lazy loading via Aliases
 const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
 const RhythmPracticeTV = lazy(() => import('@/pages/RhythmPracticeTV'));
 const LandingPage = lazy(() => import('@/pages/LandingPage'));
@@ -26,10 +26,13 @@ const LibraryPage = lazy(() => import('@/pages/LibraryPage'));
 const NoticeBoardPage = lazy(() => import('@/pages/NoticeBoardPage'));
 const ClassroomRemote = lazy(() => import('@/pages/ClassroomRemote'));
 const TeacherAcademy = lazy(() => import('@/pages/TeacherAcademy'));
+const SchoolDashboard = lazy(() => import('@/pages/admin/SchoolDashboard'));
 
 export default function App() {
-  const { user } = useAuth();
-  const isGlobalAdmin = user?.email === 'admin@oliemusic.dev' || user?.email?.endsWith('@adm.com');
+  const { user, role } = useAuth();
+  
+  // Qualquer usuário de teste ou adm@adm.com ganha acesso à gerência
+  const canAccessAdmin = role === 'super_admin' || role === 'admin' || user?.email?.endsWith('@adm.com');
 
   return (
     <ErrorBoundary>
@@ -42,10 +45,11 @@ export default function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/app" element={<ProfileSelector />} />
               
+              {/* Rota Estudante */}
               <Route 
                 path="/student" 
                 element={
-                  <ProtectedRoute allowedRoles={[UserRole.Student]}>
+                  <ProtectedRoute allowedRoles={[UserRole.Student, UserRole.Admin, UserRole.SuperAdmin]}>
                     <Layout />
                   </ProtectedRoute>
                 }
@@ -57,10 +61,11 @@ export default function App() {
                 <Route path="library" element={<LibraryPage />} />
               </Route>
               
+              {/* Rota Professor */}
               <Route 
                 path="/professor" 
                 element={
-                  <ProtectedRoute allowedRoles={[UserRole.Professor]}>
+                  <ProtectedRoute allowedRoles={[UserRole.Professor, UserRole.Admin, UserRole.SuperAdmin]}>
                     <Layout />
                   </ProtectedRoute>
                 }
@@ -72,13 +77,24 @@ export default function App() {
                 <Route path="notices" element={<NoticeBoardPage />} />
                 <Route path="academy" element={<TeacherAcademy />} />
               </Route>
+
+              {/* Rota Gestor de Escola */}
+              <Route 
+                path="/manager" 
+                element={
+                  <ProtectedRoute allowedRoles={[UserRole.SchoolManager, UserRole.Admin, UserRole.SuperAdmin]}>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<SchoolDashboard />} />
+              </Route>
               
+              {/* Rota Admin Global */}
               <Route 
                 path="/admin" 
                 element={
-                  <ProtectedRoute 
-                    allowedRoles={isGlobalAdmin ? Object.values(UserRole) : [UserRole.Admin]}
-                  >
+                  <ProtectedRoute allowedRoles={[UserRole.Admin, UserRole.SuperAdmin]}>
                     <AdminLayout />
                   </ProtectedRoute>
                 }

@@ -4,7 +4,6 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Fix: Define __dirname for ESM modules to resolve 'Cannot find name __dirname' error
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({

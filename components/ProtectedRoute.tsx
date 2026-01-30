@@ -26,33 +26,43 @@ export default function ProtectedRoute(props: ProtectedRouteProps) {
   // EMERGENCY BYPASS (GOD MODE)
   // Admite admin@oliemusic.dev OU qualquer usuário do domínio @adm.com como autoridade de teste
   const isTestUser = user.email?.endsWith('@adm.com');
-  const isRootAdmin = user.email === 'admin@oliemusic.dev' || isTestUser;
+  const isRootAdmin = user.email === 'admin@oliemusic.dev' || isTestUser || role === 'super_admin';
 
-  if (isRootAdmin && location.pathname.startsWith('/admin')) {
+  // Se for Admin Global, ele entra em qualquer rota que exija 'admin' ou 'super_admin'
+  if (isRootAdmin && (location.pathname.startsWith('/admin') || allowedRoles.includes('admin') || allowedRoles.includes('super_admin'))) {
     return children ? <>{children}</> : <Outlet />;
   }
   
   // Se o perfil/role não carregou (Sync Issue), mas o usuário está autenticado
   if (!role) {
-     const onboardingPaths = ['/student/link', '/guardian/setup', '/student/onboarding'];
-     if (onboardingPaths.some(path => location.pathname.startsWith(path))) {
-         return children ? <>{children}</> : <Outlet />;
-     }
-     
      if (location.pathname !== '/app') {
         return <Navigate to="/app" replace />;
      }
   }
 
   // Validação de Role regular
-  if (role && !allowedRoles.includes(role)) {
-    // Admins de teste podem ver tudo
-    if (isTestUser && role === 'admin') return children ? <>{children}</> : <Outlet />;
+  // Comparamos com normalização (ex: manager vs school_manager)
+  const hasAccess = allowedRoles.includes(role || '') || 
+                    (role === 'super_admin' && allowedRoles.includes('admin')) ||
+                    (role === 'school_manager' && allowedRoles.includes('manager')) ||
+                    (role === 'manager' && allowedRoles.includes('school_manager'));
 
-    console.warn(`[Security-Guard] Acesso bloqueado para ${user.email}`);
-    const targetPath = role === 'manager' ? '/manager' : `/${role}`;
-    if (location.pathname === targetPath) return children ? <>{children}</> : <Outlet />;
-    return <Navigate to={targetPath} replace />;
+  if (!hasAccess) {
+    console.warn(`[Security-Guard] Acesso bloqueado para ${user.email}. Role: ${role}. Necessário: ${allowedRoles.join(',')}`);
+    
+    // Se o usuário tentar acessar algo proibido, envia para o dashboard dele
+    if (role) {
+        // Obter caminho via AuthContext (seria melhor via hook, mas fazemos manual aqui para evitar circularity)
+        let dashboard = '/app';
+        if (['admin', 'super_admin'].includes(role)) dashboard = '/admin';
+        else if (['manager', 'school_manager'].includes(role)) dashboard = '/manager';
+        else dashboard = `/${role}`;
+
+        if (location.pathname === dashboard) return children ? <>{children}</> : <Outlet />;
+        return <Navigate to={dashboard} replace />;
+    }
+    
+    return <Navigate to="/app" replace />;
   }
 
   return children ? <>{children}</> : <Outlet />;

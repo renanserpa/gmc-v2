@@ -5,7 +5,7 @@ export enum UserRole {
     Guardian = 'guardian',
     Admin = 'admin',
     SuperAdmin = 'super_admin',
-    Manager = 'manager'
+    SchoolManager = 'school_manager'
 }
 
 export interface AccessibilitySettings {
