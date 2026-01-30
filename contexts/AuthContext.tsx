@@ -1,8 +1,8 @@
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient.ts';
-import { Profile } from '../types.ts';
+import { Profile, UserRole } from '../types.ts';
 import { logger } from '../lib/logger.ts';
 
 interface AuthContextType {
@@ -14,7 +14,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<any>;
   refreshProfile: () => Promise<void>;
-  devLogin: (userId: string, role: string) => Promise<void>;
+  setRoleOverride: (role: string | null) => void;
   getDashboardPath: (role: string | null) => string;
 }
 
@@ -27,38 +27,36 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Mapeador central de Roles para Caminhos de URL
-  const getDashboardPath = (userRole: string | null): string => {
+  const getDashboardPath = useCallback((userRole: string | null): string => {
     if (!userRole) return '/login';
-    switch (userRole) {
-      case 'super_admin':
-      case 'admin':
-        return '/admin';
-      case 'school_manager':
-      case 'manager':
-        return '/manager';
-      case 'professor':
-        return '/professor';
-      case 'student':
-        return '/student';
-      case 'guardian':
-        return '/guardian';
-      default:
-        return '/app';
+    const r = userRole.toLowerCase();
+    
+    switch(r) {
+      case 'super_admin': return '/admin';
+      case 'admin': return '/admin';
+      case 'professor': return '/professor';
+      case 'student': return '/student';
+      case 'guardian': return '/guardian';
+      case 'school_manager': 
+      case 'manager': return '/manager';
+      default: return '/student';
     }
-  };
+  }, []);
 
   const syncProfile = async (currentUser: User) => {
     try {
-      logger.info(`[Auth-Sync] Sincronizando perfil: ${currentUser.email}`);
-      
+      // Emergency Bypass para domínios administrativos conhecidos
+      if (currentUser.email === 'adm@adm.com') {
+        setRole('super_admin');
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', currentUser.id)
         .maybeSingle();
-
-      if (error) throw error;
 
       if (data) {
         setProfile(data as Profile);
@@ -66,10 +64,10 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
       } else {
         const metaRole = currentUser.user_metadata?.role || 'student';
         setRole(metaRole);
-        logger.warn("[Auth-Sync] Perfil DB ausente. Usando metadados.");
       }
     } catch (e) {
-      logger.error("[Auth-Sync] Falha crítica", e);
+      logger.error("[Auth-Sync] Erro crítico de sincronia", e);
+      setRole('student');
     } finally {
       setLoading(false);
     }
@@ -109,6 +107,9 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
     role,
     loading,
     getDashboardPath,
+    setRoleOverride: (newRole: string | null) => {
+      setRole(newRole);
+    },
     signOut: async () => {
       await supabase.auth.signOut();
       localStorage.clear();
@@ -124,10 +125,6 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
         setLoading(true);
         await syncProfile(user);
       }
-    },
-    devLogin: async (id: string, r: string) => {
-      setRole(r);
-      window.location.reload();
     }
   };
 

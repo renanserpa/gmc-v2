@@ -6,13 +6,14 @@ import { UserRole } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppLoader } from '@/components/AppLoader';
 import { OmniSearch } from '@/components/layout/OmniSearch';
+import { DevSwitcher } from '@/components/admin/DevSwitcher';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Layout from '@/components/Layout';
 import AdminLayout from '@/layouts/AdminLayout';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
 
-// Lazy loading via Aliases
+// Lazy components
 const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
 const RhythmPracticeTV = lazy(() => import('@/pages/RhythmPracticeTV'));
 const LandingPage = lazy(() => import('@/pages/LandingPage'));
@@ -29,17 +30,13 @@ const TeacherAcademy = lazy(() => import('@/pages/TeacherAcademy'));
 const SchoolDashboard = lazy(() => import('@/pages/admin/SchoolDashboard'));
 
 export default function App() {
-  const { user, role } = useAuth();
-  
-  // Qualquer usuário de teste ou adm@adm.com ganha acesso à gerência
-  const canAccessAdmin = role === 'super_admin' || role === 'admin' || user?.email?.endsWith('@adm.com');
-
   return (
     <ErrorBoundary>
       <HashRouter>
         <AppLoader>
           <Suspense fallback={<LoadingScreen />}>
             <OmniSearch />
+            <DevSwitcher />
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<Login />} />
@@ -49,7 +46,7 @@ export default function App() {
               <Route 
                 path="/student" 
                 element={
-                  <ProtectedRoute allowedRoles={[UserRole.Student, UserRole.Admin, UserRole.SuperAdmin]}>
+                  <ProtectedRoute allowedRoles={['student', 'super_admin', 'admin']}>
                     <Layout />
                   </ProtectedRoute>
                 }
@@ -59,13 +56,14 @@ export default function App() {
                 <Route path="rhythm-tv" element={<RhythmPracticeTV />} />
                 <Route path="tasks" element={<TaskManager />} />
                 <Route path="library" element={<LibraryPage />} />
+                <Route path="arcade" element={<Navigate to="/student" replace />} />
               </Route>
               
               {/* Rota Professor */}
               <Route 
                 path="/professor" 
                 element={
-                  <ProtectedRoute allowedRoles={[UserRole.Professor, UserRole.Admin, UserRole.SuperAdmin]}>
+                  <ProtectedRoute allowedRoles={['professor', 'super_admin', 'admin']}>
                     <Layout />
                   </ProtectedRoute>
                 }
@@ -82,7 +80,7 @@ export default function App() {
               <Route 
                 path="/manager" 
                 element={
-                  <ProtectedRoute allowedRoles={[UserRole.SchoolManager, UserRole.Admin, UserRole.SuperAdmin]}>
+                  <ProtectedRoute allowedRoles={['school_manager', 'super_admin', 'admin', 'manager']}>
                     <Layout />
                   </ProtectedRoute>
                 }
@@ -94,14 +92,28 @@ export default function App() {
               <Route 
                 path="/admin" 
                 element={
-                  <ProtectedRoute allowedRoles={[UserRole.Admin, UserRole.SuperAdmin]}>
+                  <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
                     <AdminLayout />
                   </ProtectedRoute>
                 }
               >
                 <Route index element={<AdminDashboard />} />
+                <Route path="ecosystem" element={<AdminDashboard />} />
               </Route>
               
+              {/* Rota Guardião */}
+              <Route 
+                path="/guardian" 
+                element={
+                  <ProtectedRoute allowedRoles={['guardian', 'super_admin', 'admin']}>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Navigate to="/guardian/insights" replace />} />
+                <Route path="insights" element={<div className="p-10 text-white font-black uppercase">Insights do Guardião em Breve</div>} />
+              </Route>
+
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>

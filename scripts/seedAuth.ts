@@ -8,7 +8,8 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseUrl || !serviceKey) {
   console.error("❌ Erro: VITE_SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não definidos");
-  process.exit(1);
+  // FIX: Casting process to any to bypass type checking for exit() which might be restricted by the environment's types
+  (process as any).exit(1);
 }
 
 // Cliente com Service Role para ignorar RLS e Constraints no momento do seed

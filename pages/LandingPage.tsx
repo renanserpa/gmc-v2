@@ -1,14 +1,26 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+
+import React, { useEffect } from 'react';
+import * as RRD from 'react-router-dom';
+const { Link, useNavigate } = RRD as any;
 import { Header } from '../components/landing/Header.tsx';
 import { Hero } from '../components/landing/Hero.tsx';
 import { Card, CardContent } from '../components/ui/Card.tsx';
 import { Button } from '../components/ui/Button.tsx';
 import { Zap, Book, Users, Star, ShoppingBag, Terminal } from 'lucide-react';
 import { usePageTitle } from '../hooks/usePageTitle.ts';
+import { useAuth } from '../contexts/AuthContext.tsx';
 
 export default function LandingPage() {
   usePageTitle("Música leve e divertida");
+  const { user, role, getDashboardPath, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // Auto-Redirect: Se o usuário já está logado, pula a Landing Page
+  useEffect(() => {
+    if (!loading && user && role) {
+      navigate(getDashboardPath(role), { replace: true });
+    }
+  }, [user, role, loading, navigate, getDashboardPath]);
 
   return (
     <div className="min-h-screen bg-[#020617] selection:bg-sky-500/30">
@@ -112,7 +124,7 @@ export default function LandingPage() {
                 Em breve: O cockpit definitivo para professores e alunos de música. Análise neural, gamificação e gestão em um só lugar.
               </p>
               <div className="pt-6">
-                <Link to="/app">
+                <Link to="/login">
                   <Button className="bg-white text-sky-600 hover:bg-sky-50 px-12 py-8 rounded-[32px] font-black uppercase tracking-widest text-lg shadow-xl">
                     Entrar no Beta
                   </Button>

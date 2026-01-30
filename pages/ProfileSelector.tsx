@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import * as RRD from 'react-router-dom';
 const { Link, useNavigate } = RRD as any;
@@ -18,27 +19,26 @@ const profiles = [
     { role: UserRole.Professor, path: '/professor', label: 'Sou Professor', description: 'Gestão de turmas e cockpit de aula', icon: Users, color: 'text-sky-400', glow: 'bg-sky-500/10' },
     { role: UserRole.Student, path: '/student', label: 'Sou Aluno', description: 'Minhas missões e jornada musical', icon: Music, color: 'text-purple-400', glow: 'bg-purple-500/10' },
     { role: UserRole.Guardian, path: '/guardian', label: 'Sou Responsável', description: 'Acompanhamento pedagógico do filho', icon: Shield, color: 'text-green-400', glow: 'bg-green-500/10' },
-    // Fix: Corrected UserRole.Manager to UserRole.SchoolManager which is the actual enum property in types.ts
     { role: UserRole.SchoolManager, path: '/manager', label: 'Sou Gestor', description: 'Dashboard da Unidade de Ensino', icon: Building2, color: 'text-orange-400', glow: 'bg-orange-500/10' },
     { role: UserRole.Admin, path: '/admin', label: 'Sou Admin', description: 'Controle Global e God Mode', icon: LayoutDashboard, color: 'text-red-400', glow: 'bg-red-500/10' }
 ];
 
 export default function ProfileSelector() {
-    const { user, role, loading, signOut, devLogin } = useAuth();
+    const { user, role, loading, signOut, devLogin, getDashboardPath } = useAuth();
     const navigate = useNavigate();
     const [showDevTools, setShowDevTools] = useState(false);
 
     /**
-     * STAFF OPTIMIZATION: Fast-Track Redirect
-     * Se o usuário já possui um papel definido, redirecionamos imediatamente para evitar cliques extras.
+     * STAFF OPTIMIZATION: Redirecionamento Consistente
+     * Usamos o mapeador central do AuthContext para evitar rotas 404.
      */
     useEffect(() => {
         if (!loading && user && role) {
             haptics.medium();
-            const targetPath = role === 'manager' ? '/manager' : `/${role}`;
+            const targetPath = getDashboardPath(role);
             navigate(targetPath, { replace: true });
         }
-    }, [user, role, loading, navigate]);
+    }, [user, role, loading, navigate, getDashboardPath]);
 
     const handleDevLogin = async (roleTarget: string) => {
         uiSounds.playSuccess();
@@ -100,7 +100,7 @@ export default function ProfileSelector() {
                                 <Terminal size={12} /> Maestro Dev Tool
                             </p>
                             <div className="space-y-2">
-                                {['student', 'professor', 'admin'].map(r => (
+                                {['student', 'professor', 'admin', 'super_admin'].map(r => (
                                     <button key={r} onClick={() => handleDevLogin(r)} className="w-full p-3 bg-slate-950 rounded-2xl border border-white/5 text-[10px] font-black uppercase text-slate-300 hover:bg-purple-600 hover:text-white transition-all">
                                         Sou {r} (Dev)
                                     </button>
@@ -130,7 +130,7 @@ export default function ProfileSelector() {
                             transition={{ delay: idx * 0.1 }}
                         >
                             <Link 
-                                to={user ? path : "/login"} 
+                                to={user ? getDashboardPath(profileRole) : "/login"} 
                                 className="group block h-full"
                                 onClick={() => uiSounds.playClick()}
                             >
