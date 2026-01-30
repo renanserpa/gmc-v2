@@ -1,13 +1,17 @@
+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Fix: Define __dirname for ESM modules to resolve 'Cannot find name __dirname' error
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      // FIX: Use path.resolve('.') to get the absolute path of the current directory, avoiding typing issues with the global process object.
-      '@': path.resolve('.'),
+      '@': path.resolve(__dirname, './'),
     },
   },
   build: {
@@ -15,7 +19,6 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
-        // Evita nomes de arquivos muito longos que podem causar erro em alguns servidores
         manualChunks(id) {
           if (id.includes('node_modules')) {
             return 'vendor';
@@ -27,7 +30,6 @@ export default defineConfig({
   server: {
     port: 3000,
     strictPort: true,
-    // Garante que o HMR (Hot Module Replacement) não se perca no IDX
     hmr: {
       overlay: true,
     },
