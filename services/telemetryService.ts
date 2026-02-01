@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient.ts';
 
 export interface IntegrityStatus {
     tableName: string;
@@ -19,13 +19,20 @@ export interface SystemLog {
     source: string;
 }
 
+export interface TenantMetric {
+    school_id: string;
+    school_name: string;
+    avg_latency: number;
+    error_count: number;
+    integration_health: number; // 0-100
+}
+
 const TABLES_CRITICAL = ['profiles', 'classes', 'students', 'missions', 'audit_logs'];
 
 export const telemetryService = {
     async measureLatency(): Promise<LatencyResult> {
         const start = performance.now();
         try {
-            // Ping leve no Supabase
             await supabase.from('profiles').select('id').limit(1);
             const end = performance.now();
             const ms = Math.round(end - start);
@@ -41,6 +48,21 @@ export const telemetryService = {
         }
     },
 
+    async getTenantMetrics(): Promise<TenantMetric[]> {
+        const { data: schools } = await supabase.from('schools').select('id, name');
+        if (!schools) return [];
+
+        // Simulate aggregated telemetry per tenant for demo purposes
+        // In production, this would query a metrics table or an analytical view
+        return schools.map(s => ({
+            school_id: s.id,
+            school_name: s.name,
+            avg_latency: Math.floor(Math.random() * 150) + 40,
+            error_count: Math.floor(Math.random() * 10),
+            integration_health: Math.floor(Math.random() * 20) + 80
+        }));
+    },
+
     async checkDatabaseIntegrity(): Promise<IntegrityStatus[]> {
         const results: IntegrityStatus[] = [];
         for (const table of TABLES_CRITICAL) {
@@ -50,7 +72,7 @@ export const telemetryService = {
                     .select('*', { count: 'exact', head: true });
 
                 if (error) {
-                    const isMissing = error.code === '42P01'; // Postgres code for missing table
+                    const isMissing = error.code === '42P01';
                     results.push({
                         tableName: table,
                         exists: !isMissing,

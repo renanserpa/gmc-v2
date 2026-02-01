@@ -1,6 +1,6 @@
-
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext.tsx';
+import { useAdmin } from '../contexts/AdminContext.tsx';
 import { supabase } from '../lib/supabaseClient.ts';
 import { Student } from '../types.ts';
 import { getLevelInfo } from '../services/gamificationService.ts';
@@ -8,11 +8,27 @@ import { logger } from '../lib/logger.ts';
 
 export function useCurrentStudent() {
   const { user } = useAuth();
+  const { impersonatedStudentId } = useAdmin();
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ['currentStudent', user?.id],
+    queryKey: ['currentStudent', user?.id, impersonatedStudentId],
     queryFn: async (): Promise<Student | null> => {
+      // 1. PRIORIDADE: SESSION MIRRORING (ADMIN)
+      if (impersonatedStudentId) {
+        const { data, error } = await supabase
+          .from('students')
+          .select('*')
+          .eq('id', impersonatedStudentId)
+          .single();
+
+        if (error) throw error;
+        if (!data) return null;
+
+        const levelInfo = getLevelInfo(data.xp || 0);
+        return { ...data, xpToNextLevel: levelInfo.xpToNextLevel } as Student;
+      }
+
       if (!user) return null;
 
       const devUserId = localStorage.getItem('oliemusic_dev_user_id');
@@ -58,7 +74,7 @@ export function useCurrentStudent() {
         return null;
       }
     },
-    enabled: !!user,
+    enabled: !!user || !!impersonatedStudentId,
     staleTime: 1000 * 30,
     retry: 1
   });

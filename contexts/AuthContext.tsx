@@ -1,9 +1,9 @@
-
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient.ts';
 import { Profile, UserRole } from '../types.ts';
 import { logger } from '../lib/logger.ts';
+import { notify } from '../lib/notification.ts';
 
 interface AuthContextType {
   session: Session | null;
@@ -43,41 +43,52 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
     }
   }, []);
 
+  const internalSignOut = async (reason?: string) => {
+    await supabase.auth.signOut();
+    localStorage.clear();
+    if (reason) notify.error(reason);
+    window.location.href = '/login';
+  };
+
   const syncProfile = async (currentUser: User) => {
-    // 1. PRIORIDADE ABSOLUTA: HARD-CODED BYPASS
-    const rootEmails = ['serparenan@gmail.com', 'adm@adm.com'];
+    const rootEmails = ['serparenan@gmail.com', 'admin@oliemusic.dev'];
+    
     if (rootEmails.includes(currentUser.email?.toLowerCase() || '')) {
-      const rootRole = 'super_admin';
-      setRole(rootRole);
+      setRole('super_admin');
       setProfile({
           id: currentUser.id,
           email: currentUser.email!,
-          full_name: "Mestre Supremo (Hardcoded)",
-          role: rootRole,
+          full_name: "Master Root (Bypass)",
+          role: 'super_admin',
           created_at: new Date().toISOString()
       } as Profile);
       setLoading(false);
       return;
     }
 
-    // 2. BUSCA NORMAL NO BANCO
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, schools(is_active)')
         .eq('id', currentUser.id)
         .maybeSingle();
 
       if (data) {
+        // --- GOVERNANÇA: Kill Switch Check ---
+        // Se o tenant estiver desativado, força logout imediato
+        if (data.school_id && data.schools && data.schools.is_active === false) {
+           await internalSignOut("Esta unidade escolar foi suspensa pelo Administrador Master.");
+           return;
+        }
+
         setProfile(data as Profile);
         setRole(data.role);
       } else {
-        // Se não existir perfil, tenta metadata ou assume student
         const metaRole = currentUser.user_metadata?.role || 'student';
         setRole(metaRole);
       }
     } catch (e) {
-      logger.error("[Auth-Sync] Erro ao sincronizar perfil", e);
+      logger.error("[Auth] Perfil não encontrado ou erro de RLS", e);
       setRole('student');
     } finally {
       setLoading(false);
@@ -85,16 +96,14 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   useEffect(() => {
-    // Boot inicial
     supabase.auth.getSession().then(({ data: { session: initSession } }) => {
-      setSession(initSession);
       const u = initSession?.user ?? null;
+      setSession(initSession);
       setUser(u);
       if (u) syncProfile(u);
       else setLoading(false);
     });
 
-    // Escuta mudanças de estado
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       const u = currentSession?.user ?? null;
       setSession(currentSession);
@@ -110,24 +119,25 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    // --- REALTIME BROADCAST: Tenant Suspended (Kill Switch Listener) ---
+    const channel = supabase.channel('maestro_global_control')
+      .on('broadcast', { event: 'tenant_suspended' }, ({ payload }) => {
+          if (profile?.school_id === payload.school_id && role !== 'super_admin') {
+              internalSignOut("Sessão Encerrada: Sua unidade escolar acaba de ser suspensa por motivos administrativos.");
+          }
+      })
+      .subscribe();
+
+    return () => {
+        subscription.unsubscribe();
+        supabase.removeChannel(channel);
+    };
+  }, [profile?.school_id, role]);
 
   const value = {
-    session,
-    user,
-    profile,
-    role,
-    loading,
-    getDashboardPath,
-    setRoleOverride: (newRole: string | null) => {
-      setRole(newRole);
-    },
-    signOut: async () => {
-      await supabase.auth.signOut();
-      localStorage.clear();
-      window.location.href = '/login';
-    },
+    session, user, profile, role, loading, getDashboardPath,
+    setRoleOverride: (newRole: string | null) => setRole(newRole),
+    signOut: () => internalSignOut(),
     signIn: async (email: string, password: string) => {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;

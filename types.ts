@@ -1,4 +1,3 @@
-
 export enum UserRole {
     Professor = 'professor',
     Student = 'student',
@@ -51,73 +50,22 @@ export interface Student {
     school_id?: string | null;
 }
 
-export interface Achievement {
+export interface SchoolBranding {
+    primaryColor: string;
+    secondaryColor: string;
+    borderRadius: string;
+    logoUrl: string | null;
+}
+
+export interface School {
     id: string;
     name: string;
-    description: string;
-    xp_reward: number;
-}
-
-export interface PlayerAchievement {
-    id: string;
-    player_id: string;
-    achievement_id: string;
-    achieved_at: string;
-    achievement?: Achievement;
-}
-
-export enum BacklogStatus {
-    Idea = 'Idea',
-    Planned = 'Planned',
-    InProgress = 'InProgress',
-    Done = 'Done'
-}
-
-export interface BacklogItem {
-    id: string;
-    title: string;
-    description: string;
-    status: BacklogStatus;
-    type: string;
-}
-
-export interface StoreItem {
-    id: string;
-    name: string;
-    description: string;
-    price_coins: number;
+    branding: SchoolBranding;
     is_active: boolean;
-    metadata?: any;
-}
-
-export interface StoreOrder {
-    id: string;
-    player_id: string;
-    store_item_id: string;
-    coins_spent: number;
-    is_equipped: boolean;
-    created_at: string;
-    store_items?: StoreItem;
-    students?: Student;
-}
-
-export interface MusicClass {
-    id: string;
-    professor_id: string;
-    name: string;
-    start_time: string;
-    days_of_week: string[];
-    age_group: string;
-    school_id?: string | null;
-}
-
-export interface Notice {
-    id: string;
-    professor_id: string;
-    title: string;
-    message: string;
-    target_audience: string;
-    created_at: string;
+    settings?: {
+        max_students: number;
+        storage_gb: number;
+    };
 }
 
 export enum MissionStatus {
@@ -138,26 +86,17 @@ export interface Mission {
     status: MissionStatus;
     position?: number;
     created_at?: string;
+    students?: { name: string };
 }
 
-export interface Lesson {
+export interface MusicClass {
     id: string;
     professor_id: string;
-    student_id: string;
-    date: string;
-    starts_at: string;
-    status: string;
-    student_name?: string;
-}
-
-export type AttendanceStatus = 'present' | 'absent' | 'late';
-
-export interface AttendanceLog {
-    id: string;
-    student_id: string;
-    music_class_id: string;
-    status: AttendanceStatus;
-    attendance_date: string;
+    name: string;
+    start_time: string;
+    days_of_week: string[];
+    age_group: string;
+    school_id?: string | null;
 }
 
 export interface ContentLibraryItem {
@@ -170,86 +109,13 @@ export interface ContentLibraryItem {
     created_at?: string;
 }
 
-export interface ProfessorDashboardStats {
-    totalStudents: number;
-    upcomingLessonsCount: number;
-    pendingMissionsCount: number;
-    recentCompletedMissionsCount: number;
-}
-
-export interface StudentGuardianOverview {
-    studentId: string;
-    studentName: string;
-    instrument: string;
-    level: number;
-    xp: number;
-    streak: number;
-    coins: number;
-    attendanceRate: number;
-    recentLessons: any[];
-    missionsSummary: {
-        total: number;
-        done: number;
-        pending: number;
-    };
-    upcomingMissions: any[];
-    recentAchievements: any[];
-}
-
-export enum ModuleStatus {
-    Locked = 'locked',
-    Available = 'available',
-    Completed = 'completed'
-}
-
-export interface LearningModule {
-    id: string;
-    trail_id: string;
-    title: string;
-    description: string;
-    order_index: number;
-    icon_type: 'theory' | 'technique' | 'repertoire' | 'boss';
-    xp_reward: number;
-    required_missions: string[];
-}
-
-export interface LessonStep {
-    id: string;
-    title: string;
-    type: 'theory' | 'exercise' | 'song' | 'video' | 'movement_break';
-    duration_mins: number;
-    content?: string;
-    metadata?: any;
-}
-
-export interface LessonPlan {
+export interface Notice {
     id: string;
     professor_id: string;
     title: string;
-    description?: string;
-    age_group: '4-6' | '7-10' | 'adult';
-    steps: LessonStep[];
+    message: string;
+    target_audience: string;
     created_at: string;
-}
-
-export interface BossState {
-    name: string;
-    maxHp: number;
-    currentHp: number;
-    isEnraged: boolean;
-    isActive: boolean;
-}
-
-export interface ChordSubstitution {
-    chord: string;
-    type: 'relative' | 'parallel' | 'tritone';
-    description: string;
-}
-
-export interface Tuning {
-    id: string;
-    label: string;
-    notes: number[];
 }
 
 export interface ClassroomCommand {
@@ -270,25 +136,19 @@ export interface ClassroomCommand {
     label?: string;
 }
 
-export enum InstrumentType {
-    Guitar = 'guitar',
-    Ukulele = 'ukulele',
-    Piano = 'piano',
-    Drums = 'drums',
-    Vocals = 'vocals'
-}
-
-export interface SchoolBranding {
-    primaryColor: string;
-    secondaryColor: string;
-    borderRadius: string;
-    logoUrl: string | null;
-}
-
-export interface School {
+export interface SearchResult {
     id: string;
-    name: string;
-    branding: SchoolBranding;
+    type: 'student' | 'tool' | 'concept' | 'song';
+    title: string;
+    subtitle: string;
+    path: string;
+    icon: any;
+}
+
+export interface Tuning {
+    id: string;
+    label: string;
+    notes: number[];
 }
 
 export interface HistoryEra {
@@ -317,22 +177,111 @@ export interface ChordBlock {
     notes: string[];
 }
 
-export interface WikiArticle {
-    id: string;
-    title: string;
-    category: 'History' | 'Theory' | 'Instruments' | 'Pedagogy';
-    content: string;
-    tags: string[];
-    updated_at: string;
+export interface ChordSubstitution {
+    chord: string;
+    type: 'relative' | 'parallel' | 'tritone';
+    description: string;
 }
 
-export interface SearchResult {
+export interface LearningModule {
     id: string;
-    type: 'student' | 'tool' | 'concept' | 'song';
+    trail_id: string;
     title: string;
-    subtitle: string;
-    path: string;
-    icon: any;
+    description: string;
+    order_index: number;
+    icon_type: 'theory' | 'technique' | 'repertoire' | 'boss';
+    xp_reward: number;
+    required_missions: string[];
+}
+
+export enum ModuleStatus {
+    Locked = 'locked',
+    Available = 'available',
+    Completed = 'completed'
+}
+
+export interface LessonStep {
+    id: string;
+    title: string;
+    type: 'theory' | 'exercise' | 'song' | 'video' | 'movement_break';
+    duration_mins: number;
+}
+
+export interface LessonPlan {
+    id: string;
+    professor_id: string;
+    title: string;
+    age_group: '4-6' | '7-10' | 'adult';
+    steps: LessonStep[];
+    created_at: string;
+}
+
+export interface PlayerAchievement {
+    id: string;
+    player_id: string;
+    achievement_id: string;
+    achieved_at: string;
+    achievements?: {
+        name: string;
+        description: string;
+    };
+}
+
+export type AttendanceStatus = 'present' | 'absent' | 'late';
+
+export interface ProfessorDashboardStats {
+    totalStudents: number;
+    upcomingLessonsCount: number;
+    pendingMissionsCount: number;
+    recentCompletedMissionsCount: number;
+}
+
+export interface StudentGuardianOverview {
+    studentId: string;
+    studentName: string;
+    instrument: string;
+    level: number;
+    xp: number;
+    streak: number;
+    coins: number;
+    attendanceRate: number;
+    recentLessons: any[];
+    missionsSummary: {
+        total: number;
+        done: number;
+        pending: number;
+    };
+    upcomingMissions: any[];
+    recentAchievements: any[];
+}
+
+// Additions for missing exports to resolve reported errors
+export interface StoreItem {
+    id: string;
+    name: string;
+    description: string;
+    price_coins: number;
+    is_active: boolean;
+    metadata?: any;
+    created_at?: string;
+}
+
+export interface StoreOrder {
+    id: string;
+    player_id: string;
+    store_item_id: string;
+    coins_spent: number;
+    is_equipped: boolean;
+    created_at: string;
+    store_items?: StoreItem;
+}
+
+export enum InstrumentType {
+    Guitar = 'guitar',
+    Ukulele = 'ukulele',
+    Piano = 'piano',
+    Drums = 'drums',
+    Vocals = 'vocals'
 }
 
 export interface TeacherTip {

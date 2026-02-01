@@ -1,3 +1,4 @@
+
 import React from 'react';
 import * as RRD from 'react-router-dom';
 const { Navigate, useLocation, Outlet } = RRD as any;
@@ -13,9 +14,7 @@ export default function ProtectedRoute(props: ProtectedRouteProps) {
   const { user, role, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) {
-    return null; 
-  }
+  if (loading) return null; 
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -23,25 +22,23 @@ export default function ProtectedRoute(props: ProtectedRouteProps) {
 
   const normalizedRole = role?.toLowerCase() || '';
 
-  // ROOT ADMIN BYPASS: Soberania total sobre as rotas
-  const isRoot = user.email === 'serparenan@gmail.com' || user.email === 'admin@oliemusic.dev';
-  if (normalizedRole === 'super_admin' || normalizedRole === 'admin' || isRoot) {
+  // BYPASS ROOT: Soberania total
+  const isRoot = user.email === 'serparenan@gmail.com' || normalizedRole === 'super_admin';
+  if (isRoot) {
     return children ? <>{children}</> : <Outlet />;
   }
 
-  // Verificação de Roles Permitidas para usuários comuns
   const hasAccess = allowedRoles.some(r => {
     const req = r.toLowerCase();
     if (req === normalizedRole) return true;
-    // Compatibilidade de nomes para gestores
     if (req === 'manager' && normalizedRole === 'school_manager') return true;
     if (req === 'school_manager' && normalizedRole === 'manager') return true;
     return false;
   });
 
   if (!hasAccess) {
-    console.warn(`[Security] Acesso negado. User: ${user.email}, Role: ${role}. Permitidos: ${allowedRoles.join(',')}`);
-    return <Navigate to="/app" replace />;
+    console.warn(`[Security] Acesso Negado: ${user.email} (${role})`);
+    return <Navigate to="/" replace />;
   }
 
   return children ? <>{children}</> : <Outlet />;

@@ -44,7 +44,9 @@ export const ThemeProvider = ({ children }: { children?: ReactNode }) => {
             const mockSchool: School = {
                 id: 'school-dev-id',
                 name: 'OlieMusic HQ (Dev)',
-                branding: DEFAULT_BRANDING
+                branding: DEFAULT_BRANDING,
+                // FIX: Added missing required property 'is_active' for School interface
+                is_active: true
             };
             setSchools([mockSchool]);
             const savedId = localStorage.getItem('maestro_active_school');

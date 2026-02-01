@@ -1,20 +1,49 @@
-
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card.tsx';
+import { Card, CardContent } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
-import { Building2, Users, Shield, Plus, Globe, ArrowRight, Lock, Loader2, Palette, AlertCircle } from 'lucide-react';
-import { getAdminSchools, createAdminSchool } from '../../services/dataService.ts';
+import { Building2, Users, Shield, Plus, Globe, ArrowRight, Loader2, Palette, HardDrive, UserCheck, Power, PowerOff, AlertCircle } from 'lucide-react';
+import { getAdminSchools, createAdminSchool, getStudentCountBySchool, updateSchoolStatus } from '../../services/dataService.ts';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../../components/ui/Dialog.tsx';
 import { notify } from '../../lib/notification.ts';
 import { haptics } from '../../lib/haptics.ts';
 import { cn } from '../../lib/utils.ts';
+import { motion } from 'framer-motion';
+
+const ResourceUsage = ({ current, max, label, icon: Icon, color }: any) => {
+    const percent = Math.min((current / max) * 100, 100);
+    return (
+        <div className="space-y-2">
+            <div className="flex justify-between items-end">
+                <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                    <Icon size={12} className={color} /> {label}
+                </div>
+                <span className="text-[10px] font-mono font-bold text-white">{current}/{max}</span>
+            </div>
+            <div className="h-1.5 bg-slate-950 rounded-full overflow-hidden border border-white/5">
+                <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${percent}%` }}
+                    className={cn("h-full transition-all duration-1000", percent > 90 ? "bg-red-500" : percent > 70 ? "bg-amber-500" : color.replace('text-', 'bg-'))}
+                />
+            </div>
+        </div>
+    );
+};
 
 export default function TenantManager() {
     const [tenants, setTenants] = useState<any[]>([]);
+    const [usageData, setUsageData] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(true);
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [newSchool, setNewSchool] = useState({ name: '', slug: '', primaryColor: '#38bdf8' });
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const [newSchool, setNewSchool] = useState({ 
+        name: '', 
+        slug: '', 
+        primaryColor: '#38bdf8',
+        max_students: 50,
+        storage_gb: 5
+    });
 
     useEffect(() => {
         loadTenants();
@@ -25,10 +54,34 @@ export default function TenantManager() {
         try {
             const schools = await getAdminSchools();
             setTenants(schools);
+            
+            const counts: Record<string, number> = {};
+            await Promise.all(schools.map(async (s) => {
+                counts[s.id] = await getStudentCountBySchool(s.id);
+            }));
+            setUsageData(counts);
         } catch (e) {
             notify.error("Erro ao carregar ecossistema B2B.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleToggleStatus = async (school: any) => {
+        const nextStatus = !school.is_active;
+        if (!nextStatus && !window.confirm(`ATENÇÃO: Suspender a unidade "${school.name}" deslogará IMEDIATAMENTE todos os usuários vinculados. Confirmar suspensão?`)) return;
+
+        setActionLoading(school.id);
+        haptics.heavy();
+
+        try {
+            await updateSchoolStatus(school.id, nextStatus);
+            notify.success(nextStatus ? `Unidade "${school.name}" reativada.` : `Unidade "${school.name}" SUSPENSA.`);
+            loadTenants();
+        } catch (e) {
+            notify.error("Falha ao alterar status da unidade.");
+        } finally {
+            setActionLoading(null);
         }
     };
 
@@ -50,16 +103,19 @@ export default function TenantManager() {
                     secondaryColor: '#a78bfa',
                     borderRadius: '24px', 
                     logoUrl: null 
+                },
+                settings: {
+                    max_students: newSchool.max_students,
+                    storage_gb: newSchool.storage_gb
                 }
             });
             
             notify.success("Unidade Provisionada com Sucesso!");
             setIsAddOpen(false);
-            setNewSchool({ name: '', slug: '', primaryColor: '#38bdf8' });
+            setNewSchool({ name: '', slug: '', primaryColor: '#38bdf8', max_students: 50, storage_gb: 5 });
             loadTenants();
         } catch (e: any) {
-            console.error("[TenantManager] Erro fatal na criação:", e);
-            notify.error(e.message?.includes('unique') ? "Este Slug já está em uso." : "Falha na conexão com o Banco de Dados.");
+            notify.error(e.message?.includes('unique') ? "Este Slug já está em uso." : "Falha na conexão.");
         } finally {
             setIsSaving(false);
         }
@@ -70,7 +126,7 @@ export default function TenantManager() {
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900/40 p-8 rounded-[40px] border border-white/5 backdrop-blur-xl">
                 <div>
                     <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">Tenant <span className="text-purple-500">Master</span></h1>
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Governança B2B e Isolamento de Redes</p>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Governança B2B e Controle de Resiliência</p>
                 </div>
                 <Button 
                     onClick={() => { haptics.light(); setIsAddOpen(true); }}
@@ -89,107 +145,99 @@ export default function TenantManager() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {tenants.map(t => (
-                        <Card key={t.id} className="bg-slate-900 border-white/5 rounded-[40px] overflow-hidden hover:border-purple-500/40 transition-all group">
+                        <Card key={t.id} className={cn(
+                            "bg-slate-900 border transition-all group rounded-[40px] overflow-hidden",
+                            t.is_active ? "border-white/5 hover:border-purple-500/40" : "border-red-500/30 opacity-70"
+                        )}>
                             <CardContent className="p-8 space-y-6">
                                 <div className="flex justify-between items-start">
                                     <div 
                                         className="p-4 rounded-2xl text-white group-hover:scale-110 transition-all shadow-inner"
-                                        style={{ backgroundColor: t.branding?.primaryColor || '#6366f1' }}
+                                        style={{ backgroundColor: t.is_active ? (t.branding?.primaryColor || '#6366f1') : '#475569' }}
                                     >
                                         <Building2 size={28} />
                                     </div>
-                                    <div className="px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-[9px] font-black uppercase border border-emerald-500/20">
-                                        Node Ativo
+                                    <div className={cn(
+                                        "px-3 py-1 rounded-full text-[9px] font-black uppercase border",
+                                        t.is_active ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-red-500/10 text-red-500 border-red-500/20"
+                                    )}>
+                                        {t.is_active ? 'Ativo' : 'Suspenso'}
                                     </div>
                                 </div>
                                 
-                                <div>
+                                <div className="space-y-1">
                                     <h3 className="text-xl font-black text-white uppercase tracking-tight">{t.name}</h3>
-                                    <p className="text-[10px] text-slate-600 font-bold uppercase mt-1 flex items-center gap-1">
-                                        <Lock size={10} /> {t.id.substring(0,18)}...
-                                    </p>
+                                    <p className="text-[9px] text-slate-500 font-mono">ID: {t.id.substring(0,8)}...</p>
                                 </div>
 
-                                <div className="pt-6 border-t border-white/5 flex justify-between items-center">
-                                    <div className="flex items-center gap-2">
-                                        <Globe size={16} className="text-slate-500" />
-                                        <span className="text-[9px] font-black text-slate-400 uppercase">Slug: {t.slug || 'n/a'}</span>
-                                    </div>
-                                    <Button variant="ghost" size="sm" rightIcon={ArrowRight} className="text-[10px] font-black uppercase">Admin</Button>
+                                <div className="space-y-4 py-4 border-y border-white/5">
+                                    <ResourceUsage 
+                                        label="Alunos" 
+                                        current={usageData[t.id] || 0} 
+                                        max={t.settings?.max_students || 100} 
+                                        icon={UserCheck} 
+                                        color="text-sky-400" 
+                                    />
+                                    <ResourceUsage 
+                                        label="Cloud Storage" 
+                                        current={0.1} // Mock for demo
+                                        max={t.settings?.storage_gb || 10} 
+                                        icon={HardDrive} 
+                                        color="text-purple-400" 
+                                    />
+                                </div>
+
+                                <div className="pt-2 flex justify-between items-center">
+                                    <button 
+                                        onClick={() => handleToggleStatus(t)}
+                                        disabled={actionLoading === t.id}
+                                        className={cn(
+                                            "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all",
+                                            t.is_active ? "text-red-500 hover:text-red-400" : "text-emerald-500 hover:text-emerald-400"
+                                        )}
+                                    >
+                                        {actionLoading === t.id ? (
+                                            <Loader2 className="animate-spin" size={14} />
+                                        ) : (
+                                            t.is_active ? <PowerOff size={14} /> : <Power size={14} />
+                                        )}
+                                        {t.is_active ? 'Suspender Unidade' : 'Reativar Unidade'}
+                                    </button>
+                                    <Button variant="ghost" size="sm" rightIcon={ArrowRight} className="text-[10px] font-black uppercase">Dashboard</Button>
                                 </div>
                             </CardContent>
                         </Card>
                     ))}
-
-                    {tenants.length === 0 && (
-                        <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-[48px]">
-                            <Building2 className="mx-auto text-slate-800 mb-4" size={48} />
-                            <p className="text-slate-500 font-black uppercase text-xs">Nenhum tenant externo conectado.</p>
-                        </div>
-                    )}
                 </div>
             )}
 
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                <DialogContent className="bg-slate-900 border-slate-800 rounded-[40px] max-w-lg p-8 shadow-2xl">
-                    <DialogHeader className="space-y-4">
-                        <div className="w-16 h-16 bg-purple-600 rounded-2xl flex items-center justify-center text-white shadow-xl">
-                            <Plus size={32} />
-                        </div>
-                        <div>
-                            <DialogTitle className="text-2xl font-black text-white uppercase tracking-tighter italic">Provisionar Unidade</DialogTitle>
-                            <DialogDescription className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Criação de novo isolamento de dados B2B.</DialogDescription>
-                        </div>
+                <DialogContent className="bg-slate-900 border-slate-800 rounded-[40px] max-w-xl p-8 shadow-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Provisionar Unidade</DialogTitle>
+                        <DialogDescription>Configuração de Quotas e Isolamento de Dados.</DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-6 py-8">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Nome da Instituição</label>
-                            <input 
-                                value={newSchool.name} 
-                                onChange={e => setNewSchool({...newSchool, name: e.target.value})}
-                                placeholder="Ex: Conservatório Olie Music SP"
-                                className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:ring-4 focus:ring-purple-600/20 transition-all" 
-                            />
+                    <div className="space-y-6 py-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <input value={newSchool.name} onChange={e => setNewSchool({...newSchool, name: e.target.value})} placeholder="Nome da Instituição" className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none" />
+                            <input value={newSchool.slug} onChange={e => setNewSchool({...newSchool, slug: e.target.value})} placeholder="Slug Identificador" className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm font-mono outline-none" />
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Identificador Único (Slug)</label>
-                            <input 
-                                value={newSchool.slug} 
-                                onChange={e => setNewSchool({...newSchool, slug: e.target.value})}
-                                placeholder="conservatorio-sp"
-                                className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:ring-4 focus:ring-purple-600/20 font-mono" 
-                            />
-                            <p className="text-[8px] text-slate-600 font-bold uppercase ml-1 flex items-center gap-1">
-                                <AlertCircle size={10} /> O slug define a URL da escola e não pode ser alterado.
-                            </p>
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1 flex items-center gap-2">
-                                <Palette size={12} /> Branding: Cor Primária
-                            </label>
-                            <div className="flex gap-4 items-center bg-slate-950 p-4 rounded-2xl border border-white/5">
-                                <input 
-                                    type="color"
-                                    value={newSchool.primaryColor} 
-                                    onChange={e => setNewSchool({...newSchool, primaryColor: e.target.value})}
-                                    className="w-12 h-12 rounded-xl bg-transparent border-none cursor-pointer"
-                                />
-                                <span className="text-xs font-mono text-slate-400 font-bold">{newSchool.primaryColor.toUpperCase()}</span>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Max Alunos</label>
+                                <input type="number" value={newSchool.max_students} onChange={e => setNewSchool({...newSchool, max_students: Number(e.target.value)})} className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Storage GB</label>
+                                <input type="number" value={newSchool.storage_gb} onChange={e => setNewSchool({...newSchool, storage_gb: Number(e.target.value)})} className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm" />
                             </div>
                         </div>
                     </div>
 
-                    <DialogFooter className="gap-3 border-t border-white/5 pt-6">
-                        <Button variant="ghost" onClick={() => setIsAddOpen(false)} className="text-[10px] font-black uppercase">Cancelar</Button>
-                        <Button 
-                            onClick={handleCreate} 
-                            isLoading={isSaving}
-                            disabled={!newSchool.name || !newSchool.slug}
-                            className="bg-purple-600 hover:bg-purple-500 text-white px-10 py-6 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl"
-                        >
-                            {isSaving ? "Executando..." : "Confirmar Provisionamento"}
-                        </Button>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setIsAddOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleCreate} isLoading={isSaving} className="bg-purple-600">Provisionar</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -1,3 +1,4 @@
+
 import { supabase } from '../lib/supabaseClient';
 
 export interface TableStatus {
@@ -9,34 +10,36 @@ export interface TableStatus {
 
 const TABLES_TO_CHECK = [
     'profiles',
-    'classes',
+    'schools',
+    'professor_schools',
+    'music_classes',
     'students',
     'missions',
+    'xp_events',
+    'store_items',
+    'content_library',
+    'knowledge_docs',
+    'system_configs',
     'audit_logs'
 ];
 
 export const databaseService = {
-    /**
-     * Realiza uma varredura nas tabelas principais para verificar existência e volume de dados.
-     */
     async checkHealth(): Promise<TableStatus[]> {
         const results: TableStatus[] = [];
 
         for (const tableName of TABLES_TO_CHECK) {
             try {
-                // Tenta um select head para verificar existência de forma performática
                 const { count, error } = await supabase
                     .from(tableName)
                     .select('*', { count: 'exact', head: true });
 
                 if (error) {
-                    // Código 42P01: relation "table" does not exist no Postgres
                     const isMissing = error.code === '42P01';
                     results.push({
                         tableName,
                         exists: !isMissing,
                         rowCount: 0,
-                        error: isMissing ? 'Tabela não encontrada no banco.' : error.message
+                        error: isMissing ? 'Tabela inexistente (42P01).' : error.message
                     });
                 } else {
                     results.push({
@@ -51,11 +54,10 @@ export const databaseService = {
                     tableName,
                     exists: false,
                     rowCount: 0,
-                    error: 'Falha crítica na conexão.'
+                    error: 'Falha de conexão serial.'
                 });
             }
         }
-
         return results;
     }
 };
