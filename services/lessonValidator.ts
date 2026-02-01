@@ -29,15 +29,48 @@ export const lessonValidator = {
             }
 
             // 2. Validação "Caminhada da Aranha" (Apostila V3.0)
-            if (step.title.toLowerCase().includes('aranha')) {
+            const isSpiderWalk = step.title.toLowerCase().includes('aranha') || step.title.toLowerCase().includes('spider');
+            
+            if (isSpiderWalk) {
                 const metadata = (step as any).metadata || {};
                 
+                // BPM Target Check
                 if (!metadata.bpm_target) {
                     warnings.push({
                         stepId: step.id,
                         severity: 'high',
-                        message: "Faltando Metadado: BPM Alvo",
+                        message: "Spider Walk: Faltando Metadado BPM Alvo",
                         suggestion: "A 'Caminhada da Aranha' v3.0 requer um BPM alvo (ex: 60bpm) para telemetria correta."
+                    });
+                }
+
+                // Fret Range Check (1-4 é o padrão da apostila)
+                if (!metadata.fret_range || metadata.fret_range[0] !== 1 || metadata.fret_range[1] !== 4) {
+                    warnings.push({
+                        stepId: step.id,
+                        severity: 'low',
+                        message: "Spider Walk: Range de Casas não-padrão",
+                        suggestion: "A Apostila V3.0 recomenda casas [1, 4] para este nível."
+                    });
+                }
+
+                // Accuracy Threshold Check
+                if (!metadata.required_accuracy || metadata.required_accuracy < 0.85) {
+                    warnings.push({
+                        stepId: step.id,
+                        severity: 'high',
+                        message: "Spider Walk: Limiar de Precisão Insuficiente",
+                        suggestion: "A meta técnica para homologação é 85% de precisão (accuracy: 0.85)."
+                    });
+                }
+
+                // String Count Check
+                if (!metadata.strings_count || metadata.strings_count !== 6) {
+                    warnings.push({
+                        stepId: step.id,
+                        severity: 'low',
+                        message: "Spider Walk: Contagem de cordas inválida",
+                        suggestion: "O exercício padrão utiliza as 6 cordas do violão."
                     });
                 }
 
@@ -45,7 +78,7 @@ export const lessonValidator = {
                     warnings.push({
                         stepId: step.id,
                         severity: 'low',
-                        message: "Faltando Guia Visual de Dedos",
+                        message: "Spider Walk: Faltando Guia Visual de Dedos",
                         suggestion: "Ative o 'Color Map' (1=Verde, 2=Amarelo...) para auxiliar a visão periférica do aluno."
                     });
                 }

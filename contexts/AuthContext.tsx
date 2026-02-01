@@ -10,13 +10,14 @@ interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   role: string | null;
+  schoolId: string | null;
   loading: boolean;
   signOut: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<any>;
   refreshProfile: () => Promise<void>;
   setRoleOverride: (role: string | null) => void;
+  setSchoolOverride: (schoolId: string | null) => void;
   getDashboardPath: (role: string | null) => string;
-  // FIX: Adicionando devLogin ao contrato do contexto para suportar ferramentas de desenvolvimento
   devLogin: (userId: string, role: string) => Promise<void>;
 }
 
@@ -27,6 +28,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<string | null>(null);
+  const [schoolId, setSchoolId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const getDashboardPath = useCallback((userRole: string | null): string => {
@@ -76,8 +78,6 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
         .maybeSingle();
 
       if (data) {
-        // --- GOVERNANÇA: Kill Switch Check ---
-        // Se o tenant estiver desativado, força logout imediato
         if (data.school_id && data.schools && data.schools.is_active === false) {
            await internalSignOut("Esta unidade escolar foi suspensa pelo Administrador Master.");
            return;
@@ -85,6 +85,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
 
         setProfile(data as Profile);
         setRole(data.role);
+        setSchoolId(data.school_id);
       } else {
         const metaRole = currentUser.user_metadata?.role || 'student';
         setRole(metaRole);
@@ -117,11 +118,11 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
       } else if (event === 'SIGNED_OUT') {
         setProfile(null);
         setRole(null);
+        setSchoolId(null);
         setLoading(false);
       }
     });
 
-    // --- REALTIME BROADCAST: Tenant Suspended (Kill Switch Listener) ---
     const channel = supabase.channel('maestro_global_control')
       .on('broadcast', { event: 'tenant_suspended' }, ({ payload }) => {
           if (profile?.school_id === payload.school_id && role !== 'super_admin') {
@@ -137,8 +138,9 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   }, [profile?.school_id, role]);
 
   const value = {
-    session, user, profile, role, loading, getDashboardPath,
+    session, user, profile, role, schoolId, loading, getDashboardPath,
     setRoleOverride: (newRole: string | null) => setRole(newRole),
+    setSchoolOverride: (newSchoolId: string | null) => setSchoolId(newSchoolId),
     signOut: () => internalSignOut(),
     signIn: async (email: string, password: string) => {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -151,13 +153,10 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
         await syncProfile(user);
       }
     },
-    // FIX: Implementação do devLogin para simular estados de autenticação e facilitar o desenvolvimento
     devLogin: async (userId: string, targetRole: string) => {
       localStorage.setItem('oliemusic_dev_user_id', userId);
       localStorage.setItem('oliemusic_dev_role', targetRole);
       setRole(targetRole);
-      // Simula um usuário autenticado localmente para o sistema de rotas e guards
-      // FIX: Use unknown as intermediate cast to satisfy strict Supabase User type requirements
       setUser({ 
         id: userId, 
         email: `dev-${targetRole}@oliemusic.dev`,

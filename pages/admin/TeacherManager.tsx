@@ -1,26 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card.tsx';
+import * as RRD from 'react-router-dom';
+const { useNavigate } = RRD as any;
+import { Card, CardContent } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
 import { 
     GraduationCap, Mail, ShieldCheck, Search, 
-    MoreVertical, Building2, Save, Loader2 
+    MoreVertical, Building2, Save, Loader2, Eye, UserCog 
 } from 'lucide-react';
 import { useRealtimeSync } from '../../hooks/useRealtimeSync.ts';
 import { updateUserInfo, getAdminSchools } from '../../services/dataService.ts';
-import { School } from '../../types.ts';
+import { School, Profile } from '../../types.ts';
 import { notify } from '../../lib/notification.ts';
 import { haptics } from '../../lib/haptics.ts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils.ts';
+import { useAuth } from '../../contexts/AuthContext.tsx';
 
 const M = motion as any;
 
 export default function TeacherManager() {
+    const { setRoleOverride, setSchoolOverride } = useAuth();
+    const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const [schools, setSchools] = useState<School[]>([]);
     const [isSaving, setIsSaving] = useState<string | null>(null);
     
-    const { data: profiles, loading } = useRealtimeSync<any>('profiles');
+    // ENGINE REALTIME: Monitorando mudanças em perfis
+    const { data: profiles, loading } = useRealtimeSync<Profile>('profiles');
 
     useEffect(() => {
         getAdminSchools().then(setSchools);
@@ -31,12 +37,20 @@ export default function TeacherManager() {
         haptics.medium();
         try {
             await updateUserInfo(userId, { school_id: schoolId === 'null' ? null : schoolId });
-            notify.success("Vínculo institucional atualizado.");
+            notify.success("Vínculo institucional sincronizado com o Kernel.");
         } catch (e) {
-            notify.error("Falha ao persistir vínculo.");
+            notify.error("Falha ao persistir vínculo de Tenancy.");
         } finally {
             setIsSaving(null);
         }
+    };
+
+    const handleImpersonate = (teacher: Profile) => {
+        haptics.heavy();
+        notify.warning(`GOD MODE: Assumindo visão de ${teacher.full_name}`);
+        setRoleOverride('professor');
+        setSchoolOverride(teacher.school_id || null);
+        navigate('/teacher/classes');
     };
 
     const teachers = (profiles || []).filter(u => 
@@ -48,8 +62,8 @@ export default function TeacherManager() {
         <div className="space-y-8 animate-in fade-in duration-500 pb-20">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900/40 p-8 rounded-[40px] border border-white/5 backdrop-blur-xl">
                 <div>
-                    <h1 className="text-3xl font-black text-white uppercase tracking-tighter leading-none italic">Corpo <span className="text-sky-500">Docente</span></h1>
-                    <p className="text-slate-500 mt-2 text-[10px] font-black uppercase tracking-[0.3em]">Gestão de Autoridade e Isolamento de Tenants</p>
+                    <h1 className="text-3xl font-black text-white uppercase tracking-tighter leading-none italic">Quadro <span className="text-sky-500">Docente</span></h1>
+                    <p className="text-slate-500 mt-2 text-[10px] font-black uppercase tracking-[0.3em]">Gestão de Multi-Tenancy e Autoridade RLS</p>
                 </div>
             </header>
 
@@ -70,8 +84,8 @@ export default function TeacherManager() {
                     <table className="w-full text-left">
                         <thead className="bg-slate-950/50 border-b border-white/5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                             <tr>
-                                <th className="px-10 py-6">Mestre</th>
-                                <th className="px-10 py-6">Unidade Vinculada</th>
+                                <th className="px-10 py-6">Entidade</th>
+                                <th className="px-10 py-6">Unidade Escolar</th>
                                 <th className="px-10 py-6">Status RLS</th>
                                 <th className="px-10 py-6 text-right">Ações</th>
                             </tr>
@@ -84,7 +98,7 @@ export default function TeacherManager() {
                                     <M.tr key={t.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hover:bg-white/[0.02] transition-colors group">
                                         <td className="px-10 py-8">
                                             <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-white/5 flex items-center justify-center font-black text-sky-500 shadow-inner">
+                                                <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-white/5 flex items-center justify-center font-black text-sky-500 shadow-inner group-hover:scale-110 transition-transform">
                                                     {t.full_name?.charAt(0) || 'M'}
                                                 </div>
                                                 <div>
@@ -110,13 +124,22 @@ export default function TeacherManager() {
                                         <td className="px-10 py-8">
                                             <div className="flex items-center gap-2">
                                                 <div className={cn("w-2 h-2 rounded-full", t.school_id ? "bg-emerald-500 shadow-[0_0_10px_#10b981]" : "bg-amber-500")} />
-                                                <span className="text-[9px] font-black uppercase tracking-widest">{t.school_id ? 'ISOLADO' : 'GLOBAL'}</span>
+                                                <span className="text-[9px] font-black uppercase tracking-widest">{t.school_id ? 'PROTEGIDO' : 'ABERTO'}</span>
                                             </div>
                                         </td>
                                         <td className="px-10 py-8 text-right">
-                                            <button className="p-3 bg-slate-950 border border-white/5 rounded-2xl text-slate-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-xl">
-                                                <MoreVertical size={16} />
-                                            </button>
+                                            <div className="flex justify-end gap-2">
+                                                <button 
+                                                    onClick={() => handleImpersonate(t)}
+                                                    title="Impersonate (God Mode)"
+                                                    className="p-3 bg-sky-500/10 border border-sky-500/20 rounded-2xl text-sky-400 hover:bg-sky-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-xl"
+                                                >
+                                                    <Eye size={16} />
+                                                </button>
+                                                <button className="p-3 bg-slate-950 border border-white/5 rounded-2xl text-slate-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-xl">
+                                                    <MoreVertical size={16} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </M.tr>
                                 ))}
