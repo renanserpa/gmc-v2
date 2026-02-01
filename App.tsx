@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AppLoader } from '@/components/AppLoader';
 import { OmniSearch } from '@/components/layout/OmniSearch';
 import { DevSwitcher } from '@/components/admin/DevSwitcher';
+import { RealtimeNoticeListener } from '@/components/RealtimeNoticeListener';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Layout from '@/components/Layout';
 import AdminLayout from '@/layouts/AdminLayout';
@@ -66,6 +67,7 @@ export default function App() {
           <Suspense fallback={<LoadingScreen />}>
             <OmniSearch />
             <DevSwitcher />
+            <RealtimeNoticeListener />
             <Routes>
               {/* Rota Raiz Dinâmica */}
               <Route path="/" element={<RootHandler />} />

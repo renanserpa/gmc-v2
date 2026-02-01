@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card.tsx';
 import { 
-    ShieldAlert, Fingerprint, Eye, Search, 
-    Filter, Clock, Lock, Server, Terminal,
-    UserCheck, DatabaseZap, AlertTriangle, ShieldCheck, RefreshCw, Activity
+    ShieldAlert, Fingerprint, Search, 
+    Clock, Terminal, ShieldCheck, Activity,
+    ChevronDown, ChevronUp, AlertTriangle, User,
+    Database
 } from 'lucide-react';
-import { supabase } from '../../lib/supabaseClient.ts';
 import { formatDate } from '../../lib/date.ts';
 import { cn } from '../../lib/utils.ts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,11 +14,60 @@ import { haptics } from '../../lib/haptics.ts';
 
 const M = motion as any;
 
+const AuditDiffViewer = ({ oldData, newData }: { oldData: any, newData: any }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    if (!oldData && !newData) return null;
+
+    // Identifica chaves que mudaram
+    const changedKeys = newData && oldData ? Object.keys(newData).filter(k => JSON.stringify(newData[k]) !== JSON.stringify(oldData[k])) : [];
+
+    return (
+        <div className="mt-4 space-y-2">
+            <button 
+                onClick={() => { setIsExpanded(!isExpanded); haptics.light(); }}
+                className="flex items-center gap-2 text-[9px] font-black text-sky-400 uppercase tracking-widest hover:text-sky-300 transition-colors"
+            >
+                {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                {isExpanded ? 'Recolher snapshot' : `Ver ${changedKeys.length || 'full'} alterações`}
+            </button>
+            <AnimatePresence>
+                {isExpanded && (
+                    <M.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-black/40 rounded-2xl border border-white/5 font-mono text-[10px]">
+                            <div className="space-y-2 border-r border-white/5 pr-4">
+                                <p className="text-slate-600 uppercase font-black tracking-widest pb-1 flex items-center gap-2">
+                                    <Clock size={10} /> Before
+                                </p>
+                                <pre className="text-red-400/70 whitespace-pre-wrap leading-relaxed">
+                                    {oldData ? JSON.stringify(oldData, null, 2) : '// INSERT_ONLY'}
+                                </pre>
+                            </div>
+                            <div className="space-y-2 pl-4">
+                                <p className="text-sky-500 uppercase font-black tracking-widest pb-1 flex items-center gap-2">
+                                    <Activity size={10} /> After
+                                </p>
+                                <pre className="text-emerald-400/90 whitespace-pre-wrap leading-relaxed">
+                                    {newData ? JSON.stringify(newData, null, 2) : '// DELETE_ONLY'}
+                                </pre>
+                            </div>
+                        </div>
+                    </M.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
+
 export default function SecurityAudit() {
-    const [filterType, setFilterType] = useState<string | null>(null);
     const [searchActor, setSearchActor] = useState('');
 
-    // MÚCLEO REATIVO: Monitoramento de logs de auditoria em tempo real
+    // MÚCLEO REATIVO: Monitoramento de logs de auditoria em tempo real via useRealtimeSync
     const { data: logs, loading } = useRealtimeSync<any>(
         'audit_logs', 
         null, 
@@ -26,17 +75,10 @@ export default function SecurityAudit() {
     );
 
     const filteredLogs = (logs || []).filter(log => {
-        if (filterType && !log.event_type?.includes(filterType)) return false;
-        if (searchActor && !log.professor_id?.includes(searchActor)) return false;
-        return true;
+        const actorId = log.user_id || '';
+        const tableName = log.table_name || '';
+        return actorId.includes(searchActor) || tableName.toLowerCase().includes(searchActor.toLowerCase());
     });
-
-    const categories = [
-        { id: null, label: 'Tudo' },
-        { id: 'SECURITY', label: 'Segurança', color: 'text-red-400' },
-        { id: 'ECONOMY', label: 'Economia', color: 'text-amber-400' },
-        { id: 'ADMIN', label: 'Gestão', color: 'text-sky-400' }
-    ];
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500 pb-20">
@@ -63,126 +105,75 @@ export default function SecurityAudit() {
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                <Card className="lg:col-span-3 bg-slate-900 border-white/5 p-2 rounded-3xl">
+                <Card className="lg:col-span-3 bg-slate-900 border-white/5 p-2 rounded-3xl shadow-lg">
                     <div className="relative">
                         <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
                         <input 
                             value={searchActor} 
                             onChange={e => setSearchActor(e.target.value)}
-                            placeholder="Pesquisar por ID do ator ou descrição..." 
+                            placeholder="Pesquisar por Ator ID, Tabela ou Ação..." 
                             className="w-full bg-transparent border-none outline-none py-4 pl-14 pr-6 text-sm text-white placeholder:text-slate-700 font-mono" 
                         />
                     </div>
                 </Card>
                 <div className="bg-slate-900/40 border border-white/5 p-2 rounded-3xl flex items-center justify-center">
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                        {loading ? 'Sincronizando...' : `${filteredLogs.length} Eventos Capturados`}
+                        {loading ? 'Escaneando...' : `${filteredLogs.length} Eventos Capturados`}
                     </p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <Card className="lg:col-span-9 bg-[#0a0f1d] border-white/5 rounded-[48px] overflow-hidden shadow-2xl flex flex-col h-[700px]">
-                    <div className="p-8 border-b border-white/5 flex items-center justify-between bg-slate-950/50">
-                        <div className="flex items-center gap-3 text-slate-500">
-                            <Terminal size={18} />
-                            <CardTitle className="text-xs uppercase tracking-[0.3em]">Master Integrity Stream</CardTitle>
-                        </div>
-                        <div className="flex bg-slate-950 p-1 rounded-xl border border-white/5 shadow-inner">
-                            {categories.map(c => (
-                                <button 
-                                    key={c.id} 
-                                    onClick={() => { setFilterType(c.id); haptics.light(); }}
-                                    className={cn(
-                                        "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
-                                        filterType === c.id ? "bg-red-600 text-white shadow-lg" : "text-slate-600 hover:text-slate-300"
-                                    )}
-                                >
-                                    {c.label}
-                                </button>
-                            ))}
-                        </div>
+            <Card className="bg-[#0a0f1d] border-white/5 rounded-[48px] overflow-hidden shadow-2xl flex flex-col h-[750px]">
+                <div className="p-8 border-b border-white/5 flex items-center justify-between bg-slate-950/50">
+                    <div className="flex items-center gap-3 text-slate-500">
+                        <Terminal size={18} />
+                        <CardTitle className="text-xs uppercase tracking-[0.3em]">Master Integrity Stream</CardTitle>
                     </div>
-                    <CardContent className="p-0 overflow-y-auto custom-scrollbar flex-1 bg-black/20">
-                        <table className="w-full text-left">
-                            <thead className="bg-slate-950 text-[10px] font-black text-slate-700 uppercase tracking-widest sticky top-0 z-10 shadow-lg">
-                                <tr>
-                                    <th className="px-10 py-6">Timestamp</th>
-                                    <th className="px-10 py-6">Ator (System ID)</th>
-                                    <th className="px-10 py-6">Classe do Evento</th>
-                                    <th className="px-10 py-6 text-right">Integridade</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                                {loading && filteredLogs.length === 0 ? (
-                                    [...Array(8)].map((_, i) => <tr key={i} className="animate-pulse"><td colSpan={4} className="px-10 py-10 bg-white/[0.01]" /></tr>)
-                                ) : filteredLogs.map(log => (
-                                    <M.tr layout key={log.id} className="hover:bg-white/[0.01] transition-colors group">
-                                        <td className="px-10 py-6">
-                                            <div className="flex items-center gap-3 text-slate-600 font-mono text-[10px]">
-                                                <Clock size={12} />
-                                                {formatDate(log.created_at, 'HH:mm:ss')}
-                                            </div>
-                                        </td>
-                                        <td className="px-10 py-6">
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-black text-slate-300 uppercase truncate max-w-[200px]">{log.event_type?.includes('SECURITY') ? 'SEC_OFFICER' : 'SYSTEM_ROOT'}</span>
-                                                <span className="text-[9px] text-slate-700 font-mono truncate max-w-[150px]">{log.professor_id || 'SYSTEM'}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-10 py-6">
-                                            <div className="space-y-1">
+                </div>
+                <CardContent className="p-0 overflow-y-auto custom-scrollbar flex-1 bg-black/20">
+                    <div className="divide-y divide-white/5">
+                        {loading && filteredLogs.length === 0 ? (
+                            [...Array(6)].map((_, i) => <div key={i} className="p-10 animate-pulse bg-white/[0.01]" />)
+                        ) : filteredLogs.map(log => (
+                            <M.div layout key={log.id} className="p-8 hover:bg-white/[0.01] transition-colors group">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-center gap-6">
+                                        <div className="text-slate-600 font-mono text-[10px] flex flex-col items-center border-r border-white/5 pr-6">
+                                            <span className="font-black text-white">{formatDate(log.created_at, 'HH:mm')}</span>
+                                            <span className="opacity-40">{formatDate(log.created_at, 'ss')}s</span>
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-3">
                                                 <span className={cn(
-                                                    "text-[10px] font-black uppercase tracking-tight",
-                                                    log.event_type?.includes('SECURITY') ? 'text-red-500' : 
-                                                    log.event_type?.includes('ECONOMY') ? 'text-amber-500' : 'text-sky-500'
+                                                    "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border",
+                                                    log.action === 'INSERT' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                                                    log.action === 'UPDATE' ? "bg-sky-500/10 text-sky-400 border-sky-500/20" :
+                                                    "bg-red-500/10 text-red-400 border-red-500/20"
                                                 )}>
-                                                    {log.event_type}
+                                                    {log.action}
                                                 </span>
-                                                <p className="text-[9px] text-slate-600 truncate max-w-[300px]">{log.description}</p>
+                                                <span className="text-xs font-black text-white uppercase flex items-center gap-2">
+                                                    <Database size={12} className="text-slate-600" /> {log.table_name}
+                                                </span>
                                             </div>
-                                        </td>
-                                        <td className="px-10 py-6 text-right">
-                                            <div className="flex items-center justify-end gap-2 text-emerald-500 bg-emerald-500/5 border border-emerald-500/20 px-3 py-1.5 rounded-xl text-[8px] font-black uppercase w-fit ml-auto">
-                                                <ShieldCheck size={10} /> Validado
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <User size={10} className="text-slate-700" />
+                                                <p className="text-[9px] text-slate-500 font-mono"> Actor: {log.user_id || 'SYSTEM_DAEMON'}</p>
                                             </div>
-                                        </td>
-                                    </M.tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </CardContent>
-                </Card>
-
-                <aside className="lg:col-span-3 space-y-6">
-                    <Card className="bg-slate-900 border-white/5 p-8 rounded-[40px] shadow-2xl flex flex-col gap-6">
-                        <h4 className="text-xs font-black text-slate-500 uppercase tracking-[0.3em] flex items-center gap-2">
-                           <AlertTriangle size={14} className="text-red-500" /> Alertas Críticos
-                        </h4>
-                        <div className="space-y-4">
-                            <div className="p-4 bg-slate-950 rounded-2xl border border-white/5 opacity-40 text-center py-12 italic text-[10px] font-black uppercase text-slate-600">
-                                Zero ameaças detectadas nas últimas 24h
-                            </div>
-                        </div>
-                    </Card>
-
-                    <div className="bg-slate-950 p-8 rounded-[40px] border border-white/5 space-y-6">
-                        <div className="flex items-center gap-3 text-sky-400">
-                            <DatabaseZap size={20} />
-                            <h4 className="text-xs font-black uppercase tracking-widest">Auditoria PII</h4>
-                        </div>
-                        <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
-                            O sistema Maestro não armazena senhas em texto plano ou dados biométricos. Logs de auditoria salvam apenas meta-informações de ação para conformidade <span className="text-white">LGPD/GDPR</span>.
-                        </p>
-                        <div className="pt-4 border-t border-white/5">
-                            <div className="flex justify-between text-[10px] font-black uppercase text-slate-500">
-                                <span>Criptografia de Log</span>
-                                <span className="text-emerald-500">ATIVO</span>
-                            </div>
-                        </div>
+                                        </div>
+                                    </div>
+                                    <div className="bg-slate-950/80 px-4 py-1.5 rounded-xl border border-white/5 flex items-center gap-2">
+                                        <ShieldCheck size={12} className="text-emerald-500" />
+                                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Validado via JWT</span>
+                                    </div>
+                                </div>
+                                
+                                <AuditDiffViewer oldData={log.old_data} newData={log.new_data} />
+                            </M.div>
+                        ))}
                     </div>
-                </aside>
-            </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }

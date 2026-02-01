@@ -157,11 +157,12 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
       localStorage.setItem('oliemusic_dev_role', targetRole);
       setRole(targetRole);
       // Simula um usuário autenticado localmente para o sistema de rotas e guards
+      // FIX: Use unknown as intermediate cast to satisfy strict Supabase User type requirements
       setUser({ 
         id: userId, 
         email: `dev-${targetRole}@oliemusic.dev`,
         user_metadata: { role: targetRole, full_name: `Dev ${targetRole}` }
-      } as User);
+      } as unknown as User);
     }
   };
 

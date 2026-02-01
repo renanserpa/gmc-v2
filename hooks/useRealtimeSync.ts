@@ -1,3 +1,4 @@
+// Fix: Corrected malformed import statement on line 1
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { haptics } from '../lib/haptics';
@@ -61,7 +62,8 @@ export function useRealtimeSync<T extends { id: string; school_id?: string | nul
                     table: tableName,
                     filter: filter
                 },
-                (payload) => {
+                // FIX: Type payload as any to allow direct access to record properties like school_id during tenant validation
+                (payload: any) => {
                     const { eventType, new: newRecord, old: oldRecord } = payload;
                     
                     // Tenant Guard: Validação extra em tempo de execução

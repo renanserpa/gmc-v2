@@ -70,7 +70,8 @@ export default function TenantManager() {
         // MOTOR REALTIME: Sincronização automática da malha de escolas
         const channel = supabase.channel('schools-grid-sync')
             .on(
-                'postgres_changes',
+                // FIX: Casting event type string to any to satisfy strict compiler check on Supabase channel overloads
+                'postgres_changes' as any,
                 { event: '*', table: 'schools' },
                 async (payload) => {
                     const { eventType, new: newRecord, old: oldRecord } = payload as any;
