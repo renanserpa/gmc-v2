@@ -1,4 +1,3 @@
-
 import React from 'react';
 import * as RRD from 'react-router-dom';
 const { Outlet, NavLink, useLocation } = RRD as any;
@@ -25,26 +24,26 @@ export default function Layout() {
   const getNavLinks = (currentRole: string) => {
     if (currentRole === 'student') {
         return [
-            { path: '/student', label: 'Início', icon: Home, color: 'text-sky-400', bg: 'bg-sky-500/10' },
+            { path: '/student/arcade', label: 'Jogar', icon: Gamepad2, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+            { path: '/student/dashboard', label: 'Jornada', icon: Home, color: 'text-sky-400', bg: 'bg-sky-500/10' },
             { path: '/student/practice', label: 'Tocar', icon: Music, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
             { path: '/student/tasks', label: 'Missões', icon: Rocket, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-            { path: '/student/arcade', label: 'Jogar', icon: Gamepad2, color: 'text-amber-400', bg: 'bg-amber-500/10' },
             { path: '/student/library', label: 'Aprender', icon: Store, color: 'text-pink-400', bg: 'bg-pink-500/10' },
         ];
     }
     
     if (currentRole === 'professor') {
         return [
-            { path: '/professor', label: 'Painel', icon: Home, color: 'text-sky-400', bg: 'bg-sky-500/10' },
-            { path: '/professor/classroom', label: 'Sala de Aula', icon: GraduationCap, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-            { path: '/professor/tasks', label: 'Missões', icon: Rocket, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-            { path: '/professor/library', label: 'Biblioteca', icon: Store, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+            { path: '/teacher/classes', label: 'Painel', icon: Home, color: 'text-sky-400', bg: 'bg-sky-500/10' },
+            { path: '/teacher/classroom', label: 'Sala de Aula', icon: GraduationCap, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+            { path: '/teacher/tasks', label: 'Missões', icon: Rocket, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+            { path: '/teacher/library', label: 'Biblioteca', icon: Store, color: 'text-purple-400', bg: 'bg-purple-500/10' },
         ];
     }
 
     if (currentRole === 'guardian') {
         return [
-            { path: '/guardian', label: 'Visão Geral', icon: Shield, color: 'text-green-400', bg: 'bg-green-500/10' }
+            { path: '/guardian/insights', label: 'Visão Geral', icon: Shield, color: 'text-green-400', bg: 'bg-green-500/10' }
         ];
     }
 

@@ -1,4 +1,3 @@
-
 import React, { Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -20,6 +19,7 @@ const LandingPage = lazy(() => import('@/pages/LandingPage'));
 const Login = lazy(() => import('@/pages/Login'));
 const ProfileSelector = lazy(() => import('@/pages/ProfileSelector'));
 const StudentDashboard = lazy(() => import('@/pages/StudentDashboard'));
+const ArcadePage = lazy(() => import('@/pages/ArcadePage'));
 const PracticeRoom = lazy(() => import('@/pages/PracticeRoom'));
 const ProfessorDashboard = lazy(() => import('@/pages/ProfessorDashboard'));
 const TaskManager = lazy(() => import('@/pages/TaskManager'));
@@ -28,6 +28,28 @@ const NoticeBoardPage = lazy(() => import('@/pages/NoticeBoardPage'));
 const ClassroomRemote = lazy(() => import('@/pages/ClassroomRemote'));
 const TeacherAcademy = lazy(() => import('@/pages/TeacherAcademy'));
 const SchoolDashboard = lazy(() => import('@/pages/admin/SchoolDashboard'));
+
+// Wrapper para gerenciar a rota principal dinamicamente
+const RootHandler = () => {
+  const { user, role, getDashboardPath, loading } = useAuth();
+  
+  if (loading) return <LoadingScreen />;
+  
+  // DEFAULT ROUTE FOR OWNER
+  if (user?.email === 'serparenan@gmail.com') {
+    return (
+      <AdminLayout>
+         <AdminDashboard />
+      </AdminLayout>
+    );
+  }
+
+  if (user && role) {
+    return <Navigate to={getDashboardPath(role)} replace />;
+  }
+
+  return <LandingPage />;
+};
 
 export default function App() {
   return (
@@ -38,7 +60,9 @@ export default function App() {
             <OmniSearch />
             <DevSwitcher />
             <Routes>
-              <Route path="/" element={<LandingPage />} />
+              {/* Rota Raiz Dinâmica */}
+              <Route path="/" element={<RootHandler />} />
+              
               <Route path="/login" element={<Login />} />
               <Route path="/app" element={<ProfileSelector />} />
               
@@ -51,30 +75,35 @@ export default function App() {
                   </ProtectedRoute>
                 }
               >
-                <Route index element={<StudentDashboard />} />
+                <Route index element={<Navigate to="arcade" replace />} />
+                <Route path="arcade" element={<ArcadePage />} />
+                <Route path="dashboard" element={<StudentDashboard />} />
                 <Route path="practice" element={<PracticeRoom />} />
                 <Route path="rhythm-tv" element={<RhythmPracticeTV />} />
                 <Route path="tasks" element={<TaskManager />} />
                 <Route path="library" element={<LibraryPage />} />
-                <Route path="arcade" element={<Navigate to="/student" replace />} />
               </Route>
               
-              {/* Rota Professor */}
+              {/* Rota Professor/Teacher */}
               <Route 
-                path="/professor" 
+                path="/teacher" 
                 element={
                   <ProtectedRoute allowedRoles={['professor', 'super_admin', 'admin']}>
                     <Layout />
                   </ProtectedRoute>
                 }
               >
-                <Route index element={<ProfessorDashboard />} />
+                <Route index element={<Navigate to="classes" replace />} />
+                <Route path="classes" element={<ProfessorDashboard />} />
+                <Route path="academy" element={<TeacherAcademy />} />
                 <Route path="classroom" element={<ClassroomRemote />} />
                 <Route path="tasks" element={<TaskManager />} />
                 <Route path="library" element={<LibraryPage />} />
                 <Route path="notices" element={<NoticeBoardPage />} />
-                <Route path="academy" element={<TeacherAcademy />} />
               </Route>
+
+              {/* Redirecionamento legado para professor */}
+              <Route path="/professor/*" element={<Navigate to="/teacher/classes" replace />} />
 
               {/* Rota Gestor de Escola */}
               <Route 
@@ -99,6 +128,7 @@ export default function App() {
               >
                 <Route index element={<AdminDashboard />} />
                 <Route path="ecosystem" element={<AdminDashboard />} />
+                <Route path="dashboard" element={<AdminDashboard />} />
               </Route>
               
               {/* Rota Guardião */}
@@ -110,7 +140,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               >
-                <Route index element={<Navigate to="/guardian/insights" replace />} />
+                <Route index element={<Navigate to="insights" replace />} />
                 <Route path="insights" element={<div className="p-10 text-white font-black uppercase">Insights do Guardião em Breve</div>} />
               </Route>
 

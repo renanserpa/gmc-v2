@@ -32,26 +32,36 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
     const r = userRole.toLowerCase();
     
     switch(r) {
-      case 'super_admin': return '/admin';
-      case 'admin': return '/admin';
-      case 'professor': return '/professor';
-      case 'student': return '/student';
-      case 'guardian': return '/guardian';
+      case 'super_admin': 
+      case 'admin': return '/admin/ecosystem';
+      case 'professor': return '/teacher/classes';
+      case 'student': return '/student/arcade';
+      case 'guardian': return '/guardian/insights';
       case 'school_manager': 
       case 'manager': return '/manager';
-      default: return '/student';
+      default: return '/student/arcade';
     }
   }, []);
 
   const syncProfile = async (currentUser: User) => {
-    try {
-      // Emergency Bypass para domínios administrativos conhecidos
-      if (currentUser.email === 'adm@adm.com') {
-        setRole('super_admin');
-        setLoading(false);
-        return;
-      }
+    // 1. PRIORIDADE ABSOLUTA: HARD-CODED BYPASS
+    const rootEmails = ['serparenan@gmail.com', 'adm@adm.com'];
+    if (rootEmails.includes(currentUser.email?.toLowerCase() || '')) {
+      const rootRole = 'super_admin';
+      setRole(rootRole);
+      setProfile({
+          id: currentUser.id,
+          email: currentUser.email!,
+          full_name: "Mestre Supremo (Hardcoded)",
+          role: rootRole,
+          created_at: new Date().toISOString()
+      } as Profile);
+      setLoading(false);
+      return;
+    }
 
+    // 2. BUSCA NORMAL NO BANCO
+    try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -62,11 +72,12 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
         setProfile(data as Profile);
         setRole(data.role);
       } else {
+        // Se não existir perfil, tenta metadata ou assume student
         const metaRole = currentUser.user_metadata?.role || 'student';
         setRole(metaRole);
       }
     } catch (e) {
-      logger.error("[Auth-Sync] Erro crítico de sincronia", e);
+      logger.error("[Auth-Sync] Erro ao sincronizar perfil", e);
       setRole('student');
     } finally {
       setLoading(false);
@@ -74,6 +85,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   useEffect(() => {
+    // Boot inicial
     supabase.auth.getSession().then(({ data: { session: initSession } }) => {
       setSession(initSession);
       const u = initSession?.user ?? null;
@@ -82,6 +94,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
       else setLoading(false);
     });
 
+    // Escuta mudanças de estado
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       const u = currentSession?.user ?? null;
       setSession(currentSession);

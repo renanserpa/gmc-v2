@@ -22,25 +22,25 @@ export default function ProtectedRoute(props: ProtectedRouteProps) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Normalização de Roles para comparação
   const normalizedRole = role?.toLowerCase() || '';
-  
-  // SUPER ADMIN BYPASS: Ele entra em qualquer lugar
-  if (normalizedRole === 'super_admin' || normalizedRole === 'admin') {
+
+  // ROOT ADMIN BYPASS: Soberania total sobre as rotas
+  if (normalizedRole === 'super_admin' || normalizedRole === 'admin' || user.email === 'serparenan@gmail.com') {
     return children ? <>{children}</> : <Outlet />;
   }
 
-  // Verificação de Roles Permitidas
+  // Verificação de Roles Permitidas para usuários comuns
   const hasAccess = allowedRoles.some(r => {
     const req = r.toLowerCase();
     if (req === normalizedRole) return true;
+    // Compatibilidade de nomes para gestores
     if (req === 'manager' && normalizedRole === 'school_manager') return true;
     if (req === 'school_manager' && normalizedRole === 'manager') return true;
     return false;
   });
 
   if (!hasAccess) {
-    console.warn(`[Security] Acesso negado para ${user.email}. Role: ${role}. Necessário: ${allowedRoles.join(',')}`);
+    console.warn(`[Security] Acesso negado. User: ${user.email}, Role: ${role}. Permitidos: ${allowedRoles.join(',')}`);
     return <Navigate to="/app" replace />;
   }
 

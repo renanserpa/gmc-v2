@@ -1,17 +1,14 @@
-// src/services/maestroBrain.ts
+
 import { supabase } from '../lib/supabaseClient';
 import { notify } from '../lib/notification';
-// Importa as mensagens do novo arquivo de constantes
 import { MESSAGES } from '../config/constants';
 
-// Tipos de resposta do Maestro
 export type MaestroResponse = {
   text: string;
   action?: 'SHOW_TUNER' | 'OPEN_METRONOME' | 'SUGGEST_BREAK' | 'NONE';
   emotion?: 'happy' | 'thinking' | 'concerned' | 'celebrating';
 };
 
-// Função auxiliar para detectar palavras-chave
 const detectIntent = (input: string): keyof typeof MESSAGES => {
   const text = input.toLowerCase();
 
@@ -27,40 +24,40 @@ const detectIntent = (input: string): keyof typeof MESSAGES => {
 
 export const maestroBrain = {
   /**
-   * Processa uma pergunta do usuário e retorna uma resposta pedagógica.
-   * Simula um tempo de processamento para parecer natural.
+   * Verifica se o usuário logado tem privilégios de Super Admin.
+   * Isso é usado para habilitar ferramentas de debug em todo o ecossistema.
    */
+  canBypassRLS: async (): Promise<boolean> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    
+    // Verifica por email root ou por role no banco
+    if (user.email === 'serparenan@gmail.com' || user.email === 'adm@adm.com') return true;
+
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    return profile?.role === 'super_admin';
+  },
+
   ask: async (question: string): Promise<string> => {
-    // 1. Simula delay de "pensamento" da IA (entre 600ms e 1500ms)
     const delay = Math.floor(Math.random() * 900) + 600;
     await new Promise(resolve => setTimeout(resolve, delay));
 
-    // 2. Analisa a intenção
     const intent = detectIntent(question);
-    
-    // 3. Seleciona uma resposta aleatória da categoria usando o MESSAGES importado
     const responses = MESSAGES[intent];
     const responseText = responses[Math.floor(Math.random() * responses.length)];
 
     return responseText;
   },
 
-  /**
-   * (Futuro) Função para analisar dados de performance
-   * Ex: Se o aluno errou muito, o Maestro sugere algo específico.
-   */
   analyzePerformance: (errors: number, duration: number) => {
     if (errors > 5) return "Notei que esse trecho está difícil. Que tal reduzirmos a velocidade para 70%?";
     if (duration > 20 * 60) return "Você já praticou por 20 minutos! Ótimo foco. Lembre-se de beber água.";
     return "Continue assim!";
   },
   
-  /**
-   * Ingest a document into the knowledge base for the AI to learn from.
-   */
   ingestDocument: async (title: string, content: string): Promise<boolean> => {
     try {
-        const tokenCount = content.split(' ').length; // Simple token count
+        const tokenCount = content.split(' ').length;
         const { error } = await supabase.from('knowledge_docs').insert({
             title,
             content,
