@@ -8,20 +8,20 @@ import {
 } from 'lucide-react';
 
 // Kernels & Hooks
-import { useProfessorData } from '@/hooks/useProfessorData';
-import { useGlobalSettings } from '@/hooks/useGlobalSettings';
-import { usePageTitle } from '@/hooks/usePageTitle';
+import { useProfessorData } from '../hooks/useProfessorData';
+import { useGlobalSettings } from '../hooks/useGlobalSettings';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 // UI Components
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Skeleton } from '@/components/ui/Skeleton';
-import { UserAvatar } from '@/components/ui/UserAvatar';
-import { KPICard } from '@/components/dashboard/KPICard';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Skeleton } from '../components/ui/Skeleton';
+import { UserAvatar } from '../components/ui/UserAvatar';
+import { KPICard } from '../components/dashboard/KPICard';
 
 // Utils
-import { cn } from '@/lib/utils';
-import { formatDate } from '@/lib/date';
+import { cn } from '../lib/utils';
+import { formatDate } from '../lib/date';
 
 const M = motion as any;
 
@@ -49,7 +49,7 @@ export default function ProfessorDashboard() {
         return (
             <div className="min-h-[80vh] flex flex-col items-center justify-center text-center p-10 animate-in fade-in duration-1000">
                 <div className="w-24 h-24 bg-sky-500/10 rounded-[32px] flex items-center justify-center text-sky-400 mb-8 border border-sky-500/20 animate-pulse">
-                    <GraduationCap size={48} />
+                    < GraduationCap size={48} />
                 </div>
                 <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">Cockpit <span className="text-sky-500">Mestre</span></h1>
                 <p className="text-slate-500 max-w-md mt-4 text-lg font-medium">Sua frequência neural ainda não tem alunos vinculados. Vamos provisionar sua primeira turma?</p>

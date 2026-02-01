@@ -133,6 +133,8 @@ export interface Mission {
     status: MissionStatus;
     position?: number;
     created_at?: string;
+    // Added missing school_id property to resolve TaskManager v5.2 build error
+    school_id?: string | null;
 }
 
 export interface ClassroomCommand {

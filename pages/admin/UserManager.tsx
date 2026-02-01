@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
     Users, Search, Shield, ShieldAlert, Key, 
@@ -11,51 +10,44 @@ import { Button } from '../../components/ui/Button.tsx';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../../components/ui/Dialog.tsx';
 import { supabase } from '../../lib/supabaseClient.ts';
 import { getAdminSchools, createAdminProfessor, updateUserInfo } from '../../services/dataService.ts';
+import { useRealtimeSync } from '../../hooks/useRealtimeSync.ts';
 import { notify } from '../../lib/notification.ts';
-import { cn } from '../../lib/utils.ts';
 import { haptics } from '../../lib/haptics.ts';
 import { formatDate } from '../../lib/date.ts';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function UserManager() {
-    const [users, setUsers] = useState<any[]>([]);
-    const [schools, setSchools] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    
+    const [schools, setSchools] = useState<any[]>([]);
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [newProf, setNewProf] = useState({ full_name: '', email: '', school_id: '' });
 
+    /**
+     * NÚCLEO REATIVO: Sincronização Automática
+     * Não há mais necessidade de chamar loadUsers() após criar ou editar.
+     */
+    const { data: users, loading } = useRealtimeSync<any>('profiles', null, { column: 'full_name', ascending: true });
+
     useEffect(() => {
-        loadData();
+        getAdminSchools().then(setSchools);
     }, []);
 
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            const [usersRes, schoolsRes] = await Promise.all([
-                supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-                getAdminSchools()
-            ]);
-            setUsers(usersRes.data || []);
-            setSchools(schoolsRes || []);
-        } catch (e) {
-            notify.error("Erro na sincronia do Kernel de Usuários.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleCreateProf = async () => {
-        if (!newProf.full_name || !newProf.email) return;
+        if (!newProf.full_name || !newProf.email) {
+            notify.warning("Preencha os campos obrigatórios.");
+            return;
+        }
+
         setIsSaving(true);
+        haptics.heavy();
+
         try {
             await createAdminProfessor(newProf);
             notify.success(`Professor ${newProf.full_name} provisionado!`);
             setIsAddOpen(false);
             setNewProf({ full_name: '', email: '', school_id: '' });
-            loadData();
+            // O novo professor aparecerá na tabela via Realtime automaticamente.
         } catch (e: any) {
             notify.error("Erro ao provisionar mestre.");
         } finally {
@@ -67,14 +59,13 @@ export default function UserManager() {
         haptics.medium();
         try {
             await updateUserInfo(userId, updates);
-            notify.success("Perfil atualizado em tempo real.");
-            loadData();
+            notify.success("Alteração propagada via Rede Neural.");
         } catch (e) {
             notify.error("Falha na atualização.");
         }
     };
 
-    const filteredUsers = users.filter(u => 
+    const filteredUsers = (users || []).filter(u => 
         (u.full_name?.toLowerCase().includes(search.toLowerCase())) || 
         (u.email?.toLowerCase().includes(search.toLowerCase()))
     );
@@ -84,7 +75,7 @@ export default function UserManager() {
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900/40 p-8 rounded-[40px] border border-white/5 backdrop-blur-xl">
                 <div>
                     <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">Identity <span className="text-purple-500">Manager</span></h1>
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Provisionamento de Contas e Gestão de Roles</p>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Provisionamento e Gestão Reativa de Acesso</p>
                 </div>
                 <Button onClick={() => setIsAddOpen(true)} leftIcon={UserPlus} className="px-10 py-6 rounded-2xl bg-purple-600 hover:bg-purple-500 shadow-xl shadow-purple-900/20 text-xs font-black uppercase tracking-widest">
                     Criar Novo Professor
@@ -99,7 +90,9 @@ export default function UserManager() {
                     </div>
                 </Card>
                 <div className="bg-slate-900/40 border border-white/5 p-2 rounded-3xl flex items-center justify-center">
-                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Total: {users.length} Identidades</p>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        {loading ? 'Sincronizando...' : `Total: ${users.length} Identidades`}
+                    </p>
                 </div>
             </div>
 
@@ -117,47 +110,58 @@ export default function UserManager() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
-                                {loading ? (
+                                {loading && users.length === 0 ? (
                                     [...Array(5)].map((_, i) => <tr key={i} className="animate-pulse"><td colSpan={5} className="px-10 py-10 bg-white/[0.01]" /></tr>)
-                                ) : filteredUsers.map(u => (
-                                    <tr key={u.id} className="hover:bg-white/[0.02] transition-colors group">
-                                        <td className="px-10 py-8">
-                                            <div className="flex items-center gap-5">
-                                                <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-white/5 flex items-center justify-center text-slate-500 shadow-inner">
-                                                    <Fingerprint size={24} />
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-black text-white uppercase tracking-tight">{u.full_name || 'Músico'}</p>
-                                                    <p className="text-[10px] font-bold text-slate-600 flex items-center gap-1 mt-0.5 tracking-tight"><Mail size={10} /> {u.email}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-10 py-8">
-                                            <select value={u.role} onChange={(e) => handleQuickAction(u.id, { role: e.target.value })} className="bg-slate-950 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-sky-400 outline-none cursor-pointer">
-                                                <option value="student">Student</option>
-                                                <option value="professor">Professor</option>
-                                                <option value="manager">Manager</option>
-                                                <option value="admin">Admin</option>
-                                            </select>
-                                        </td>
-                                        <td className="px-10 py-8">
-                                            <select value={u.school_id || ''} onChange={(e) => handleQuickAction(u.id, { school_id: e.target.value || null })} className="bg-slate-950 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-slate-400 outline-none cursor-pointer max-w-[180px]">
-                                                <option value="">Sem Unidade</option>
-                                                {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                                            </select>
-                                        </td>
-                                        <td className="px-10 py-8">
-                                            <p className="text-[10px] font-black text-slate-600 uppercase flex items-center gap-2">
-                                                <Calendar size={12} /> {formatDate(u.created_at, 'dd/MM/yy')}
-                                            </p>
-                                        </td>
-                                        <td className="px-10 py-8 text-right">
-                                            <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all">
-                                                <button className="p-3 rounded-2xl bg-slate-900 border border-white/5 text-slate-500 hover:text-red-500 transition-all"><Ban size={16}/></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                ) : (
+                                    <AnimatePresence mode="popLayout">
+                                        {filteredUsers.map(u => (
+                                            <motion.tr 
+                                                key={u.id}
+                                                layout
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                exit={{ opacity: 0, x: -20 }}
+                                                className="hover:bg-white/[0.02] transition-colors group"
+                                            >
+                                                <td className="px-10 py-8">
+                                                    <div className="flex items-center gap-5">
+                                                        <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-white/5 flex items-center justify-center text-slate-500 shadow-inner">
+                                                            <Fingerprint size={24} />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-black text-white uppercase tracking-tight">{u.full_name || 'Músico'}</p>
+                                                            <p className="text-[10px] font-bold text-slate-600 flex items-center gap-1 mt-0.5 tracking-tight"><Mail size={10} /> {u.email}</p>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-10 py-8">
+                                                    <select value={u.role} onChange={(e) => handleQuickAction(u.id, { role: e.target.value })} className="bg-slate-950 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-sky-400 outline-none cursor-pointer">
+                                                        <option value="student">Student</option>
+                                                        <option value="professor">Professor</option>
+                                                        <option value="manager">Manager</option>
+                                                        <option value="admin">Admin</option>
+                                                    </select>
+                                                </td>
+                                                <td className="px-10 py-8">
+                                                    <select value={u.school_id || ''} onChange={(e) => handleQuickAction(u.id, { school_id: e.target.value || null })} className="bg-slate-950 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-slate-400 outline-none cursor-pointer max-w-[180px]">
+                                                        <option value="">Sem Unidade</option>
+                                                        {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td className="px-10 py-8">
+                                                    <p className="text-[10px] font-black text-slate-600 uppercase flex items-center gap-2">
+                                                        <Calendar size={12} /> {formatDate(u.created_at, 'dd/MM/yy')}
+                                                    </p>
+                                                </td>
+                                                <td className="px-10 py-8 text-right">
+                                                    <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all">
+                                                        <button className="p-3 rounded-2xl bg-slate-900 border border-white/5 text-slate-500 hover:text-red-500 transition-all"><Ban size={16}/></button>
+                                                    </div>
+                                                </td>
+                                            </motion.tr>
+                                        ))}
+                                    </AnimatePresence>
+                                )}
                             </tbody>
                         </table>
                     </div>

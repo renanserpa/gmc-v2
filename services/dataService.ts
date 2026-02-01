@@ -14,6 +14,10 @@ export const getAdminSchools = async (): Promise<School[]> => {
     return data || [];
 };
 
+/**
+ * Mutação Reativa de Status de Unidade.
+ * O retorno .select().single() é crucial para o broadcast CDC do Realtime.
+ */
 export const updateSchoolStatus = async (schoolId: string, isActive: boolean) => {
     const { data, error } = await supabase
         .from('schools')
@@ -24,7 +28,7 @@ export const updateSchoolStatus = async (schoolId: string, isActive: boolean) =>
     
     if (error) throw error;
 
-    // Broadcast Kill Switch via Realtime
+    // Broadcast manual para eventos que exigem ação imediata do cliente (Kill Switch)
     if (!isActive) {
         await supabase.channel('maestro_global_control').send({
             type: 'broadcast',
@@ -56,16 +60,6 @@ export const logSecurityAudit = async (action: string, metadata: any = {}) => {
         description: JSON.stringify(metadata),
         created_at: new Date().toISOString()
     }]);
-};
-
-export const getProfessors = async (): Promise<Profile[]> => {
-    const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'professor')
-        .order('full_name', { ascending: true });
-    if (error) throw error;
-    return data || [];
 };
 
 export const updateUserInfo = async (userId: string, updates: Partial<Profile>) => {
@@ -178,13 +172,23 @@ export const getSystemStats = async () => {
     return { totalStudents: totalStudents || 0, totalProfs: totalProfs || 0, totalSchools: totalSchools || 0, totalContent: 0 };
 };
 
-export const getMusicClasses = async (professorId: string): Promise<MusicClass[]> => {
-  const { data } = await supabase.from('music_classes').select('*').eq('professor_id', professorId).order('start_time', { ascending: true });
-  return data || [];
+export const createNotice = async (notice: Partial<Notice>) => {
+    const { data, error } = await supabase
+        .from('notices')
+        .insert([notice])
+        .select()
+        .single();
+    if (error) throw error;
+    return data;
 };
 
 export const getStudentsByTeacher = async (professorId: string): Promise<Student[]> => {
   const { data } = await supabase.from('students').select('*').eq('professor_id', professorId);
+  return data || [];
+};
+
+export const getMusicClasses = async (professorId: string): Promise<MusicClass[]> => {
+  const { data } = await supabase.from('music_classes').select('*').eq('professor_id', professorId).order('start_time', { ascending: true });
   return data || [];
 };
 
@@ -199,8 +203,6 @@ export const addLibraryItem = async (item: Partial<ContentLibraryItem>) => {
   return data;
 };
 
-// --- STUDENT & JOURNEY SERVICES ---
-
 export const updateStudent = async (studentId: string, updates: Partial<Student>) => {
     const { data, error } = await supabase
         .from('students')
@@ -214,49 +216,41 @@ export const updateStudent = async (studentId: string, updates: Partial<Student>
 
 export const linkStudentAccount = async (code: string) => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, message: "Usuário não autenticado" };
+    if (!user) return { success: false, message: "Não autenticado." };
 
-    const { data: student, error } = await supabase
+    const { data, error } = await supabase
         .from('students')
         .update({ auth_user_id: user.id })
         .eq('invite_code', code)
-        .is('auth_user_id', null)
         .select()
         .single();
 
-    if (error || !student) return { success: false, message: "Código inválido ou já utilizado." };
-    return { success: true, student };
+    if (error || !data) return { success: false, message: "Código inválido ou já utilizado." };
+    return { success: true };
 };
 
 export const linkGuardianAccount = async (code: string) => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, message: "Usuário não autenticado" };
+    if (!user) return { success: false, message: "Não autenticado." };
 
-    const { data: student, error } = await supabase
+    const { data, error } = await supabase
         .from('students')
         .update({ guardian_id: user.id })
-        .eq('access_code', code)
+        .eq('invite_code', code)
         .select()
         .single();
 
-    if (error || !student) return { success: false, message: "Código de aluno não localizado." };
-    return { success: true, student };
+    if (error || !data) return { success: false, message: "Código inválido." };
+    return { success: true };
 };
 
 export const getStudentMilestones = async (studentId: string) => {
     const { data } = await supabase
-        .from('xp_events')
+        .from('student_milestones')
         .select('*')
-        .eq('player_id', studentId)
-        .order('created_at', { ascending: false });
-    
-    return (data || []).map(event => ({
-        id: event.id,
-        title: event.event_type.replace(/_/g, ' '),
-        date: event.created_at,
-        icon: Star,
-        xp: event.xp_amount
-    }));
+        .eq('student_id', studentId)
+        .order('date', { ascending: true });
+    return data || [];
 };
 
 export const getPracticeTrends = async (studentId: string) => {
@@ -264,7 +258,8 @@ export const getPracticeTrends = async (studentId: string) => {
         .from('practice_sessions')
         .select('*')
         .eq('student_id', studentId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(10);
     return data || [];
 };
 
@@ -287,110 +282,68 @@ export const getStudentRepertoire = async (studentId: string) => {
     return data || [];
 };
 
-export const savePracticeSession = async (studentId: string, stats: any) => {
+export const savePracticeSession = async (sessionData: any) => {
     const { data, error } = await supabase
         .from('practice_sessions')
-        .insert([{ student_id: studentId, ...stats }])
+        .insert([sessionData])
         .select()
         .single();
     if (error) throw error;
     return data;
 };
 
-// --- SOCIAL & FEEDBACK ---
-
 export const giveHighFive = async (hallId: string) => {
-    const { data, error } = await supabase.rpc('increment_high_fives', { hall_id: hallId });
-    if (error) {
-        const { data: current } = await supabase.from('concert_hall').select('high_fives_count').eq('id', hallId).single();
-        await supabase.from('concert_hall').update({ high_fives_count: (current?.high_fives_count || 0) + 1 }).eq('id', hallId);
-        return true;
-    }
-    return data;
-};
-
-// --- ATTENDANCE & REPORTING ---
-
-export const markAttendance = async (studentId: string, classId: string, status: AttendanceStatus, professorId: string) => {
-    const { data, error } = await supabase
-        .from('attendance_logs')
-        .insert([{
-            student_id: studentId,
-            music_class_id: classId,
-            status: status,
-            attendance_date: new Date().toISOString()
-        }]);
-    
-    if (error) return false;
-
-    if (status === 'present' || status === 'late') {
-        const xpAmount = status === 'present' ? 20 : 10;
-        const { data: student } = await supabase.from('students').select('school_id').eq('id', studentId).single();
-        await applyXpEvent({
-            studentId,
-            eventType: 'CLASS_ATTENDANCE',
-            xpAmount,
-            contextType: 'attendance',
-            contextId: classId,
-            schoolId: student?.school_id || ""
-        });
-    }
-
+    const { error } = await supabase.rpc('increment_high_five', { performance_id: hallId });
+    if (error) throw error;
     return true;
 };
 
-export const getTodayAttendanceForClass = async (classId: string): Promise<Record<string, AttendanceStatus>> => {
+export const markAttendance = async (studentId: string, classId: string, status: AttendanceStatus, professorId: string) => {
+    const { error } = await supabase.rpc('register_attendance', {
+        p_student_id: studentId,
+        p_class_id: classId,
+        p_status: status,
+        p_professor_id: professorId
+    });
+    if (error) return false;
+    return true;
+};
+
+export const getTodayAttendanceForClass = async (classId: string) => {
     const today = new Date().toISOString().split('T')[0];
     const { data } = await supabase
-        .from('attendance_logs')
+        .from('attendance')
         .select('student_id, status')
-        .eq('music_class_id', classId)
-        .gte('attendance_date', today);
+        .eq('class_id', classId)
+        .gte('created_at', today);
     
-    const result: Record<string, AttendanceStatus> = {};
-    data?.forEach(log => {
-        result[log.student_id] = log.status as AttendanceStatus;
-    });
-    return result;
+    const map: Record<string, AttendanceStatus> = {};
+    data?.forEach(row => { map[row.student_id] = row.status as AttendanceStatus; });
+    return map;
 };
 
 export const getStudentAttendanceRate = async (studentId: string): Promise<number> => {
-    const { count: total } = await supabase.from('attendance_logs').select('*', { count: 'exact', head: true }).eq('student_id', studentId);
-    const { count: present } = await supabase.from('attendance_logs').select('*', { count: 'exact', head: true }).eq('student_id', studentId).eq('status', 'present');
-    
-    if (!total || total === 0) return 100;
-    return Math.round(((present || 0) / total) * 100);
+    const { data, error } = await supabase.rpc('get_attendance_rate', { p_student_id: studentId });
+    if (error) return 0;
+    return data || 0;
 };
 
 export const getStudentDetailedStats = async (studentId: string) => {
-    const { data: recordings } = await supabase
-        .from('performance_recordings')
-        .select('*, songs(title)')
-        .eq('student_id', studentId)
-        .order('created_at', { ascending: false });
-    
-    return { recordings: recordings || [] };
+    const [recordings, milestones] = await Promise.all([
+        supabase.from('performance_recordings').select('*, songs(title)').eq('student_id', studentId).order('created_at', { ascending: false }),
+        supabase.from('student_milestones').select('*').eq('student_id', studentId)
+    ]);
+    return {
+        recordings: recordings.data || [],
+        milestones: milestones.data || []
+    };
 };
 
-// --- NOTICE BOARD ---
-
-export const getNotices = async (userId: string, targetAudience: string): Promise<Notice[]> => {
-    let query = supabase.from('notices').select('*').order('created_at', { ascending: false });
-    
-    if (targetAudience !== 'all' && targetAudience !== 'professor') {
-        query = query.eq('target_audience', targetAudience);
+export const getNotices = async (userId: string, targetType: string) => {
+    let query = supabase.from('notices').select('*');
+    if (targetType === 'student') {
+        query = query.or('target_audience.eq.all,target_audience.eq.students');
     }
-    
-    const { data } = await query;
+    const { data } = await query.order('created_at', { ascending: false });
     return data || [];
-};
-
-export const createNotice = async (notice: Partial<Notice>) => {
-    const { data, error } = await supabase
-        .from('notices')
-        .insert([notice])
-        .select()
-        .single();
-    if (error) throw error;
-    return data;
 };
