@@ -16,6 +16,8 @@ import { haptics } from '../../lib/haptics.ts';
 import { formatDate } from '../../lib/date.ts';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const M = motion as any;
+
 export default function UserManager() {
     const [search, setSearch] = useState('');
     const [schools, setSchools] = useState<any[]>([]);
@@ -24,10 +26,14 @@ export default function UserManager() {
     const [newProf, setNewProf] = useState({ full_name: '', email: '', school_id: '' });
 
     /**
-     * NÚCLEO REATIVO: Sincronização Automática
-     * Não há mais necessidade de chamar loadUsers() após criar ou editar.
+     * NÚCLEO REATIVO: Sincronização Automática Maestro Core
+     * A UI agora é um espelho live da tabela 'profiles' no banco.
      */
-    const { data: users, loading } = useRealtimeSync<any>('profiles', null, { column: 'full_name', ascending: true });
+    const { data: users, loading } = useRealtimeSync<any>(
+        'profiles', 
+        null, 
+        { column: 'full_name', ascending: true }
+    );
 
     useEffect(() => {
         getAdminSchools().then(setSchools);
@@ -43,13 +49,13 @@ export default function UserManager() {
         haptics.heavy();
 
         try {
+            // createAdminProfessor usa .select().single(), garantindo o evento de CDC no Postgres
             await createAdminProfessor(newProf);
-            notify.success(`Professor ${newProf.full_name} provisionado!`);
+            notify.success(`Mestre ${newProf.full_name} provisionado com sucesso!`);
             setIsAddOpen(false);
             setNewProf({ full_name: '', email: '', school_id: '' });
-            // O novo professor aparecerá na tabela via Realtime automaticamente.
         } catch (e: any) {
-            notify.error("Erro ao provisionar mestre.");
+            notify.error("Erro ao provisionar mestre no Kernel.");
         } finally {
             setIsSaving(false);
         }
@@ -59,9 +65,9 @@ export default function UserManager() {
         haptics.medium();
         try {
             await updateUserInfo(userId, updates);
-            notify.success("Alteração propagada via Rede Neural.");
+            // A UI atualizará sozinha via WebSocket assim que o banco persistir
         } catch (e) {
-            notify.error("Falha na atualização.");
+            notify.error("Falha na atualização da identidade.");
         }
     };
 
@@ -75,10 +81,10 @@ export default function UserManager() {
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900/40 p-8 rounded-[40px] border border-white/5 backdrop-blur-xl">
                 <div>
                     <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">Identity <span className="text-purple-500">Manager</span></h1>
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Provisionamento e Gestão Reativa de Acesso</p>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Gestão de Identidades com Sincronia Realtime</p>
                 </div>
                 <Button onClick={() => setIsAddOpen(true)} leftIcon={UserPlus} className="px-10 py-6 rounded-2xl bg-purple-600 hover:bg-purple-500 shadow-xl shadow-purple-900/20 text-xs font-black uppercase tracking-widest">
-                    Criar Novo Professor
+                    Provisionar Novo Professor
                 </Button>
             </header>
 
@@ -86,12 +92,17 @@ export default function UserManager() {
                 <Card className="lg:col-span-3 bg-slate-900/40 border-white/5 p-2 rounded-3xl">
                     <div className="relative">
                         <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-                        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar por nome ou email..." className="w-full bg-transparent border-none outline-none py-4 pl-14 pr-6 text-sm text-white placeholder:text-slate-700" />
+                        <input 
+                            value={search} 
+                            onChange={e => setSearch(e.target.value)} 
+                            placeholder="Pesquisar por nome ou e-mail..." 
+                            className="w-full bg-transparent border-none outline-none py-4 pl-14 pr-6 text-sm text-white placeholder:text-slate-700" 
+                        />
                     </div>
                 </Card>
                 <div className="bg-slate-900/40 border border-white/5 p-2 rounded-3xl flex items-center justify-center">
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                        {loading ? 'Sincronizando...' : `Total: ${users.length} Identidades`}
+                        {loading ? 'Sincronizando...' : `${users.length} Identidades Detectadas`}
                     </p>
                 </div>
             </div>
@@ -103,19 +114,23 @@ export default function UserManager() {
                             <thead className="bg-slate-950/50 border-b border-white/5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                                 <tr>
                                     <th className="px-10 py-6">Entidade</th>
-                                    <th className="px-10 py-6">Role</th>
-                                    <th className="px-10 py-6">Escola / Alocação</th>
-                                    <th className="px-10 py-6">Acesso</th>
+                                    <th className="px-10 py-6">Nível de Acesso</th>
+                                    <th className="px-10 py-6">Unidade (Tenant)</th>
+                                    <th className="px-10 py-6">Provisionado em</th>
                                     <th className="px-10 py-6 text-right">Ações</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
-                                {loading && users.length === 0 ? (
-                                    [...Array(5)].map((_, i) => <tr key={i} className="animate-pulse"><td colSpan={5} className="px-10 py-10 bg-white/[0.01]" /></tr>)
-                                ) : (
-                                    <AnimatePresence mode="popLayout">
-                                        {filteredUsers.map(u => (
-                                            <motion.tr 
+                                <AnimatePresence mode="popLayout">
+                                    {loading && users.length === 0 ? (
+                                        [...Array(5)].map((_, i) => (
+                                            <tr key={i} className="animate-pulse">
+                                                <td colSpan={5} className="px-10 py-10 bg-white/[0.01]" />
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        filteredUsers.map(u => (
+                                            <M.tr 
                                                 key={u.id}
                                                 layout
                                                 initial={{ opacity: 0 }}
@@ -129,13 +144,17 @@ export default function UserManager() {
                                                             <Fingerprint size={24} />
                                                         </div>
                                                         <div>
-                                                            <p className="text-sm font-black text-white uppercase tracking-tight">{u.full_name || 'Músico'}</p>
+                                                            <p className="text-sm font-black text-white uppercase tracking-tight">{u.full_name || 'Entidade s/ Nome'}</p>
                                                             <p className="text-[10px] font-bold text-slate-600 flex items-center gap-1 mt-0.5 tracking-tight"><Mail size={10} /> {u.email}</p>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td className="px-10 py-8">
-                                                    <select value={u.role} onChange={(e) => handleQuickAction(u.id, { role: e.target.value })} className="bg-slate-950 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-sky-400 outline-none cursor-pointer">
+                                                    <select 
+                                                        value={u.role} 
+                                                        onChange={(e) => handleQuickAction(u.id, { role: e.target.value })} 
+                                                        className="bg-slate-950 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-sky-400 outline-none cursor-pointer"
+                                                    >
                                                         <option value="student">Student</option>
                                                         <option value="professor">Professor</option>
                                                         <option value="manager">Manager</option>
@@ -143,7 +162,11 @@ export default function UserManager() {
                                                     </select>
                                                 </td>
                                                 <td className="px-10 py-8">
-                                                    <select value={u.school_id || ''} onChange={(e) => handleQuickAction(u.id, { school_id: e.target.value || null })} className="bg-slate-950 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-slate-400 outline-none cursor-pointer max-w-[180px]">
+                                                    <select 
+                                                        value={u.school_id || ''} 
+                                                        onChange={(e) => handleQuickAction(u.id, { school_id: e.target.value || null })} 
+                                                        className="bg-slate-950 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-slate-400 outline-none cursor-pointer max-w-[180px]"
+                                                    >
                                                         <option value="">Sem Unidade</option>
                                                         {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                                     </select>
@@ -155,13 +178,15 @@ export default function UserManager() {
                                                 </td>
                                                 <td className="px-10 py-8 text-right">
                                                     <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all">
-                                                        <button className="p-3 rounded-2xl bg-slate-900 border border-white/5 text-slate-500 hover:text-red-500 transition-all"><Ban size={16}/></button>
+                                                        <button className="p-3 rounded-2xl bg-slate-900 border border-white/5 text-slate-500 hover:text-red-500 transition-all">
+                                                            <Ban size={16}/>
+                                                        </button>
                                                     </div>
                                                 </td>
-                                            </motion.tr>
-                                        ))}
-                                    </AnimatePresence>
-                                )}
+                                            </M.tr>
+                                        ))
+                                    )}
+                                </AnimatePresence>
                             </tbody>
                         </table>
                     </div>
@@ -175,24 +200,24 @@ export default function UserManager() {
                             <UserPlus size={32} />
                         </div>
                         <DialogTitle className="text-2xl font-black text-white uppercase italic">Provisionar Mestre</DialogTitle>
-                        <DialogDescription className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Criação de perfil para gestão de turmas.</DialogDescription>
+                        <DialogDescription className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Criação de perfil para gestão de turmas e cockpit Maestro.</DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-6 py-8">
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Nome do Professor</label>
-                            <input value={newProf.full_name} onChange={e => setNewProf({...newProf, full_name: e.target.value})} placeholder="Ex: Renan Serpa" className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:ring-4 focus:ring-sky-600/20 transition-all" />
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Nome Completo</label>
+                            <input value={newProf.full_name} onChange={e => setNewProf({...newProf, full_name: e.target.value})} placeholder="Ex: Renan Serpa" className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:ring-4 focus:ring-purple-600/20 transition-all" />
                         </div>
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-500 uppercase ml-1">E-mail de Acesso</label>
-                            <input value={newProf.email} onChange={e => setNewProf({...newProf, email: e.target.value})} placeholder="professor@oliemusic.com" className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:ring-4 focus:ring-sky-600/20 transition-all" />
+                            <input value={newProf.email} onChange={e => setNewProf({...newProf, email: e.target.value})} placeholder="mestre@oliemusic.com.br" className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:ring-4 focus:ring-purple-600/20 transition-all" />
                         </div>
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-500 uppercase ml-1 flex items-center gap-2">
-                                <Building2 size={12} /> Alocar em Escola (Tenant)
+                                <Building2 size={12} /> Unidade de Ensino
                             </label>
                             <select value={newProf.school_id} onChange={e => setNewProf({...newProf, school_id: e.target.value})} className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none appearance-none">
-                                <option value="">Sem Escola Atribuída</option>
+                                <option value="">Sem Unidade (Professor Independente)</option>
                                 {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                             </select>
                         </div>
@@ -200,7 +225,7 @@ export default function UserManager() {
 
                     <DialogFooter className="gap-3 border-t border-white/5 pt-6">
                         <Button variant="ghost" onClick={() => setIsAddOpen(false)} className="text-[10px] font-black uppercase">Cancelar</Button>
-                        <Button onClick={handleCreateProf} isLoading={isSaving} className="bg-sky-600 hover:bg-sky-500 text-white px-10 py-6 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl">Confirmar Provisionamento</Button>
+                        <Button onClick={handleCreateProf} isLoading={isSaving} className="bg-purple-600 hover:bg-purple-500 text-white px-10 py-6 rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl">Confirmar Cadastro</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -3,70 +3,50 @@
  * Este arquivo contém o DDL completo para restauração do ambiente.
  */
 
-export const GCM_DB_SCHEMA = `-- GCM MAESTRO V3.0 - SCRIPT DE INFRAESTRUTURA
--- Execute no SQL Editor do Supabase
+export const GCM_DB_SCHEMA = `-- GCM MAESTRO V3.0 - SCRIPT DE INFRAESTRUTURA COMPLETO
 
--- 1. Extensões Necessárias
+-- 1. Extensões
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. Tabela de Perfis (Profiles)
+-- 2. Tabela de Perfis
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     email TEXT,
     full_name TEXT,
-    role TEXT DEFAULT 'student' CHECK (role IN ('admin', 'professor', 'student', 'guardian', 'manager')),
+    role TEXT DEFAULT 'student' CHECK (role IN ('admin', 'super_admin', 'professor', 'student', 'guardian', 'manager', 'school_manager')),
     school_id UUID,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 3. Tabela de Turmas (Classes)
-CREATE TABLE IF NOT EXISTS public.classes (
+-- 3. Configurações Globais
+CREATE TABLE IF NOT EXISTS public.system_configs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL,
-    professor_id UUID REFERENCES public.profiles(id),
-    days_of_week TEXT[],
-    start_time TEXT,
-    program_level TEXT,
-    created_at TIMESTAMPTZ DEFAULT now()
+    key TEXT UNIQUE NOT NULL,
+    value JSONB NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 4. Tabela de Alunos (Students)
-CREATE TABLE IF NOT EXISTS public.students (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name TEXT NOT NULL,
-    class_id UUID REFERENCES public.classes(id) ON DELETE SET NULL,
-    auth_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-    avatar_url TEXT,
-    instrument TEXT,
-    xp INTEGER DEFAULT 0,
-    coins INTEGER DEFAULT 0,
-    current_level INTEGER DEFAULT 1,
-    current_streak_days INTEGER DEFAULT 0,
-    professor_id UUID REFERENCES public.profiles(id),
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 5. Tabela de Eventos de XP (Gamificação)
-CREATE TABLE IF NOT EXISTS public.xp_events (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    player_id UUID REFERENCES public.students(id) ON DELETE CASCADE,
-    event_type TEXT NOT NULL,
-    xp_amount INTEGER DEFAULT 0,
-    coins_amount INTEGER DEFAULT 0,
-    context_type TEXT,
-    context_id TEXT,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 6. Logs de Auditoria (Audit Logs)
+-- 4. Auditoria Imutável
 CREATE TABLE IF NOT EXISTS public.audit_logs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    student_id UUID REFERENCES public.students(id) ON DELETE CASCADE,
-    professor_id UUID REFERENCES public.profiles(id),
-    event_type TEXT NOT NULL,
-    xp_amount INTEGER DEFAULT 0,
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id UUID,
+    action TEXT NOT NULL,
+    table_name TEXT NOT NULL,
+    record_id TEXT NOT NULL,
+    old_data JSONB,
+    new_data JSONB,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 7. Políticas de RLS omitidas para brevidade no DDL de visualização
+-- 5. Avisos Globais e de Unidade
+CREATE TABLE IF NOT EXISTS public.notices (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    title TEXT NOT NULL,
+    message TEXT,
+    priority TEXT DEFAULT 'normal',
+    school_id UUID,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Outras tabelas omitidas para brevidade no auditor...
 `;

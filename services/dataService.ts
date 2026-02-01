@@ -14,10 +14,6 @@ export const getAdminSchools = async (): Promise<School[]> => {
     return data || [];
 };
 
-/**
- * Mutação Reativa de Status de Unidade.
- * O retorno .select().single() é crucial para o broadcast CDC do Realtime.
- */
 export const updateSchoolStatus = async (schoolId: string, isActive: boolean) => {
     const { data, error } = await supabase
         .from('schools')
@@ -28,7 +24,6 @@ export const updateSchoolStatus = async (schoolId: string, isActive: boolean) =>
     
     if (error) throw error;
 
-    // Broadcast manual para eventos que exigem ação imediata do cliente (Kill Switch)
     if (!isActive) {
         await supabase.channel('maestro_global_control').send({
             type: 'broadcast',
@@ -89,6 +84,10 @@ export const createAdminSchool = async (schoolData: Partial<School> & { slug: st
     return data;
 };
 
+/**
+ * Provisionamento de Mestre com Sincronia Realtime Garantida.
+ * O retorno .select().single() dispara o trigger de CDC do Postgres.
+ */
 export const createAdminProfessor = async (profData: { email: string, full_name: string, school_id?: string }) => {
     const { data: profile, error: pError } = await supabase
         .from('profiles')
@@ -103,6 +102,25 @@ export const createAdminProfessor = async (profData: { email: string, full_name:
 
     if (pError) throw pError;
     return profile;
+};
+
+/**
+ * Atualiza configurações globais do sistema.
+ * Utiliza upsert para garantir que a chave exista e o broadcast seja emitido.
+ */
+export const updateSystemConfig = async (key: string, value: any) => {
+    const { data, error } = await supabase
+        .from('system_configs')
+        .upsert({ 
+            key, 
+            value,
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'key' })
+        .select()
+        .single();
+    
+    if (error) throw error;
+    return data;
 };
 
 // --- MISSION SERVICES ---

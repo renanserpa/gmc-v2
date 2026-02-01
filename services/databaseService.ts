@@ -20,7 +20,8 @@ const TABLES_TO_CHECK = [
     'content_library',
     'knowledge_docs',
     'system_configs',
-    'audit_logs'
+    'audit_logs',
+    'notices'
 ];
 
 export const databaseService = {
@@ -63,9 +64,6 @@ export const databaseService = {
 
     /**
      * Subscreve a mudanças em uma tabela específica com suporte a filtros CDC.
-     * @param tableName Nome da tabela no Postgres
-     * @param filter Filtro de coluna (ex: 'school_id=eq.UUID')
-     * @param callback Função disparada em eventos INSERT, UPDATE ou DELETE
      */
     subscribeToTable(
         tableName: string, 
@@ -74,14 +72,14 @@ export const databaseService = {
     ): RealtimeChannel {
         const channel = supabase.channel(`db-sync-${tableName}-${filter}`)
             .on(
-                'postgres_changes',
+                'postgres_changes' as any,
                 {
                     event: '*',
                     schema: 'public',
                     table: tableName,
                     filter: filter
                 },
-                (payload) => {
+                (payload: any) => {
                     console.debug(`[Realtime] Evento detectado em ${tableName}:`, payload.eventType);
                     callback(payload);
                 }
