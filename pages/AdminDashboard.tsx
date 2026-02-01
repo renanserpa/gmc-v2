@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import * as RRD from 'react-router-dom';
 const { useNavigate } = RRD as any;
@@ -8,7 +7,8 @@ import { UserRole } from '../types.ts';
 import { 
     Users, ShoppingBag, LayoutDashboard, ShieldAlert, Loader2, 
     Music, BarChart3, Activity, Terminal, ChevronRight, 
-    Zap, Cpu, Globe, ShieldCheck, Database, RefreshCw, Megaphone, Fingerprint
+    Zap, Cpu, Globe, ShieldCheck, Database, RefreshCw, Megaphone, Fingerprint,
+    Search, Gauge, Coins, Gavel
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card.tsx';
 import { notify } from '../lib/notification.ts';
@@ -52,8 +52,11 @@ export default function AdminDashboard() {
 
   const QUICK_TOOLS = [
     { id: 'users', label: 'Identity', icon: Fingerprint, color: 'text-purple-400', path: '/admin/users', desc: 'Controle de Acesso' },
+    { id: 'tenants', label: 'Tenants', icon: Globe, color: 'text-sky-400', path: '/admin/tenants', desc: 'Gerenciar Escolas' },
     { id: 'broadcast', label: 'Alerts', icon: Megaphone, color: 'text-red-400', path: '/admin/broadcast', desc: 'Avisos Globais' },
-    { id: 'orchestrator', label: 'Ops', icon: Activity, color: 'text-sky-400', path: '/admin/orchestrator', desc: 'Módulos Ativos' },
+    { id: 'economy', label: 'Economy', icon: Coins, color: 'text-amber-400', path: '/admin/economy', desc: 'OlieCoins & XP' },
+    { id: 'gamification', label: 'Dopamine', icon: Zap, color: 'text-indigo-400', path: '/admin/gamification', desc: 'Ranks & Progressão' },
+    { id: 'orchestrator', label: 'Ops', icon: Activity, color: 'text-emerald-400', path: '/admin/orchestrator', desc: 'Módulos Ativos' },
   ];
 
   return (

@@ -29,6 +29,17 @@ const ClassroomRemote = lazy(() => import('@/pages/ClassroomRemote'));
 const TeacherAcademy = lazy(() => import('@/pages/TeacherAcademy'));
 const SchoolDashboard = lazy(() => import('@/pages/admin/SchoolDashboard'));
 
+// Admin Sub-pages
+const TenantManager = lazy(() => import('@/pages/admin/TenantManager'));
+const UserManager = lazy(() => import('@/pages/admin/UserManager'));
+const SystemHealth = lazy(() => import('@/pages/admin/SystemHealth'));
+const BroadcastCenter = lazy(() => import('@/pages/admin/BroadcastCenter'));
+const GlobalEconomy = lazy(() => import('@/pages/admin/GlobalEconomy'));
+const GamificationLab = lazy(() => import('@/pages/admin/GamificationLab'));
+const SecurityAudit = lazy(() => import('@/pages/admin/SecurityAudit'));
+const SystemExplorer = lazy(() => import('@/pages/admin/SystemExplorer'));
+const ArchitectureBoard = lazy(() => import('@/pages/admin/ArchitectureBoard'));
+
 // Wrapper para gerenciar a rota principal dinamicamente
 const RootHandler = () => {
   const { user, role, getDashboardPath, loading } = useAuth();
@@ -102,9 +113,6 @@ export default function App() {
                 <Route path="notices" element={<NoticeBoardPage />} />
               </Route>
 
-              {/* Redirecionamento legado para professor */}
-              <Route path="/professor/*" element={<Navigate to="/teacher/classes" replace />} />
-
               {/* Rota Gestor de Escola */}
               <Route 
                 path="/manager" 
@@ -117,7 +125,7 @@ export default function App() {
                 <Route index element={<SchoolDashboard />} />
               </Route>
               
-              {/* Rota Admin Global */}
+              {/* Rota Admin Global Aninhada */}
               <Route 
                 path="/admin" 
                 element={
@@ -127,23 +135,18 @@ export default function App() {
                 }
               >
                 <Route index element={<AdminDashboard />} />
+                <Route path="tenants" element={<TenantManager />} />
+                <Route path="users" element={<UserManager />} />
+                <Route path="health" element={<SystemHealth />} />
+                <Route path="broadcast" element={<BroadcastCenter />} />
+                <Route path="economy" element={<GlobalEconomy />} />
+                <Route path="gamification" element={<GamificationLab />} />
+                <Route path="audit" element={<SecurityAudit />} />
+                <Route path="explorer" element={<SystemExplorer />} />
+                <Route path="orchestrator" element={<ArchitectureBoard />} />
                 <Route path="ecosystem" element={<AdminDashboard />} />
-                <Route path="dashboard" element={<AdminDashboard />} />
               </Route>
               
-              {/* Rota Guardião */}
-              <Route 
-                path="/guardian" 
-                element={
-                  <ProtectedRoute allowedRoles={['guardian', 'super_admin', 'admin']}>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<Navigate to="insights" replace />} />
-                <Route path="insights" element={<div className="p-10 text-white font-black uppercase">Insights do Guardião em Breve</div>} />
-              </Route>
-
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>

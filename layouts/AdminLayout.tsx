@@ -1,11 +1,11 @@
-
 import React from 'react';
 import * as RRD from 'react-router-dom';
 const { NavLink, Outlet, Navigate, useNavigate } = RRD as any;
 import { 
     LayoutDashboard, Users, Building2, Terminal, 
     Activity, ShieldAlert, LogOut, Cpu, Brain, Layers,
-    Award, Fingerprint, Coins, ShieldCheck
+    Award, Fingerprint, Coins, ShieldCheck, Megaphone, Zap,
+    History, Search, Gavel
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { GodModeBar } from '../components/admin/GodModeBar.tsx';
@@ -45,7 +45,7 @@ export default function AdminLayout() {
                     </div>
                 </div>
 
-                <nav className="flex-1 p-6 space-y-2 overflow-y-auto custom-scrollbar">
+                <nav className="flex-1 p-6 space-y-1 overflow-y-auto custom-scrollbar">
                     <p className="px-6 text-[9px] font-black text-slate-700 uppercase tracking-[0.5em] mb-4 mt-4">Núcleo Central</p>
                     <NavLink to="/admin" end className={navItemClass}>
                         <LayoutDashboard size={18} /> Resumo
@@ -58,6 +58,28 @@ export default function AdminLayout() {
                     </NavLink>
                     <NavLink to="/admin/users" className={navItemClass}>
                         <Users size={18} /> Usuários
+                    </NavLink>
+                    
+                    <p className="px-6 text-[9px] font-black text-slate-700 uppercase tracking-[0.5em] mb-4 mt-8">Operações</p>
+                    <NavLink to="/admin/broadcast" className={navItemClass}>
+                        <Megaphone size={18} /> Broadcast
+                    </NavLink>
+                    <NavLink to="/admin/economy" className={navItemClass}>
+                        <Coins size={18} /> Economia
+                    </NavLink>
+                    <NavLink to="/admin/gamification" className={navItemClass}>
+                        <Zap size={18} /> Dopamina
+                    </NavLink>
+                    <NavLink to="/admin/orchestrator" className={navItemClass}>
+                        <Layers size={18} /> Orquestrador
+                    </NavLink>
+                    
+                    <p className="px-6 text-[9px] font-black text-slate-700 uppercase tracking-[0.5em] mb-4 mt-8">Segurança</p>
+                    <NavLink to="/admin/audit" className={navItemClass}>
+                        <History size={18} /> Auditoria
+                    </NavLink>
+                    <NavLink to="/admin/health" className={navItemClass}>
+                        <Search size={18} /> Diagnóstico
                     </NavLink>
                 </nav>
 
