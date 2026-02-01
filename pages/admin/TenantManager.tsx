@@ -8,6 +8,7 @@ import { notify } from '../../lib/notification.ts';
 import { haptics } from '../../lib/haptics.ts';
 import { cn } from '../../lib/utils.ts';
 import { motion } from 'framer-motion';
+import { supabase } from '../../lib/supabaseClient.ts';
 
 const ResourceUsage = ({ current, max, label, icon: Icon, color }: any) => {
     const percent = Math.min((current / max) * 100, 100);
@@ -45,10 +46,6 @@ export default function TenantManager() {
         storage_gb: 5
     });
 
-    useEffect(() => {
-        loadTenants();
-    }, []);
-
     const loadTenants = async () => {
         setLoading(true);
         try {
@@ -67,6 +64,40 @@ export default function TenantManager() {
         }
     };
 
+    useEffect(() => {
+        loadTenants();
+
+        // MOTOR REALTIME: Sincronização automática da malha de escolas
+        const channel = supabase.channel('schools-grid-sync')
+            .on(
+                'postgres_changes',
+                { event: '*', table: 'schools' },
+                async (payload) => {
+                    const { eventType, new: newRecord, old: oldRecord } = payload as any;
+                    
+                    if (eventType === 'INSERT') {
+                        setTenants(prev => [newRecord, ...prev.filter(t => t.id !== newRecord.id)]);
+                        // Busca contagem apenas para a nova unidade injetada
+                        const count = await getStudentCountBySchool(newRecord.id);
+                        setUsageData(prev => ({ ...prev, [newRecord.id]: count }));
+                    }
+                    
+                    if (eventType === 'UPDATE') {
+                        setTenants(prev => prev.map(t => t.id === newRecord.id ? { ...t, ...newRecord } : t));
+                    }
+                    
+                    if (eventType === 'DELETE') {
+                        setTenants(prev => prev.filter(t => t.id !== oldRecord.id));
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, []);
+
     const handleToggleStatus = async (school: any) => {
         const nextStatus = !school.is_active;
         if (!nextStatus && !window.confirm(`ATENÇÃO: Suspender a unidade "${school.name}" deslogará IMEDIATAMENTE todos os usuários vinculados. Confirmar suspensão?`)) return;
@@ -77,7 +108,7 @@ export default function TenantManager() {
         try {
             await updateSchoolStatus(school.id, nextStatus);
             notify.success(nextStatus ? `Unidade "${school.name}" reativada.` : `Unidade "${school.name}" SUSPENSA.`);
-            loadTenants();
+            // loadTenants() removido: a UI atualizará via Realtime
         } catch (e) {
             notify.error("Falha ao alterar status da unidade.");
         } finally {
@@ -113,7 +144,7 @@ export default function TenantManager() {
             notify.success("Unidade Provisionada com Sucesso!");
             setIsAddOpen(false);
             setNewSchool({ name: '', slug: '', primaryColor: '#38bdf8', max_students: 50, storage_gb: 5 });
-            loadTenants();
+            // loadTenants() removido: a UI atualizará via Realtime
         } catch (e: any) {
             notify.error(e.message?.includes('unique') ? "Este Slug já está em uso." : "Falha na conexão.");
         } finally {
@@ -122,7 +153,7 @@ export default function TenantManager() {
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-8 animate-in fade-in duration-700">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900/40 p-8 rounded-[40px] border border-white/5 backdrop-blur-xl">
                 <div>
                     <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">Tenant <span className="text-purple-500">Master</span></h1>
@@ -137,7 +168,7 @@ export default function TenantManager() {
                 </Button>
             </header>
 
-            {loading ? (
+            {loading && tenants.length === 0 ? (
                 <div className="py-20 text-center space-y-4">
                     <Loader2 className="animate-spin mx-auto text-purple-500" size={48} />
                     <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Sincronizando Malha de Escolas...</p>
