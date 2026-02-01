@@ -123,7 +123,7 @@ export enum MissionStatus {
 
 export interface Mission {
     id: string;
-    student_id: string;
+    student_id: string | null;
     professor_id: string;
     title: string;
     description: string;
@@ -133,8 +133,8 @@ export interface Mission {
     status: MissionStatus;
     position?: number;
     created_at?: string;
-    // Added missing school_id property to resolve TaskManager v5.2 build error
     school_id?: string | null;
+    is_template?: boolean;
 }
 
 export interface ClassroomCommand {

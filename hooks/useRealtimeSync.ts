@@ -5,11 +5,12 @@ import { notify } from '../lib/notification';
 
 /**
  * useRealtimeSync: O sistema nervoso reativo do Maestro.
- * Transforma qualquer tabela em um stream de dados síncrono.
+ * Transforma qualquer tabela do Postgres em um stream de dados síncrono na UI.
+ * Suporta filtros manuais no padrão Supabase (ex: 'school_id=eq.uuid')
  */
-export function useRealtimeSync<T extends { id: string | number; school_id?: string | null }>(
+export function useRealtimeSync<T extends { id: string | number }>(
   tableName: string,
-  schoolId: string | null = null,
+  filter?: string,
   orderBy: { column: string; ascending?: boolean } = { column: 'created_at', ascending: false }
 ) {
   const [data, setData] = useState<T[]>([]);
@@ -21,13 +22,16 @@ export function useRealtimeSync<T extends { id: string | number; school_id?: str
     try {
       let query = supabase.from(tableName).select('*');
       
-      // Multi-tenancy filter
-      if (schoolId) {
-        query = query.eq('school_id', schoolId);
-      } else if (tableName === 'missions') {
-        // Se for a tabela de missões e sem school_id, assumimos busca por templates globais
-        // Templates globais não possuem student_id vinculado
-        query = query.is('student_id', null);
+      // Aplica filtro CDC manual se fornecido
+      if (filter) {
+          const parts = filter.split('=');
+          if (parts.length === 2) {
+            const col = parts[0];
+            const opVal = parts[1];
+            const [op, val] = opVal.split('.');
+            if (op === 'eq') query = query.eq(col, val);
+            else if (op === 'is') query = query.is(col, val === 'null' ? null : val);
+          }
       }
 
       const { data: result, error: fetchError } = await query
@@ -37,19 +41,18 @@ export function useRealtimeSync<T extends { id: string | number; school_id?: str
       setData(result || []);
     } catch (err: any) {
       setError(err.message);
-      console.error(`[Realtime Sync Error] ${tableName}:`, err);
+      console.error(`[Realtime Sync Engine] Falha no fetch: ${tableName}`, err);
     } finally {
       setLoading(false);
     }
-  }, [tableName, schoolId, orderBy.column, orderBy.ascending]);
+  }, [tableName, filter, orderBy.column, orderBy.ascending]);
 
   useEffect(() => {
     fetchData();
 
-    // Configura o Canal de Sincronia via WebSocket
-    const channelName = `realtime-${tableName}-${schoolId || 'global'}`;
-    const filter = schoolId ? `school_id=eq.${schoolId}` : undefined;
-
+    // Configura o Canal de Sincronia via WebSocket (CDC - Change Data Capture)
+    const channelName = `db-pulse-${tableName}-${filter || 'global'}`;
+    
     const channel = supabase.channel(channelName)
       .on(
         'postgres_changes' as any,
@@ -62,14 +65,13 @@ export function useRealtimeSync<T extends { id: string | number; school_id?: str
         (payload: any) => {
           const { eventType, new: newRecord, old: oldRecord } = payload;
           
+          // Feedback tátil para cada pulso de dados recebido (Phygital Feel)
           haptics.light();
 
           setData((current) => {
             switch (eventType) {
               case 'INSERT':
                 if (current.some(i => i.id === newRecord.id)) return current;
-                // Validação extra para garantir que apenas missões globais entrem na lista global
-                if (tableName === 'missions' && !schoolId && newRecord.student_id !== null) return current;
                 return [newRecord as T, ...current];
               
               case 'UPDATE':
@@ -88,14 +90,14 @@ export function useRealtimeSync<T extends { id: string | number; school_id?: str
       )
       .subscribe((status) => {
         if (status === 'CHANNEL_ERROR') {
-          notify.error(`Cluster desconectado: ${tableName}`);
+          notify.error(`Cluster de sincronia offline: ${tableName}`);
         }
       });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [tableName, schoolId, fetchData]);
+  }, [tableName, filter, fetchData]);
 
   return { data, loading, error, refresh: fetchData };
 }

@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
-import { Building2, Users, Shield, Plus, Globe, ArrowRight, Loader2, Palette, HardDrive, UserCheck, Power, PowerOff, AlertCircle } from 'lucide-react';
-import { getAdminSchools, createAdminSchool, getStudentCountBySchool, updateSchoolStatus } from '../../services/dataService.ts';
+import { Building2, Plus, ArrowRight, Loader2, HardDrive, UserCheck, Power, PowerOff } from 'lucide-react';
+import { createAdminSchool, getStudentCountBySchool, updateSchoolStatus } from '../../services/dataService.ts';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../../components/ui/Dialog.tsx';
 import { notify } from '../../lib/notification.ts';
 import { haptics } from '../../lib/haptics.ts';
 import { cn } from '../../lib/utils.ts';
 import { motion } from 'framer-motion';
-import { supabase } from '../../lib/supabaseClient.ts';
+import { useRealtimeSync } from '../../hooks/useRealtimeSync.ts';
+
+const M = motion as any;
 
 const ResourceUsage = ({ current, max, label, icon: Icon, color }: any) => {
     const percent = Math.min((current / max) * 100, 100);
@@ -21,7 +23,7 @@ const ResourceUsage = ({ current, max, label, icon: Icon, color }: any) => {
                 <span className="text-[10px] font-mono font-bold text-white">{current}/{max}</span>
             </div>
             <div className="h-1.5 bg-slate-950 rounded-full overflow-hidden border border-white/5">
-                <motion.div 
+                <M.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${percent}%` }}
                     className={cn("h-full transition-all duration-1000", percent > 90 ? "bg-red-500" : percent > 70 ? "bg-amber-500" : color.replace('text-', 'bg-'))}
@@ -32,9 +34,7 @@ const ResourceUsage = ({ current, max, label, icon: Icon, color }: any) => {
 };
 
 export default function TenantManager() {
-    const [tenants, setTenants] = useState<any[]>([]);
     const [usageData, setUsageData] = useState<Record<string, number>>({});
-    const [loading, setLoading] = useState(true);
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -46,58 +46,20 @@ export default function TenantManager() {
         storage_gb: 5
     });
 
-    const loadTenants = async () => {
-        setLoading(true);
-        try {
-            const schools = await getAdminSchools();
-            setTenants(schools);
-            
-            const counts: Record<string, number> = {};
-            await Promise.all(schools.map(async (s) => {
-                counts[s.id] = await getStudentCountBySchool(s.id);
-            }));
-            setUsageData(counts);
-        } catch (e) {
-            notify.error("Erro ao carregar ecossistema B2B.");
-        } finally {
-            setLoading(false);
-        }
-    };
+    // ENGINE REALTIME: Fonte da verdade reativa das escolas
+    const { data: tenants, loading } = useRealtimeSync<any>('schools', undefined, { column: 'created_at', ascending: false });
 
+    // Atualiza contagens de alunos quando novos inquilinos surgirem ou mudarem
     useEffect(() => {
-        loadTenants();
-
-        // MOTOR REALTIME: Sincronização automática da malha de escolas
-        const channel = supabase.channel('schools-grid-sync')
-            .on(
-                // FIX: Casting event type string to any to satisfy strict compiler check on Supabase channel overloads
-                'postgres_changes' as any,
-                { event: '*', table: 'schools' },
-                async (payload) => {
-                    const { eventType, new: newRecord, old: oldRecord } = payload as any;
-                    
-                    if (eventType === 'INSERT') {
-                        setTenants(prev => [newRecord, ...prev.filter(t => t.id !== newRecord.id)]);
-                        // Busca contagem apenas para a nova unidade injetada
-                        const count = await getStudentCountBySchool(newRecord.id);
-                        setUsageData(prev => ({ ...prev, [newRecord.id]: count }));
-                    }
-                    
-                    if (eventType === 'UPDATE') {
-                        setTenants(prev => prev.map(t => t.id === newRecord.id ? { ...t, ...newRecord } : t));
-                    }
-                    
-                    if (eventType === 'DELETE') {
-                        setTenants(prev => prev.filter(t => t.id !== oldRecord.id));
-                    }
+        if (tenants.length > 0) {
+            tenants.forEach(async (s) => {
+                if (usageData[s.id] === undefined) {
+                    const count = await getStudentCountBySchool(s.id);
+                    setUsageData(prev => ({ ...prev, [s.id]: count }));
                 }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, []);
+            });
+        }
+    }, [tenants]);
 
     const handleToggleStatus = async (school: any) => {
         const nextStatus = !school.is_active;
@@ -109,7 +71,6 @@ export default function TenantManager() {
         try {
             await updateSchoolStatus(school.id, nextStatus);
             notify.success(nextStatus ? `Unidade "${school.name}" reativada.` : `Unidade "${school.name}" SUSPENSA.`);
-            // loadTenants() removido: a UI atualizará via Realtime
         } catch (e) {
             notify.error("Falha ao alterar status da unidade.");
         } finally {
@@ -143,9 +104,8 @@ export default function TenantManager() {
             });
             
             notify.success("Unidade Provisionada com Sucesso!");
-            setIsAddOpen(false);
             setNewSchool({ name: '', slug: '', primaryColor: '#38bdf8', max_students: 50, storage_gb: 5 });
-            // loadTenants() removido: a UI atualizará via Realtime
+            setIsAddOpen(false);
         } catch (e: any) {
             notify.error(e.message?.includes('unique') ? "Este Slug já está em uso." : "Falha na conexão.");
         } finally {
@@ -154,16 +114,16 @@ export default function TenantManager() {
     };
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-700">
+        <div className="space-y-8 animate-in fade-in duration-700 pb-20">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900/40 p-8 rounded-[40px] border border-white/5 backdrop-blur-xl">
                 <div>
-                    <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">Tenant <span className="text-purple-500">Master</span></h1>
+                    <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">Tenant <span className="text-sky-500">Master</span></h1>
                     <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Governança B2B e Controle de Resiliência</p>
                 </div>
                 <Button 
                     onClick={() => { haptics.light(); setIsAddOpen(true); }}
                     leftIcon={Plus} 
-                    className="rounded-2xl px-10 py-6 bg-purple-600 hover:bg-purple-500 shadow-xl shadow-purple-900/20 text-xs font-black uppercase tracking-widest"
+                    className="rounded-2xl px-10 py-6 bg-sky-600 hover:bg-sky-500 shadow-xl shadow-sky-900/20 text-xs font-black uppercase tracking-widest"
                 >
                     Projetar Nova Escola
                 </Button>
@@ -171,7 +131,7 @@ export default function TenantManager() {
 
             {loading && tenants.length === 0 ? (
                 <div className="py-20 text-center space-y-4">
-                    <Loader2 className="animate-spin mx-auto text-purple-500" size={48} />
+                    <Loader2 className="animate-spin mx-auto text-sky-500" size={48} />
                     <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Sincronizando Malha de Escolas...</p>
                 </div>
             ) : (
@@ -179,13 +139,13 @@ export default function TenantManager() {
                     {tenants.map(t => (
                         <Card key={t.id} className={cn(
                             "bg-slate-900 border transition-all group rounded-[40px] overflow-hidden",
-                            t.is_active ? "border-white/5 hover:border-purple-500/40" : "border-red-500/30 opacity-70"
+                            t.is_active ? "border-white/5 hover:border-sky-500/40" : "border-red-500/30 opacity-70"
                         )}>
                             <CardContent className="p-8 space-y-6">
                                 <div className="flex justify-between items-start">
                                     <div 
                                         className="p-4 rounded-2xl text-white group-hover:scale-110 transition-all shadow-inner"
-                                        style={{ backgroundColor: t.is_active ? (t.branding?.primaryColor || '#6366f1') : '#475569' }}
+                                        style={{ backgroundColor: t.is_active ? (t.branding?.primaryColor || '#0ea5e9') : '#475569' }}
                                     >
                                         <Building2 size={28} />
                                     </div>
@@ -212,7 +172,7 @@ export default function TenantManager() {
                                     />
                                     <ResourceUsage 
                                         label="Cloud Storage" 
-                                        current={0.1} // Mock for demo
+                                        current={0.1} 
                                         max={t.settings?.storage_gb || 10} 
                                         icon={HardDrive} 
                                         color="text-purple-400" 
@@ -247,13 +207,13 @@ export default function TenantManager() {
                 <DialogContent className="bg-slate-900 border-slate-800 rounded-[40px] max-w-xl p-8 shadow-2xl">
                     <DialogHeader>
                         <DialogTitle>Provisionar Unidade</DialogTitle>
-                        <DialogDescription>Configuração de Quotas e Isolamento de Dados.</DialogDescription>
+                        <DialogDescription>Configuração de Quotas e Isolamento de Dados Master.</DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-6 py-6">
                         <div className="grid grid-cols-2 gap-4">
-                            <input value={newSchool.name} onChange={e => setNewSchool({...newSchool, name: e.target.value})} placeholder="Nome da Instituição" className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none" />
-                            <input value={newSchool.slug} onChange={e => setNewSchool({...newSchool, slug: e.target.value})} placeholder="Slug Identificador" className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm font-mono outline-none" />
+                            <input value={newSchool.name} onChange={e => setNewSchool({...newSchool, name: e.target.value})} placeholder="Nome da Instituição" className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-sky-500/20" />
+                            <input value={newSchool.slug} onChange={e => setNewSchool({...newSchool, slug: e.target.value})} placeholder="Slug Identificador" className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm font-mono outline-none focus:ring-2 focus:ring-sky-500/20" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
@@ -269,7 +229,7 @@ export default function TenantManager() {
 
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsAddOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleCreate} isLoading={isSaving} className="bg-purple-600">Provisionar</Button>
+                        <Button onClick={handleCreate} isLoading={isSaving} className="bg-sky-600">Provisionar</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
