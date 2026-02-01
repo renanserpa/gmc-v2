@@ -181,46 +181,45 @@ export const createMission = async (mission: Partial<Mission>) => {
   return data;
 };
 
-// --- CORE ANALYTICS ---
-
-export const getSystemStats = async () => {
-    const { count: totalStudents } = await supabase.from('students').select('*', { count: 'exact', head: true });
-    const { count: totalProfs } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'professor');
-    const { count: totalSchools } = await supabase.from('schools').select('*', { count: 'exact', head: true });
-    return { totalStudents: totalStudents || 0, totalProfs: totalProfs || 0, totalSchools: totalSchools || 0, totalContent: 0 };
-};
-
-export const createNotice = async (notice: Partial<Notice>) => {
+/**
+ * Criação de Missão Mestra (Template Global)
+ */
+export const createMasterMission = async (mission: Partial<Mission>) => {
     const { data, error } = await supabase
-        .from('notices')
-        .insert([notice])
+        .from('missions')
+        .insert([{
+            ...mission,
+            student_id: null, // Identifica como global
+            status: 'pending'
+        }])
         .select()
         .single();
     if (error) throw error;
     return data;
 };
 
-export const getStudentsByTeacher = async (professorId: string): Promise<Student[]> => {
-  const { data } = await supabase.from('students').select('*').eq('professor_id', professorId);
-  return data || [];
+// --- EXTRA SERVICES FOR FRONTEND FIXES ---
+
+/**
+ * Recupera estatísticas globais do sistema para o cockpit administrativo.
+ */
+export const getSystemStats = async () => {
+    const [resStudents, resProfs, resContent] = await Promise.all([
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student'),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'professor'),
+        supabase.from('content_library').select('id', { count: 'exact', head: true })
+    ]);
+
+    return {
+        totalStudents: resStudents.count || 0,
+        totalProfs: resProfs.count || 0,
+        totalContent: resContent.count || 0
+    };
 };
 
-export const getMusicClasses = async (professorId: string): Promise<MusicClass[]> => {
-  const { data } = await supabase.from('music_classes').select('*').eq('professor_id', professorId).order('start_time', { ascending: true });
-  return data || [];
-};
-
-export const getContentLibrary = async (professorId: string): Promise<ContentLibraryItem[]> => {
-  const { data } = await supabase.from('content_library').select('*').eq('professor_id', professorId).order('created_at', { ascending: false });
-  return data || [];
-};
-
-export const addLibraryItem = async (item: Partial<ContentLibraryItem>) => {
-  const { data, error } = await supabase.from('content_library').insert([item]).select().single();
-  if (error) throw error;
-  return data;
-};
-
+/**
+ * Atualiza os dados de um estudante na tabela relacional.
+ */
 export const updateStudent = async (studentId: string, updates: Partial<Student>) => {
     const { data, error } = await supabase
         .from('students')
@@ -232,55 +231,100 @@ export const updateStudent = async (studentId: string, updates: Partial<Student>
     return data;
 };
 
+/**
+ * Vincula a conta de usuário logado a um registro de estudante via código de convite.
+ */
 export const linkStudentAccount = async (code: string) => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, message: "Não autenticado." };
+    if (!user) throw new Error("Não autenticado");
 
     const { data, error } = await supabase
         .from('students')
         .update({ auth_user_id: user.id })
-        .eq('invite_code', code)
+        .eq('invite_code', code.toUpperCase())
+        .is('auth_user_id', null)
         .select()
         .single();
 
-    if (error || !data) return { success: false, message: "Código inválido ou já utilizado." };
-    return { success: true };
+    if (error) return { success: false, message: "Código inválido ou já utilizado." };
+    return { success: true, data };
 };
 
+/**
+ * Vincula um perfil de guardião a um estudante via código.
+ */
 export const linkGuardianAccount = async (code: string) => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { success: false, message: "Não autenticado." };
+    if (!user) throw new Error("Não autenticado");
 
-    const { data, error } = await supabase
+    const { data: student, error: findError } = await supabase
         .from('students')
-        .update({ guardian_id: user.id })
-        .eq('invite_code', code)
-        .select()
+        .select('id')
+        .eq('invite_code', code.toUpperCase())
         .single();
 
-    if (error || !data) return { success: false, message: "Código inválido." };
+    if (findError) return { success: false, message: "Código não encontrado." };
+
+    const { error: updateError } = await supabase
+        .from('students')
+        .update({ guardian_id: user.id })
+        .eq('id', student.id);
+
+    if (updateError) return { success: false, message: updateError.message };
     return { success: true };
 };
 
-export const getStudentMilestones = async (studentId: string) => {
-    const { data } = await supabase
-        .from('student_milestones')
+/**
+ * Recupera as turmas associadas a um professor.
+ */
+export const getMusicClasses = async (professorId: string): Promise<MusicClass[]> => {
+    const { data, error } = await supabase
+        .from('music_classes')
         .select('*')
-        .eq('student_id', studentId)
-        .order('date', { ascending: true });
+        .eq('professor_id', professorId);
+    if (error) throw error;
     return data || [];
 };
 
+/**
+ * Recupera todos os estudantes vinculados a um professor.
+ */
+export const getStudentsByTeacher = async (professorId: string): Promise<Student[]> => {
+    const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .eq('professor_id', professorId);
+    if (error) throw error;
+    return data || [];
+};
+
+/**
+ * Recupera conquistas e marcos históricos de um estudante (Simulado).
+ */
+export const getStudentMilestones = async (studentId: string) => {
+    // Mocking milestones para o pipeline de visualização
+    return [
+        { id: '1', title: 'Primeira Sinfonia', date: new Date().toISOString(), icon: Star, xp: 100 },
+        { id: '2', title: 'Maestro Aprendiz', date: new Date().toISOString(), icon: Flag, xp: 250, isUpcoming: true }
+    ];
+};
+
+/**
+ * Recupera tendências de prática recente.
+ */
 export const getPracticeTrends = async (studentId: string) => {
     const { data } = await supabase
         .from('practice_sessions')
         .select('*')
         .eq('student_id', studentId)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(7);
     return data || [];
 };
 
+/**
+ * Recupera a última sessão de prática processada.
+ */
 export const getLatestPracticeStats = async (studentId: string) => {
     const { data } = await supabase
         .from('practice_sessions')
@@ -289,9 +333,12 @@ export const getLatestPracticeStats = async (studentId: string) => {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-    return data || null;
+    return data;
 };
 
+/**
+ * Recupera o repertório de músicas em estudo por um aluno.
+ */
 export const getStudentRepertoire = async (studentId: string) => {
     const { data } = await supabase
         .from('student_songs')
@@ -300,68 +347,128 @@ export const getStudentRepertoire = async (studentId: string) => {
     return data || [];
 };
 
-export const savePracticeSession = async (sessionData: any) => {
+/**
+ * Salva uma nova sessão de prática no banco de dados.
+ */
+export const savePracticeSession = async (session: any) => {
     const { data, error } = await supabase
         .from('practice_sessions')
-        .insert([sessionData])
+        .insert([session])
         .select()
         .single();
     if (error) throw error;
     return data;
 };
 
+/**
+ * Incrementa a contagem de curtidas sociais (High Five) em uma performance.
+ */
 export const giveHighFive = async (hallId: string) => {
-    const { error } = await supabase.rpc('increment_high_five', { performance_id: hallId });
+    const { data, error } = await supabase.rpc('increment_high_fives', { hall_id: hallId });
+    if (error) throw error;
+    return data;
+};
+
+/**
+ * Registra a presença de um aluno em uma aula.
+ */
+export const markAttendance = async (studentId: string, classId: string, status: AttendanceStatus, professorId: string) => {
+    const date = new Date().toISOString().split('T')[0];
+    const { data: existing } = await supabase
+        .from('attendance')
+        .select('id')
+        .eq('student_id', studentId)
+        .eq('class_id', classId)
+        .eq('date', date)
+        .maybeSingle();
+
+    if (existing) return false;
+
+    const { error } = await supabase.from('attendance').insert({
+        student_id: studentId,
+        class_id: classId,
+        professor_id: professorId,
+        status,
+        date
+    });
+
     if (error) throw error;
     return true;
 };
 
-export const markAttendance = async (studentId: string, classId: string, status: AttendanceStatus, professorId: string) => {
-    const { error } = await supabase.rpc('register_attendance', {
-        p_student_id: studentId,
-        p_class_id: classId,
-        p_status: status,
-        p_professor_id: professorId
-    });
-    if (error) return false;
-    return true;
-};
-
+/**
+ * Recupera o mapa de chamadas realizadas no dia atual para uma turma.
+ */
 export const getTodayAttendanceForClass = async (classId: string) => {
-    const today = new Date().toISOString().split('T')[0];
+    const date = new Date().toISOString().split('T')[0];
     const { data } = await supabase
         .from('attendance')
         .select('student_id, status')
         .eq('class_id', classId)
-        .gte('created_at', today);
+        .eq('date', date);
     
     const map: Record<string, AttendanceStatus> = {};
-    data?.forEach(row => { map[row.student_id] = row.status as AttendanceStatus; });
+    data?.forEach(r => map[r.student_id] = r.status);
     return map;
 };
 
+/**
+ * Calcula a taxa de assiduidade histórica de um estudante.
+ */
 export const getStudentAttendanceRate = async (studentId: string): Promise<number> => {
-    const { data, error } = await supabase.rpc('get_attendance_rate', { p_student_id: studentId });
-    if (error) return 0;
-    return data || 0;
+    const { count: total } = await supabase.from('attendance').select('*', { count: 'exact', head: true }).eq('student_id', studentId);
+    const { count: present } = await supabase.from('attendance').select('*', { count: 'exact', head: true }).eq('student_id', studentId).eq('status', 'present');
+    if (!total) return 100;
+    return Math.round((present! / total) * 100);
 };
 
+/**
+ * Recupera dossiê completo de estatísticas de um estudante.
+ */
 export const getStudentDetailedStats = async (studentId: string) => {
-    const [recordings, milestones] = await Promise.all([
-        supabase.from('performance_recordings').select('*, songs(title)').eq('student_id', studentId).order('created_at', { ascending: false }),
-        supabase.from('student_milestones').select('*').eq('student_id', studentId)
-    ]);
-    return {
-        recordings: recordings.data || [],
-        milestones: milestones.data || []
-    };
+    const recordings = await supabase
+        .from('performance_recordings')
+        .select('*, songs(title)')
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false });
+
+    return { recordings: recordings.data || [] };
 };
 
-export const getNotices = async (userId: string, targetType: string) => {
-    let query = supabase.from('notices').select('*');
-    if (targetType === 'student') {
-        query = query.or('target_audience.eq.all,target_audience.eq.students');
-    }
-    const { data } = await query.order('created_at', { ascending: false });
+/**
+ * Adiciona um novo material à biblioteca de conteúdo.
+ */
+export const addLibraryItem = async (item: Partial<ContentLibraryItem>) => {
+    const { data, error } = await supabase
+        .from('content_library')
+        .insert([item])
+        .select()
+        .single();
+    if (error) throw error;
+    return data;
+};
+
+/**
+ * Recupera avisos do mural baseados no perfil e audiência.
+ */
+export const getNotices = async (userId: string, audience: string): Promise<Notice[]> => {
+    const { data, error } = await supabase
+        .from('notices')
+        .select('*')
+        .order('created_at', { ascending: false });
+    if (error) throw error;
     return data || [];
+};
+
+/**
+ * Publica um novo aviso no sistema.
+ */
+export const createNotice = async (notice: Partial<Notice>) => {
+    const { data, error } = await supabase
+        .from('notices')
+        .insert([notice])
+        .select()
+        .single();
+    if (error) throw error;
+    return data;
 };

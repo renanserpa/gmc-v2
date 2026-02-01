@@ -24,6 +24,10 @@ export function useRealtimeSync<T extends { id: string | number; school_id?: str
       // Multi-tenancy filter
       if (schoolId) {
         query = query.eq('school_id', schoolId);
+      } else if (tableName === 'missions') {
+        // Se for a tabela de missões e sem school_id, assumimos busca por templates globais
+        // Templates globais não possuem student_id vinculado
+        query = query.is('student_id', null);
       }
 
       const { data: result, error: fetchError } = await query
@@ -58,14 +62,14 @@ export function useRealtimeSync<T extends { id: string | number; school_id?: str
         (payload: any) => {
           const { eventType, new: newRecord, old: oldRecord } = payload;
           
-          // Feedback tátil para cada pulso de dados recebido
           haptics.light();
 
           setData((current) => {
             switch (eventType) {
               case 'INSERT':
-                // Previne duplicados
                 if (current.some(i => i.id === newRecord.id)) return current;
+                // Validação extra para garantir que apenas missões globais entrem na lista global
+                if (tableName === 'missions' && !schoolId && newRecord.student_id !== null) return current;
                 return [newRecord as T, ...current];
               
               case 'UPDATE':
