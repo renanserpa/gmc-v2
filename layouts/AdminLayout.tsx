@@ -1,6 +1,4 @@
-
 import React from 'react';
-// FIX: Using any to bypass react-router-dom export errors
 import * as RRD from 'react-router-dom';
 const { NavLink, Outlet, Navigate, useNavigate } = RRD as any;
 import { 
@@ -18,12 +16,12 @@ export default function AdminLayout() {
     const { user, role, signOut } = useAuth();
     const navigate = useNavigate();
     
-    // Trava de Segurança Final: Root Email ou Role DB Admin
-    const isGlobalRoot = user?.email === 'admin@oliemusic.dev';
-    const isAdmin = role === 'admin' || isGlobalRoot;
+    // TRAVA DE SEGURANÇA ROOT: Email específico ou Role Administrativa
+    const isGlobalRoot = user?.email === 'serparenan@gmail.com' || user?.email === 'admin@oliemusic.dev';
+    const isAdmin = role === 'admin' || role === 'super_admin' || isGlobalRoot;
 
     if (!isAdmin) {
-        console.error("[Maestro Security] Tentativa de acesso administrativo negada.");
+        console.error("[Maestro Security] Tentativa de acesso administrativo negada. User:", user?.email, "Role:", role);
         return <Navigate to="/" replace />;
     }
 
@@ -40,14 +38,14 @@ export default function AdminLayout() {
             <aside className="w-full md:w-80 bg-[#0a0f1d] border-r border-white/5 flex flex-col shrink-0 z-50 shadow-2xl">
                 <div className="p-10 border-b border-white/5 flex items-center gap-4">
                     <div className="w-12 h-12 bg-sky-600 rounded-[20px] flex items-center justify-center text-white shadow-2xl relative overflow-hidden group cursor-pointer border border-sky-400/20">
-                        <div className="absolute inset-0 bg-gradient-to-tr from-sky-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="absolute inset-0 bg-gradient-to-tr from-sky-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                         <Cpu size={24} className="group-hover:rotate-12 transition-transform relative z-10" />
                     </div>
                     <div>
                         <h1 className="text-lg font-black text-white uppercase tracking-tighter leading-none italic">
                             Maestro <span className="text-sky-500">Admin</span>
                         </h1>
-                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.4em] mt-1.5">Kernel v4.0.1 Stable</p>
+                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.4em] mt-1.5">Kernel v5.0 Master</p>
                     </div>
                 </div>
 
@@ -124,7 +122,7 @@ export default function AdminLayout() {
 
             {/* Canvas de Conteúdo */}
             <main className="flex-1 flex flex-col h-screen overflow-hidden">
-                {isGlobalRoot && <GodModeBar />}
+                <GodModeBar />
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#020617] p-8 md:p-12 relative">
                     <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-sky-500/5 to-transparent pointer-events-none" />
                     <div className="max-w-7xl mx-auto relative z-10">

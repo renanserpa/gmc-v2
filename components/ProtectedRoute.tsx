@@ -1,4 +1,3 @@
-
 import React from 'react';
 import * as RRD from 'react-router-dom';
 const { Navigate, useLocation, Outlet } = RRD as any;
@@ -25,7 +24,8 @@ export default function ProtectedRoute(props: ProtectedRouteProps) {
   const normalizedRole = role?.toLowerCase() || '';
 
   // ROOT ADMIN BYPASS: Soberania total sobre as rotas
-  if (normalizedRole === 'super_admin' || normalizedRole === 'admin' || user.email === 'serparenan@gmail.com') {
+  const isRoot = user.email === 'serparenan@gmail.com' || user.email === 'admin@oliemusic.dev';
+  if (normalizedRole === 'super_admin' || normalizedRole === 'admin' || isRoot) {
     return children ? <>{children}</> : <Outlet />;
   }
 
