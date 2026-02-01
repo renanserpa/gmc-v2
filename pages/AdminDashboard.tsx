@@ -8,25 +8,24 @@ import {
     Users, ShoppingBag, ShieldAlert, Loader2, 
     Music, BarChart3, Activity, Terminal, ChevronRight, 
     Zap, Cpu, Globe, RefreshCw, Megaphone, Fingerprint,
-    Coins, Gavel, AlertCircle, CheckCircle2, Clock
+    Coins, Gavel, AlertCircle, CheckCircle2, Clock, Construction
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card.tsx';
 import { notify } from '../lib/notification.ts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils.ts';
-import { supabase } from '../lib/supabaseClient.ts';
-import { formatDate } from '../lib/date.ts';
 import { Button } from '../components/ui/Button.tsx';
 import { haptics } from '../lib/haptics.ts';
 
 const M = motion as any;
 
 const KERNEL_BACKLOG: BacklogItem[] = [
-    { id: '1', title: 'Tenant Kill Switch', description: 'Capacidade de derrubar sessões de uma escola inteira em caso de inadimplência.', status: BacklogStatus.Planned, type: 'tenants' },
-    { id: '2', title: 'Ledger Econômico', description: 'Auditoria transacional de cada OlieCoin gerada por XP.', status: BacklogStatus.InProgress, type: 'economy' },
-    { id: '3', title: 'Broadcast Analytics', description: 'Track de quantos alunos/pais abriram os avisos globais.', status: BacklogStatus.Idea, type: 'broadcast' },
-    { id: '4', title: 'Latência por Região', description: 'Monitorar ping dos alunos para prever falhas no modo Live.', status: BacklogStatus.InProgress, type: 'health' },
-    { id: '5', title: 'Provisionamento B2B', description: 'Interface para criação de sub-domínios para escolas franqueadas.', status: BacklogStatus.Done, type: 'tenants' }
+    { id: '1', title: 'Stripe Connect (Tenants)', description: 'Divisão automática de pagamentos entre a Olie e as escolas franqueadas.', status: BacklogStatus.InProgress, type: 'tenants' },
+    { id: '2', title: 'Anti-Cheat Engine (Economy)', description: 'Detecção de macros e scripts de automação de prática musical.', status: BacklogStatus.Idea, type: 'economy' },
+    { id: '3', title: 'Broadcast Analytics', description: 'Monitoramento de taxa de leitura e engajamento dos alertas globais.', status: BacklogStatus.Planned, type: 'broadcast' },
+    { id: '4', title: 'Audio Worklet Profiling', description: 'Telemetria profunda do uso de CPU no processamento de sinal em tempo real.', status: BacklogStatus.InProgress, type: 'health' },
+    { id: '5', title: 'Provisionamento Custom Domain', description: 'Interface para que escolas usem seus próprios domínios (escola.com).', status: BacklogStatus.Idea, type: 'tenants' },
+    { id: '6', title: 'Ledger Auditável (Blockchain)', description: 'Registro imutável de cada OlieCoin para evitar inflação no sistema.', status: BacklogStatus.Idea, type: 'economy' }
 ];
 
 export default function AdminDashboard() {
@@ -69,7 +68,7 @@ export default function AdminDashboard() {
             God <span className="text-sky-500">Mode</span>
           </h1>
           <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.4em] mt-3 flex items-center gap-2">
-            <Cpu size={12} className="text-sky-500" /> Kernel Maestro v4.2 • Backlog de Engenharia Ativo
+            <Cpu size={12} className="text-sky-500" /> Kernel Maestro v5.2 • Roadmap de Infraestrutura
           </p>
         </div>
         
@@ -107,11 +106,13 @@ export default function AdminDashboard() {
                 ))}
             </div>
 
+            {/* Backlog Widget Expandido para refletir o status da aplicação */}
             <Card className="bg-slate-900 border-white/5 rounded-[48px] overflow-hidden shadow-2xl">
-                <CardHeader className="p-8 border-b border-white/5 bg-slate-950/20">
+                <CardHeader className="p-8 border-b border-white/5 bg-slate-950/20 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
-                        <Terminal size={18} className="text-sky-500" /> Kernel Roadmap & Sanity Check
+                        <Construction size={18} className="text-amber-500" /> Backlog de Engenharia (Incompleto)
                     </CardTitle>
+                    <span className="text-[9px] font-black text-slate-600 bg-slate-950 px-3 py-1 rounded-full border border-white/5 uppercase">Auditoria V5.2</span>
                 </CardHeader>
                 <CardContent className="p-0">
                     <div className="divide-y divide-white/5">
@@ -119,7 +120,7 @@ export default function AdminDashboard() {
                             <div key={item.id} className="p-6 flex items-center justify-between hover:bg-white/[0.02] transition-colors group">
                                 <div className="flex items-center gap-4">
                                     <div className={cn(
-                                        "w-2 h-2 rounded-full",
+                                        "w-2.5 h-2.5 rounded-full",
                                         item.status === BacklogStatus.Done ? "bg-emerald-500" :
                                         item.status === BacklogStatus.InProgress ? "bg-sky-500 animate-pulse" :
                                         item.status === BacklogStatus.Planned ? "bg-amber-500" : "bg-slate-700"
@@ -130,12 +131,18 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
+                                    <span className={cn(
+                                        "text-[8px] font-black uppercase px-2 py-1 rounded border",
+                                        item.type === 'tenants' ? "text-sky-400 border-sky-400/20 bg-sky-400/5" :
+                                        item.type === 'economy' ? "text-amber-400 border-amber-400/20 bg-amber-400/5" :
+                                        item.type === 'broadcast' ? "text-red-400 border-red-400/20 bg-red-400/5" :
+                                        "text-purple-400 border-purple-400/20 bg-purple-400/5"
+                                    )}>
+                                        {item.type}
+                                    </span>
                                     <span className="text-[8px] font-black uppercase text-slate-600 bg-slate-950 px-2 py-1 rounded border border-white/5">
                                         {item.status}
                                     </span>
-                                    <button className="p-2 text-slate-700 group-hover:text-sky-500 transition-colors">
-                                        <ChevronRight size={14} />
-                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -165,6 +172,13 @@ export default function AdminDashboard() {
                             <span className="text-[8px] bg-amber-500/10 text-amber-500 px-1 rounded uppercase">Delayed</span>
                         </div>
                     </div>
+                    <div className="flex items-center justify-between p-4 bg-slate-950 rounded-2xl border border-white/5">
+                        <div className="flex items-center gap-3">
+                            <Zap size={16} className="text-purple-500" />
+                            <span className="text-[10px] font-black text-slate-400 uppercase">Realtime Bus</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-purple-500">Active</span>
+                    </div>
                 </div>
             </div>
 
@@ -173,7 +187,7 @@ export default function AdminDashboard() {
                 <div className="relative z-10">
                     <div className="p-3 bg-white/10 rounded-2xl w-fit mb-4"><Gavel size={24} className="text-sky-300" /></div>
                     <h4 className="text-sm font-black text-white uppercase tracking-widest">Compliance & LGPD</h4>
-                    <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">Criptografia de dados de menores ativa. Purga de logs órfãos agendada para 24h.</p>
+                    <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">Criptografia de dados de menores ativa. Purga de logs órfãos agendada para 24h. Firewall RLS auditado.</p>
                 </div>
             </Card>
           </aside>

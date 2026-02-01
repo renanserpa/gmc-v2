@@ -138,7 +138,8 @@ export interface Mission {
 }
 
 export interface ClassroomCommand {
-    type: 'PLAY' | 'PAUSE' | 'SET_BPM' | 'CHANGE_STEP' | 'FOCUS_MODE' | 'SYNC_STATE' | 'TELEMETRY_HIT' | 'END_SESSION' | 'QUICK_FEEDBACK' | 'PECS_MESSAGE';
+    // FIX: Added 'TRIGGER_CELEBRATION' to support gamification triggers in remote control
+    type: 'PLAY' | 'PAUSE' | 'SET_BPM' | 'CHANGE_STEP' | 'FOCUS_MODE' | 'SYNC_STATE' | 'TELEMETRY_HIT' | 'END_SESSION' | 'QUICK_FEEDBACK' | 'PECS_MESSAGE' | 'TRIGGER_CELEBRATION';
     timestamp?: number;
     bpm?: number;
     stepId?: string;
@@ -153,6 +154,8 @@ export interface ClassroomCommand {
     studentName?: string;
     messageId?: string;
     label?: string;
+    // FIX: Added optional xpReward for real-time gamification feedback
+    xpReward?: number;
 }
 
 export interface ChordBlock {

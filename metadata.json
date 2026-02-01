@@ -2,6 +2,6 @@
   "requestFramePermissions": [
     "microphone"
   ],
-  "name": "GMC MAESTRO -V2",
-  "description": "Plataforma de ensino musical gamificada com engine de áudio profissional e análise de performance por IA."
+  "name": "GCM Maestro RedHouse Pilot",
+  "description": "Ecossistema pedagógico musical gamificado para o currículo RedHouse Cuiabá."
 }
