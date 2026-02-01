@@ -1,10 +1,8 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Activity, ShieldCheck, AlertTriangle, Wifi, Database, 
     CheckCircle2, RefreshCw, Cpu, Network, Headphones, Zap, Terminal,
-    /* Added Building2 to fix the error on line 158 */
     Building2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card.tsx';
@@ -14,6 +12,7 @@ import { audioManager } from '../../lib/audioManager.ts';
 import { notify } from '../../lib/notification.ts';
 import { cn } from '../../lib/utils.ts';
 import { haptics } from '../../lib/haptics.ts';
+import { SprintValidationSummary } from '../../components/admin/SprintValidationSummary.tsx';
 
 const M = motion as any;
 
@@ -70,21 +69,19 @@ export default function SystemHealth() {
             setLatency(lat);
             setTenantMetrics(tenants);
 
-            // Diagnóstico Real do AudioContext
             const ctx = await audioManager.getContext();
             const hwLatency = (ctx.baseLatency || 0) * 1000;
             setAudioLatency(Math.round(hwLatency));
 
-            // Simulação de FFT Probe (Processamento pesado para testar latência de render)
             const t0 = performance.now();
             const dummyBuffer = new Float32Array(2048);
-            for(let i=0; i<100; i++) { Math.sqrt(Math.random()); } // Carga sintética
+            for(let i=0; i<100; i++) { Math.sqrt(Math.random()); } 
             const t1 = performance.now();
             setProcessingTime(Math.round(t1 - t0));
             
             if (hwLatency + (t1-t0) > 100) {
                 haptics.heavy();
-                notify.error("ALERTA CRÍTICO: Latência do dispositivo acima de 100ms. O Pitch Detection pode falhar.");
+                notify.error("ALERTA CRÍTICO: Latência do dispositivo acima de 100ms.");
             }
         } catch (e) {
             console.error(e);
@@ -117,9 +114,9 @@ export default function SystemHealth() {
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Medidor de Latência Principal */}
-                <div className="lg:col-span-4 h-full">
+                <div className="lg:col-span-4 space-y-8">
                     <LatencyGauge value={audioLatency + processingTime} />
+                    <SprintValidationSummary latency={latency.ms} />
                 </div>
 
                 <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -132,7 +129,6 @@ export default function SystemHealth() {
                          <p className="text-7xl font-black text-white tracking-tighter leading-none relative z-10">
                             {latency.ms}<span className="text-xl text-slate-700 ml-1">ms</span>
                          </p>
-                         <p className="text-[9px] font-bold text-slate-600 uppercase mt-4">Database: AWS-SA-EAST (São Paulo)</p>
                     </Card>
 
                     <Card className="bg-slate-900/40 border-white/5 p-8 rounded-[40px] shadow-2xl relative overflow-hidden group">
@@ -145,7 +141,6 @@ export default function SystemHealth() {
                             <CheckCircle2 size={40} className="text-emerald-500" />
                             <span className="text-2xl font-black text-white uppercase italic">Sincronizado</span>
                          </div>
-                         <p className="text-[9px] font-bold text-slate-600 uppercase mt-4">Active Tenants: {tenantMetrics.length}</p>
                     </Card>
 
                     <Card className="md:col-span-2 bg-[#0a0f1d] border-white/5 rounded-[48px] p-8 overflow-hidden shadow-2xl">
@@ -162,7 +157,6 @@ export default function SystemHealth() {
                                         </div>
                                         <div>
                                             <span className="text-xs font-black text-white uppercase tracking-tight">{m.school_name}</span>
-                                            <p className="text-[9px] text-slate-600 font-mono mt-0.5">ID: {m.school_id.substring(0,8)}...</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-8">

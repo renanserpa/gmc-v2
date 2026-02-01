@@ -1,36 +1,34 @@
--- PROVISIONAMENTO REDHOUSE CUIABÁ - GCM MAESTRO V5.0
--- Este script provisiona a estrutura institucional e pedagógica inicial.
+-- PROVISIONAMENTO FINAL: REDHOUSE CUIABÁ (REPAIR MODE)
+-- Este script garante a inserção dos dados com a estrutura já corrigida.
 
--- 1. Criar Unidade Escolar (Tenant)
+-- 1. Criar Unidade Escolar (Tenant) com Branding Oficial
 INSERT INTO public.schools (id, name, slug, is_active, branding, settings)
 VALUES (
-    '88888888-4444-4444-4444-121212121212', -- UUID RedHouse Cuiabá
+    '88888888-4444-4444-4444-121212121212',
     'RedHouse School Cuiabá',
     'redhouse-cuiaba',
     true,
-    '{"primaryColor": "#0ea5e9", "secondaryColor": "#a78bfa", "borderRadius": "32px", "logoUrl": null}',
-    '{"max_students": 100, "storage_gb": 20}'
-) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
+    '{
+        "primaryColor": "#E11D48", 
+        "secondaryColor": "#0F172A", 
+        "borderRadius": "40px", 
+        "logoUrl": "https://redhouseschool.com.br/wp-content/themes/redhouse/assets/images/logo-redhouse.png"
+    }',
+    '{"max_students": 150, "storage_gb": 50, "audio_latency_max": 100}'
+) ON CONFLICT (id) DO UPDATE SET 
+    name = EXCLUDED.name,
+    branding = EXCLUDED.branding,
+    settings = EXCLUDED.settings;
 
--- 2. Vincular Professor Renan Serpa (Assume-se que o usuário já existe no Auth/Profiles)
+-- 2. Vinculação do Professor Titular (Renan Serpa)
+-- Garante que o perfil do professor aponte para a RedHouse para o RLS funcionar
 UPDATE public.profiles 
 SET school_id = '88888888-4444-4444-4444-121212121212',
     role = 'professor'
 WHERE email = 'serparenan@gmail.com';
 
--- 3. Criar Turma Kids RedHouse
-INSERT INTO public.music_classes (id, name, professor_id, school_id, start_time, days_of_week, age_group)
-VALUES (
-    '11111111-2222-3333-4444-555555555555',
-    'Turma A - Violão Kids (RedHouse)',
-    (SELECT id FROM public.profiles WHERE email = 'serparenan@gmail.com'),
-    '88888888-4444-4444-4444-121212121212',
-    '16:00',
-    ARRAY['Monday'],
-    '4-6'
-) ON CONFLICT (id) DO NOTHING;
-
--- 4. Adicionar Missão "O Chamado da Aranha" (Apostila V3.0)
+-- 3. Missão de Boas-Vindas (Spider Walk v1)
+-- Agora utilizando is_template e metadata após a correção no master_admin.sql
 INSERT INTO public.missions (
     title, 
     description, 
@@ -39,14 +37,16 @@ INSERT INTO public.missions (
     school_id, 
     is_template, 
     status,
-    week_start
+    week_start,
+    metadata
 ) VALUES (
-    'O Chamado da Aranha',
-    'Suba as 4 primeiras casas do violão com a técnica de dedos alternados (Verde, Amarelo, Laranja, Vermelho).',
-    150,
+    'Spider Walk: O Despertar',
+    'Aqueça os motores rítmicos na RedHouse! Complete 4 ciclos subindo as cordas com precisão.',
+    200,
     (SELECT id FROM public.profiles WHERE email = 'serparenan@gmail.com'),
     '88888888-4444-4444-4444-121212121212',
     true,
     'pending',
-    now()
+    now(),
+    '{"bpm_target": 75, "required_accuracy": 0.85, "type": "Technique"}'
 );
