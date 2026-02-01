@@ -46,13 +46,9 @@ const RootHandler = () => {
   
   if (loading) return <LoadingScreen />;
   
-  // DEFAULT ROUTE FOR OWNER
+  // OWNER BYPASS: Redireciona para o cockpit admin
   if (user?.email === 'serparenan@gmail.com') {
-    return (
-      <AdminLayout>
-         <AdminDashboard />
-      </AdminLayout>
-    );
+    return <Navigate to="/admin" replace />;
   }
 
   if (user && role) {
@@ -125,7 +121,7 @@ export default function App() {
                 <Route index element={<SchoolDashboard />} />
               </Route>
               
-              {/* Rota Admin Global Aninhada */}
+              {/* Rota Admin Global Aninhada v4.4 */}
               <Route 
                 path="/admin" 
                 element={

@@ -16,6 +16,8 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
   setRoleOverride: (role: string | null) => void;
   getDashboardPath: (role: string | null) => string;
+  // FIX: Adicionando devLogin ao contrato do contexto para suportar ferramentas de desenvolvimento
+  devLogin: (userId: string, role: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -148,6 +150,18 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
         setLoading(true);
         await syncProfile(user);
       }
+    },
+    // FIX: Implementação do devLogin para simular estados de autenticação e facilitar o desenvolvimento
+    devLogin: async (userId: string, targetRole: string) => {
+      localStorage.setItem('oliemusic_dev_user_id', userId);
+      localStorage.setItem('oliemusic_dev_role', targetRole);
+      setRole(targetRole);
+      // Simula um usuário autenticado localmente para o sistema de rotas e guards
+      setUser({ 
+        id: userId, 
+        email: `dev-${targetRole}@oliemusic.dev`,
+        user_metadata: { role: targetRole, full_name: `Dev ${targetRole}` }
+      } as User);
     }
   };
 

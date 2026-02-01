@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -7,19 +6,28 @@ import {
     Brain, Play, Loader2, Fingerprint, Activity,
     History, Search
 } from 'lucide-react';
-import { useProfessorData } from '../hooks/useProfessorData.ts';
-import { useGlobalSettings } from '../hooks/useGlobalSettings.ts';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card.tsx';
-import { Button } from '../components/ui/Button.tsx';
-import { Skeleton } from '../components/ui/Skeleton.tsx';
-import { UserAvatar } from '../components/ui/UserAvatar.tsx';
-import { KPICard } from '../components/dashboard/KPICard.tsx';
-import { cn } from '../lib/utils.ts';
-import { formatDate } from '../lib/date.ts';
+
+// Kernels & Hooks
+import { useProfessorData } from '@/hooks/useProfessorData';
+import { useGlobalSettings } from '@/hooks/useGlobalSettings';
+import { usePageTitle } from '@/hooks/usePageTitle';
+
+// UI Components
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { UserAvatar } from '@/components/ui/UserAvatar';
+import { KPICard } from '@/components/dashboard/KPICard';
+
+// Utils
+import { cn } from '@/lib/utils';
+import { formatDate } from '@/lib/date';
 
 const M = motion as any;
 
 export default function ProfessorDashboard() {
+    usePageTitle("Cockpit Mestre");
+    
     const { data, isLoading, error } = useProfessorData();
     const { xpMultiplier, activeBroadcast } = useGlobalSettings();
     const [activeTab, setActiveTab] = useState<'sessions' | 'audit'>('sessions');
@@ -27,7 +35,7 @@ export default function ProfessorDashboard() {
     if (error) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
-                <div className="text-center p-12 bg-red-500/5 border border-red-500/20 rounded-[48px] max-w-md">
+                <div className="text-center p-12 bg-red-500/5 border border-red-500/20 rounded-[48px] max-w-md shadow-2xl">
                     <AlertTriangle className="text-red-500 mx-auto mb-4" size={48} />
                     <h2 className="text-xl font-black text-white uppercase italic">Erro de Sincronia</h2>
                     <p className="text-slate-400 mt-2 text-sm font-medium">O Kernel Maestro não conseguiu autenticar o fluxo de dados da sua unidade.</p>
@@ -39,7 +47,7 @@ export default function ProfessorDashboard() {
 
     if (!isLoading && data?.isNewTeacher) {
         return (
-            <div className="min-h-[80vh] flex flex-col items-center justify-center text-center p-10">
+            <div className="min-h-[80vh] flex flex-col items-center justify-center text-center p-10 animate-in fade-in duration-1000">
                 <div className="w-24 h-24 bg-sky-500/10 rounded-[32px] flex items-center justify-center text-sky-400 mb-8 border border-sky-500/20 animate-pulse">
                     <GraduationCap size={48} />
                 </div>
@@ -59,7 +67,8 @@ export default function ProfessorDashboard() {
                     <M.div 
                         initial={{ height: 0, opacity: 0 }} 
                         animate={{ height: 'auto', opacity: 1 }} 
-                        className="bg-red-600 p-4 rounded-2xl flex items-center justify-between shadow-xl sticky top-4 z-50"
+                        exit={{ height: 0, opacity: 0 }}
+                        className="bg-red-600 p-4 rounded-2xl flex items-center justify-between shadow-xl sticky top-4 z-50 border-b-4 border-red-800"
                     >
                         <div className="flex items-center gap-3 text-white">
                             <AlertTriangle size={18} />
@@ -89,10 +98,10 @@ export default function ProfessorDashboard() {
             </header>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                <KPICard title="Alunos Ativos" value={isLoading ? undefined : data?.stats.totalStudents} icon={Users} color="text-sky-400" border="border-sky-500" />
-                <KPICard title="Média Técnica" value={isLoading ? undefined : `${data?.stats.avgXp} XP`} icon={Activity} color="text-emerald-500" border="border-emerald-500" />
-                <KPICard title="Logs Semana" value={isLoading ? undefined : data?.stats.weeklyEvents} icon={Fingerprint} color="text-purple-400" border="border-purple-500" />
-                <KPICard title="Sessões" value={isLoading ? undefined : data?.stats.activeSessions} icon={Clock} color="text-amber-500" border="border-amber-500" />
+                <KPICard title="Alunos Ativos" value={isLoading ? undefined : data?.stats?.totalStudents} icon={Users} color="text-sky-400" border="border-sky-500" />
+                <KPICard title="Média Técnica" value={isLoading ? undefined : `${data?.stats?.avgXp} XP`} icon={Activity} color="text-emerald-500" border="border-emerald-500" />
+                <KPICard title="Logs Semana" value={isLoading ? undefined : data?.stats?.weeklyEvents} icon={Fingerprint} color="text-purple-400" border="border-purple-500" />
+                <KPICard title="Sessões" value={isLoading ? undefined : data?.stats?.activeSessions} icon={Clock} color="text-amber-500" border="border-amber-500" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -103,20 +112,22 @@ export default function ProfessorDashboard() {
                                 <button 
                                     onClick={() => setActiveTab('sessions')}
                                     className={cn(
-                                        "text-xs font-black uppercase tracking-widest transition-all",
+                                        "text-xs font-black uppercase tracking-widest transition-all relative py-1",
                                         activeTab === 'sessions' ? "text-sky-400" : "text-slate-500 hover:text-slate-300"
                                     )}
                                 >
                                     Minhas Turmas
+                                    {activeTab === 'sessions' && <M.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-sky-500" />}
                                 </button>
                                 <button 
                                     onClick={() => setActiveTab('audit')}
                                     className={cn(
-                                        "text-xs font-black uppercase tracking-widest transition-all",
+                                        "text-xs font-black uppercase tracking-widest transition-all relative py-1",
                                         activeTab === 'audit' ? "text-purple-400" : "text-slate-500 hover:text-slate-300"
                                     )}
                                 >
                                     Log de Atividade
+                                    {activeTab === 'audit' && <M.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-500" />}
                                 </button>
                             </div>
                             <Search size={16} className="text-slate-700" />
@@ -125,10 +136,10 @@ export default function ProfessorDashboard() {
                         <CardContent className="p-8">
                             <AnimatePresence mode="wait">
                                 {activeTab === 'sessions' ? (
-                                    <M.div key="sessions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+                                    <M.div key="sessions" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
                                         {isLoading ? (
                                             [...Array(2)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-[32px]" />)
-                                        ) : data?.classes.map((c: any) => (
+                                        ) : data?.classes?.map((c: any) => (
                                             <div key={c.id} className="bg-slate-950/60 p-6 rounded-[32px] border border-white/5 flex items-center justify-between group hover:border-sky-500/30 transition-all">
                                                 <div className="flex items-center gap-5">
                                                     <div className="p-4 bg-slate-900 rounded-2xl text-slate-500 group-hover:bg-sky-600 group-hover:text-white transition-all shadow-inner">
@@ -142,16 +153,19 @@ export default function ProfessorDashboard() {
                                                 <Button variant="ghost" size="sm" rightIcon={ChevronRight} className="text-[10px] uppercase font-black">Controlar Sala</Button>
                                             </div>
                                         ))}
+                                        {!isLoading && data?.classes?.length === 0 && (
+                                            <div className="py-12 text-center text-slate-700 uppercase font-black tracking-widest text-[10px]">Nenhuma turma agendada para hoje.</div>
+                                        )}
                                     </M.div>
                                 ) : (
-                                    <M.div key="audit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-                                        {data?.auditLogs.map((log: any) => (
+                                    <M.div key="audit" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
+                                        {data?.auditLogs?.map((log: any) => (
                                             <div key={log.id} className="flex items-center justify-between p-4 bg-slate-950/40 rounded-2xl border border-white/5 hover:bg-slate-950 transition-colors">
                                                 <div className="flex items-center gap-4">
-                                                    <UserAvatar src={log.students?.avatar_url} name={log.students?.name} size="sm" />
+                                                    <UserAvatar src={log.students?.avatar_url} name={log.students?.name || 'Músico'} size="sm" />
                                                     <div>
                                                         <p className="text-xs font-black text-white uppercase">
-                                                            {log.students?.name} <span className="text-slate-600 font-medium">realizou</span> {log.event_type}
+                                                            {log.students?.name || 'Aluno'} <span className="text-slate-600 font-medium">realizou</span> {log.event_type}
                                                         </p>
                                                         <p className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">{formatDate(log.created_at, 'HH:mm')} • Telemetria Validada</p>
                                                     </div>
@@ -173,12 +187,12 @@ export default function ProfessorDashboard() {
                          <div className="h-64 flex items-end gap-4 relative z-10 px-4">
                             {isLoading ? (
                                 [...Array(7)].map((_, i) => <Skeleton key={i} className="flex-1 rounded-xl" height={`${Math.random() * 60 + 20}%`} />)
-                            ) : data?.evolution.map((item: any, i: number) => (
+                            ) : data?.evolution?.map((item: any, i: number) => (
                                 <div key={i} className="flex-1 flex flex-col items-center gap-3 group">
                                     <div className="w-full relative flex flex-col justify-end h-full">
                                         <M.div 
                                             initial={{ height: 0 }} 
-                                            animate={{ height: `${(item.value / 500) * 100}%` }}
+                                            animate={{ height: `${Math.min(100, (item.value / 500) * 100)}%` }}
                                             className="w-full bg-purple-600/20 group-hover:bg-purple-500 rounded-xl transition-all border border-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.1)]"
                                         />
                                     </div>
@@ -211,7 +225,7 @@ export default function ProfessorDashboard() {
                         <div className="space-y-4">
                             {isLoading ? (
                                 [...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-xl" />)
-                            ) : data?.students.slice(0, 5).map((s: any, idx: number) => (
+                            ) : data?.students?.slice(0, 5).map((s: any, idx: number) => (
                                 <M.div 
                                     key={s.id} 
                                     initial={{ opacity: 0, x: 10 }}

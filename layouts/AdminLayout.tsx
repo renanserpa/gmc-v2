@@ -33,11 +33,11 @@ export default function AdminLayout() {
     return (
         <div className="min-h-screen bg-[#020617] flex flex-col md:flex-row text-slate-300">
             <aside className="w-full md:w-80 bg-[#0a0f1d] border-r border-white/5 flex flex-col shrink-0 z-50 shadow-2xl">
-                <div className="p-10 border-b border-white/5 flex items-center gap-4">
-                    <div className="w-12 h-12 bg-sky-600 rounded-[20px] flex items-center justify-center text-white shadow-2xl">
+                <div className="p-10 border-b border-white/5 flex items-center gap-4" onClick={() => navigate('/admin')}>
+                    <div className="w-12 h-12 bg-sky-600 rounded-[20px] flex items-center justify-center text-white shadow-2xl cursor-pointer">
                         <Cpu size={24} />
                     </div>
-                    <div>
+                    <div className="cursor-pointer">
                         <h1 className="text-lg font-black text-white uppercase tracking-tighter leading-none italic">
                             Maestro <span className="text-sky-500">Admin</span>
                         </h1>
@@ -106,6 +106,7 @@ export default function AdminLayout() {
                 <GodModeBar />
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#020617] p-8 md:p-12 relative">
                     <div className="max-w-7xl mx-auto relative z-10">
+                        {/* Ponto de montagem para rotas aninhadas */}
                         <Outlet />
                     </div>
                 </div>

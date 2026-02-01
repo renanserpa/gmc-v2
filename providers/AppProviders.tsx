@@ -1,4 +1,3 @@
-
 import React, { ReactNode } from 'react';
 import { AuthProvider } from '../contexts/AuthContext.tsx';
 import { AdminProvider } from '../contexts/AdminContext.tsx';
@@ -8,7 +7,7 @@ import { AccessibilityProvider } from '../contexts/AccessibilityContext.tsx';
 import { ThemeProvider } from '../contexts/ThemeContext.tsx';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer } from 'react-toastify';
-import { ErrorBoundary } from '../components/ErrorBoundary.tsx';
+import { ErrorBoundary } from '../components/ui/ErrorBoundary.tsx';
 import { TooltipProvider } from '../components/ui/Tooltip.tsx';
 import '../lib/i18n.ts';
 

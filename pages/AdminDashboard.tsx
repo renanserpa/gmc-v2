@@ -3,12 +3,12 @@ import * as RRD from 'react-router-dom';
 const { useNavigate } = RRD as any;
 import { KPICard } from '../components/dashboard/KPICard.tsx';
 import { getSystemStats } from '../services/dataService.ts';
-import { UserRole } from '../types.ts';
+import { BacklogStatus, BacklogItem } from '../types.ts';
 import { 
-    Users, ShoppingBag, LayoutDashboard, ShieldAlert, Loader2, 
+    Users, ShoppingBag, ShieldAlert, Loader2, 
     Music, BarChart3, Activity, Terminal, ChevronRight, 
-    Zap, Cpu, Globe, ShieldCheck, Database, RefreshCw, Megaphone, Fingerprint,
-    Search, Gauge, Coins, Gavel
+    Zap, Cpu, Globe, RefreshCw, Megaphone, Fingerprint,
+    Coins, Gavel, AlertCircle, CheckCircle2, Clock
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card.tsx';
 import { notify } from '../lib/notification.ts';
@@ -21,10 +21,17 @@ import { haptics } from '../lib/haptics.ts';
 
 const M = motion as any;
 
+const KERNEL_BACKLOG: BacklogItem[] = [
+    { id: '1', title: 'Tenant Kill Switch', description: 'Capacidade de derrubar sessões de uma escola inteira em caso de inadimplência.', status: BacklogStatus.Planned, type: 'tenants' },
+    { id: '2', title: 'Ledger Econômico', description: 'Auditoria transacional de cada OlieCoin gerada por XP.', status: BacklogStatus.InProgress, type: 'economy' },
+    { id: '3', title: 'Broadcast Analytics', description: 'Track de quantos alunos/pais abriram os avisos globais.', status: BacklogStatus.Idea, type: 'broadcast' },
+    { id: '4', title: 'Latência por Região', description: 'Monitorar ping dos alunos para prever falhas no modo Live.', status: BacklogStatus.InProgress, type: 'health' },
+    { id: '5', title: 'Provisionamento B2B', description: 'Interface para criação de sub-domínios para escolas franqueadas.', status: BacklogStatus.Done, type: 'tenants' }
+];
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({ totalStudents: 0, totalProfs: 0, totalContent: 0 });
-  const [recentEvents, setRecentEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,15 +41,8 @@ export default function AdminDashboard() {
   async function loadAdminData() {
     setLoading(true);
     try {
-      const [sysStats, eventsRes] = await Promise.all([
-        getSystemStats(),
-        supabase.from('xp_events')
-          .select('*, students(name)')
-          .order('created_at', { ascending: false })
-          .limit(6)
-      ]);
+      const sysStats = await getSystemStats();
       setStats(sysStats);
-      setRecentEvents(eventsRes.data || []);
     } catch (e) { 
         notify.error("Falha na sincronia do Kernel."); 
     } finally { 
@@ -55,8 +55,6 @@ export default function AdminDashboard() {
     { id: 'tenants', label: 'Tenants', icon: Globe, color: 'text-sky-400', path: '/admin/tenants', desc: 'Gerenciar Escolas' },
     { id: 'broadcast', label: 'Alerts', icon: Megaphone, color: 'text-red-400', path: '/admin/broadcast', desc: 'Avisos Globais' },
     { id: 'economy', label: 'Economy', icon: Coins, color: 'text-amber-400', path: '/admin/economy', desc: 'OlieCoins & XP' },
-    { id: 'gamification', label: 'Dopamine', icon: Zap, color: 'text-indigo-400', path: '/admin/gamification', desc: 'Ranks & Progressão' },
-    { id: 'orchestrator', label: 'Ops', icon: Activity, color: 'text-emerald-400', path: '/admin/orchestrator', desc: 'Módulos Ativos' },
   ];
 
   return (
@@ -71,26 +69,15 @@ export default function AdminDashboard() {
             God <span className="text-sky-500">Mode</span>
           </h1>
           <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.4em] mt-3 flex items-center gap-2">
-            <Cpu size={12} className="text-sky-500" /> Kernel Maestro v4.2 Alpha • Terminal Ativo
+            <Cpu size={12} className="text-sky-500" /> Kernel Maestro v4.2 • Backlog de Engenharia Ativo
           </p>
         </div>
         
         <div className="flex gap-4 relative z-10">
-          <Button 
-            variant="outline" 
-            onClick={() => { haptics.medium(); navigate('/admin/health'); }} 
-            leftIcon={Activity}
-            className="rounded-2xl border-white/5 bg-slate-950/50 text-[10px] uppercase font-black px-6"
-          >
+          <Button variant="outline" onClick={() => { haptics.medium(); navigate('/admin/health'); }} leftIcon={Activity} className="rounded-2xl border-white/5 bg-slate-950/50 text-[10px] uppercase font-black px-6">
             Health Monitor
           </Button>
-          <Button 
-            onClick={loadAdminData}
-            isLoading={loading}
-            variant="primary"
-            className="rounded-2xl px-6 text-[10px] uppercase font-black"
-            leftIcon={RefreshCw}
-          >
+          <Button onClick={loadAdminData} isLoading={loading} variant="primary" className="rounded-2xl px-6 text-[10px] uppercase font-black" leftIcon={RefreshCw}>
             Sync Core
           </Button>
         </div>
@@ -105,31 +92,9 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8 space-y-8">
-            <Card className="bg-slate-900 border-white/5 rounded-[48px] p-10 overflow-hidden relative group border-l-8 border-l-sky-500 shadow-2xl">
-                <div className="absolute top-0 right-0 p-32 bg-sky-500/5 blur-[100px] pointer-events-none group-hover:bg-sky-500/10 transition-colors duration-700" />
-                <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
-                    <div className="flex items-center gap-8">
-                        <div className="p-6 bg-sky-600 rounded-[32px] text-white shadow-2xl shadow-sky-900/40 group-hover:rotate-6 transition-transform">
-                            <Terminal size={40} />
-                        </div>
-                        <div>
-                            <h3 className="text-2xl font-black text-white uppercase tracking-widest leading-none">Console de Infraestrutura</h3>
-                            <p className="text-slate-500 text-sm mt-3 font-medium max-w-md">Diagnóstico de tabelas, purga de cache e gerenciamento de políticas RLS em tempo real.</p>
-                        </div>
-                    </div>
-                    <Button 
-                        onClick={() => navigate('/admin/explorer')}
-                        className="rounded-2xl px-12 py-8 text-xs font-black uppercase tracking-widest shadow-xl"
-                        rightIcon={ChevronRight}
-                    >
-                        Abrir Kernel
-                    </Button>
-                </div>
-            </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {QUICK_TOOLS.map(tool => (
-                    <Card key={tool.id} className="bg-[#0a0f1d] border-white/5 rounded-[40px] p-8 hover:border-sky-500/30 transition-all cursor-pointer group" onClick={() => navigate(tool.path)}>
+                    <Card key={tool.id} className="bg-[#0a0f1d] border-white/5 rounded-[40px] p-8 hover:border-sky-500/30 transition-all cursor-pointer group" onClick={() => { haptics.medium(); navigate(tool.path); }}>
                         <div className="flex justify-between items-start mb-6">
                             <div className={cn("p-4 rounded-2xl bg-white/5 group-hover:scale-110 transition-transform", tool.color)}>
                                 <tool.icon size={24} />
@@ -141,52 +106,74 @@ export default function AdminDashboard() {
                     </Card>
                 ))}
             </div>
+
+            <Card className="bg-slate-900 border-white/5 rounded-[48px] overflow-hidden shadow-2xl">
+                <CardHeader className="p-8 border-b border-white/5 bg-slate-950/20">
+                    <CardTitle className="text-sm font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
+                        <Terminal size={18} className="text-sky-500" /> Kernel Roadmap & Sanity Check
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <div className="divide-y divide-white/5">
+                        {KERNEL_BACKLOG.map(item => (
+                            <div key={item.id} className="p-6 flex items-center justify-between hover:bg-white/[0.02] transition-colors group">
+                                <div className="flex items-center gap-4">
+                                    <div className={cn(
+                                        "w-2 h-2 rounded-full",
+                                        item.status === BacklogStatus.Done ? "bg-emerald-500" :
+                                        item.status === BacklogStatus.InProgress ? "bg-sky-500 animate-pulse" :
+                                        item.status === BacklogStatus.Planned ? "bg-amber-500" : "bg-slate-700"
+                                    )} />
+                                    <div>
+                                        <p className="text-sm font-black text-white uppercase tracking-tight">{item.title}</p>
+                                        <p className="text-[10px] text-slate-500 font-medium">{item.description}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-[8px] font-black uppercase text-slate-600 bg-slate-950 px-2 py-1 rounded border border-white/5">
+                                        {item.status}
+                                    </span>
+                                    <button className="p-2 text-slate-700 group-hover:text-sky-500 transition-colors">
+                                        <ChevronRight size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
           </div>
 
           <aside className="lg:col-span-4 space-y-6">
-            <div className="flex items-center justify-between px-2">
-                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] flex items-center gap-2">
-                    <Activity size={14} className="text-sky-500" /> Pulse de Atividade
-                </h3>
-                <span className="text-[8px] font-black text-emerald-500 uppercase bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Live</span>
-            </div>
-
-            <div className="space-y-3">
-                <AnimatePresence>
-                    {recentEvents.map((event, idx) => (
-                        <M.div 
-                            key={event.id}
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: idx * 0.05 }}
-                            className="bg-slate-900/40 border border-white/5 p-4 rounded-[24px] flex items-center justify-between group hover:bg-slate-900 transition-all"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="w-1.5 h-1.5 rounded-full bg-sky-500 shadow-[0_0_8px_#0ea5e9]" />
-                                <div>
-                                    <p className="text-[10px] font-black text-white uppercase truncate max-w-[120px]">{event.students?.name || 'User'}</p>
-                                    <p className="text-[8px] font-bold text-slate-600 uppercase mt-0.5">{event.event_type}</p>
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-[9px] font-black text-sky-400">+{event.xp_amount} XP</p>
-                                <p className="text-[7px] text-slate-700 font-mono mt-0.5">{formatDate(event.created_at, 'HH:mm:ss')}</p>
-                            </div>
-                        </M.div>
-                    ))}
-                </AnimatePresence>
-                
-                {recentEvents.length === 0 && (
-                    <div className="py-20 text-center opacity-20 italic text-xs">Nenhum pulso detectado...</div>
-                )}
+            <div className="bg-slate-900 border-white/5 p-8 rounded-[40px] space-y-6 shadow-2xl">
+                <div className="flex items-center gap-3 text-sky-400">
+                    <AlertCircle size={20} />
+                    <h4 className="text-xs font-black uppercase tracking-widest">Alertas de Integridade</h4>
+                </div>
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-slate-950 rounded-2xl border border-white/5">
+                        <div className="flex items-center gap-3">
+                            <CheckCircle2 size={16} className="text-emerald-500" />
+                            <span className="text-[10px] font-black text-slate-400 uppercase">Supabase Sync</span>
+                        </div>
+                        <span className="text-[10px] font-mono text-emerald-500">Online</span>
+                    </div>
+                    <div className="flex items-center justify-between p-4 bg-slate-950 rounded-2xl border border-white/5">
+                        <div className="flex items-center gap-3">
+                            <Clock size={16} className="text-amber-500" />
+                            <span className="text-[10px] font-black text-slate-400 uppercase">Cron Jobs</span>
+                            <span className="text-[8px] bg-amber-500/10 text-amber-500 px-1 rounded uppercase">Delayed</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <Card className="bg-gradient-to-br from-indigo-900/40 to-slate-900 border-white/5 p-8 rounded-[40px] shadow-2xl relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-16 bg-white/5 blur-3xl rounded-full" />
                 <div className="relative z-10">
-                    <div className="p-3 bg-white/10 rounded-2xl w-fit mb-4"><Database size={24} className="text-sky-300" /></div>
-                    <h4 className="text-sm font-black text-white uppercase tracking-widest">Backup Cloud</h4>
-                    <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">Snapshot diário concluído com sucesso. Proteção de dados pedagógicos ativa.</p>
+                    <div className="p-3 bg-white/10 rounded-2xl w-fit mb-4"><Gavel size={24} className="text-sky-300" /></div>
+                    <h4 className="text-sm font-black text-white uppercase tracking-widest">Compliance & LGPD</h4>
+                    <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">Criptografia de dados de menores ativa. Purga de logs órfãos agendada para 24h.</p>
                 </div>
             </Card>
           </aside>

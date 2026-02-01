@@ -1,5 +1,5 @@
-
 import { supabase } from '../lib/supabaseClient';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface TableStatus {
     tableName: string;
@@ -59,5 +59,39 @@ export const databaseService = {
             }
         }
         return results;
+    },
+
+    /**
+     * Subscreve a mudanças em uma tabela específica com suporte a filtros CDC.
+     * @param tableName Nome da tabela no Postgres
+     * @param filter Filtro de coluna (ex: 'school_id=eq.UUID')
+     * @param callback Função disparada em eventos INSERT, UPDATE ou DELETE
+     */
+    subscribeToTable(
+        tableName: string, 
+        filter: string, 
+        callback: (payload: any) => void
+    ): RealtimeChannel {
+        const channel = supabase.channel(`db-sync-${tableName}-${filter}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: tableName,
+                    filter: filter
+                },
+                (payload) => {
+                    console.debug(`[Realtime] Evento detectado em ${tableName}:`, payload.eventType);
+                    callback(payload);
+                }
+            )
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    console.debug(`[Realtime] Sintonizado na tabela ${tableName} com filtro: ${filter}`);
+                }
+            });
+
+        return channel;
     }
 };
