@@ -7,7 +7,6 @@ import { AppLoader } from '@/components/AppLoader';
 import { OmniSearch } from '@/components/layout/OmniSearch';
 import { RealtimeNotificationHandler } from '@/components/RealtimeNotificationHandler';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import Layout from '@/components/Layout';
 import AdminLayout from '@/layouts/AdminLayout';
 import LoadingScreen from '@/components/ui/LoadingScreen';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
@@ -16,8 +15,6 @@ import ErrorBoundary from '@/components/ui/ErrorBoundary';
 const LandingPage = lazy(() => import('@/pages/LandingPage'));
 const Login = lazy(() => import('@/pages/Login'));
 const ProfileSelector = lazy(() => import('@/pages/ProfileSelector'));
-const StudentDashboard = lazy(() => import('@/pages/StudentDashboard'));
-const ProfessorDashboard = lazy(() => import('@/pages/ProfessorDashboard'));
 
 // SaaS Admin Pages
 const SaaSAdminDashboard = lazy(() => import('@/pages/admin/SaaSAdminDashboard'));
@@ -30,6 +27,7 @@ const GodModeDashboard = lazy(() => import('@/pages/admin/GodModeDashboard'));
 const GodConsole = lazy(() => import('@/pages/admin/GodConsole'));
 const SecurityAudit = lazy(() => import('@/pages/admin/SecurityAudit'));
 const SystemExplorer = lazy(() => import('@/pages/admin/SystemExplorer'));
+const BroadcastCenter = lazy(() => import('@/pages/admin/BroadcastCenter'));
 
 const RootHandler = () => {
   const { user, role, loading } = useAuth();
@@ -64,6 +62,7 @@ export default function App() {
               <Route path="/system" element={<ProtectedRoute allowedRoles={['god_mode']} requireRoot><AdminLayout mode="god" /></ProtectedRoute>}>
                 <Route index element={<Navigate to="console" replace />} />
                 <Route path="console" element={<GodModeDashboard />} />
+                <Route path="broadcast" element={<BroadcastCenter />} />
                 <Route path="staff" element={<GodConsole />} />
                 <Route path="audit" element={<SecurityAudit />} />
                 <Route path="explorer" element={<SystemExplorer />} />

@@ -10,7 +10,6 @@ export enum UserRole {
     Guardian = 'guardian',
     Manager = 'manager',
     SchoolManager = 'school_manager',
-    // Added missing roles to satisfy layouts/AdminLayout.tsx and pages/ProfileSelector.tsx
     Admin = 'admin',
     SuperAdmin = 'super_admin'
 }
@@ -53,7 +52,6 @@ export interface MusicClass {
     teacher_id?: string;
     professor_id?: string;
     occupied?: number;
-    // Added missing age_group to satisfy components/forms/AddStudentForm.tsx
     age_group?: string;
 }
 
@@ -69,6 +67,7 @@ export interface School {
     branding: SchoolBranding;
     contract_status: 'trial' | 'active' | 'suspended' | 'canceled';
     cnpj?: string;
+    fee_per_student: number;
 }
 
 export interface Student {
@@ -102,8 +101,8 @@ export interface Mission {
     professor_id: string;
     school_id: string | null;
     created_at?: string;
-    // Added missing week_start to satisfy pages/TaskManager.tsx
     week_start?: string;
+    is_template?: boolean; // Novo campo para templates globais
 }
 
 export enum MissionStatus {
@@ -150,8 +149,6 @@ export interface TeacherTip {
     description: string;
     color: string;
 }
-
-// Added missing types to satisfy various services and components
 
 export interface Achievement {
     id: string;

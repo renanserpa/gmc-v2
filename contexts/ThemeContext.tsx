@@ -51,6 +51,8 @@ export const ThemeProvider = ({ children }: { children?: ReactNode }) => {
                 billing_model: 'fixed',
                 hourly_rate: 0,
                 monthly_fee: 0,
+                // Add missing fee_per_student property
+                fee_per_student: 0,
                 branding: DEFAULT_BRANDING,
                 contract_status: 'active'
             };

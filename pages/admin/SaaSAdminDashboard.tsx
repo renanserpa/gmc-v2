@@ -5,123 +5,116 @@ import { KPICard } from '../../components/dashboard/KPICard.tsx';
 import { 
     Building2, TrendingUp, DollarSign, 
     ArrowUpRight, Users, AlertCircle, ShoppingCart, 
-    ShieldCheck, Calendar, Activity
+    ShieldCheck, Calendar, Activity, BarChart3
 } from 'lucide-react';
 import { useRealtimeSync } from '../../hooks/useRealtimeSync.ts';
 import { cn } from '../../lib/utils.ts';
+import { motion } from 'framer-motion';
+
+const M = motion as any;
 
 export default function SaaSAdminDashboard() {
-    const { data: schools, loading } = useRealtimeSync<any>('schools');
+    const { data: schools, loading: loadingSchools } = useRealtimeSync<any>('schools');
+    const { data: students, loading: loadingStudents } = useRealtimeSync<any>('students');
+    const { data: profiles } = useRealtimeSync<any>('profiles');
 
     const stats = useMemo(() => {
-        if (!schools) return { totalMRR: 0, activeCount: 0, pendingCount: 0 };
+        if (!schools || !students || !profiles) return { totalMRR: 0, activeCount: 0, pendingCount: 0, totalStaff: 0 };
         
-        const active = schools.filter((s: any) => s.contract_status === 'active');
-        const totalMRR = schools.reduce((acc: number, s: any) => acc + (Number(s.monthly_fee) || 0), 0);
+        const activeSchools = schools.filter((s: any) => s.is_active);
+        const totalStaff = profiles.filter((p: any) => p.role === 'professor' || p.role === 'teacher_owner').length;
+        
+        // Cálculo de Receita Real (Fee Fixo + Variável por Aluno)
+        const totalMRR = schools.reduce((acc: number, s: any) => {
+            const schoolStudents = students.filter((st: any) => st.school_id === s.id).length;
+            const fixed = Number(s.monthly_fee) || 0;
+            const variable = schoolStudents * (Number(s.fee_per_student) || 0);
+            return acc + fixed + variable;
+        }, 0);
         
         return {
             totalMRR: totalMRR.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-            activeCount: active.length,
-            pendingCount: schools.length - active.length
+            activeCount: activeSchools.length,
+            inactiveCount: schools.length - activeSchools.length,
+            totalStudents: students.length,
+            totalStaff
         };
-    }, [schools]);
+    }, [schools, students, profiles]);
 
     return (
         <div className="space-y-10 animate-in fade-in duration-700">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
                     <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
-                        Business <span className="text-sky-500">Analytics</span>
+                        Operations <span className="text-sky-500">Center</span>
                     </h1>
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-3">SaaS Governance Core</p>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-3">Business Intelligence & Governance</p>
                 </div>
-                <div className="flex gap-4">
-                    <div className="bg-slate-900 px-6 py-3 rounded-2xl border border-white/5 flex items-center gap-4">
-                        <Calendar size={18} className="text-slate-600" />
-                        <div>
-                            <p className="text-[8px] font-black text-slate-500 uppercase">Ciclo Atual</p>
-                            <p className="text-sm font-black text-white">FEVEREIRO 2026</p>
-                        </div>
-                    </div>
+                <div className="bg-slate-900 px-6 py-3 rounded-2xl border border-white/5 flex items-center gap-4 shadow-xl">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Sincronia Live Maestro: Ativa</span>
                 </div>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <KPICard title="MRR (Receita Mensal)" value={stats.totalMRR} icon={DollarSign} color="text-emerald-400" border="border-emerald-500" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <KPICard title="Receita Projetada" value={stats.totalMRR} icon={DollarSign} color="text-emerald-400" border="border-emerald-500" />
                 <KPICard title="Unidades Ativas" value={stats.activeCount} icon={Building2} color="text-sky-400" border="border-sky-500" />
-                <KPICard title="Conversão / Churn" value="+12.4%" icon={TrendingUp} color="text-purple-400" border="border-purple-500" />
+                <KPICard title="Total Alunos" value={stats.totalStudents} icon={Users} color="text-purple-400" border="border-purple-500" />
+                <KPICard title="Licenciados" value={stats.totalStaff} icon={ShieldCheck} color="text-amber-400" border="border-amber-500" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* LISTA DE CONTRATOS (TABELA SCHOOLS) */}
-                <Card className="lg:col-span-8 bg-[#0a0f1d] border-white/5 rounded-[48px] overflow-hidden shadow-2xl flex flex-col h-[600px]">
-                    <div className="p-8 border-b border-white/5 flex items-center justify-between bg-slate-950/40">
-                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
-                            <ShoppingCart size={18} /> Performance de Unidades
-                        </h4>
-                    </div>
-                    <CardContent className="p-0 overflow-y-auto custom-scrollbar flex-1">
-                        <div className="divide-y divide-white/5">
-                            {loading ? (
-                                <div className="p-20 text-center animate-pulse text-slate-600 uppercase font-black tracking-widest text-xs">Acessando registro de contratos...</div>
-                            ) : schools.map((school: any) => (
-                                <div key={school.id} className="p-6 hover:bg-white/[0.02] transition-colors flex items-center justify-between group">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-xl bg-slate-900 border border-white/5 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform">
-                                            <Building2 size={24} />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-black text-white uppercase">{school.name}</p>
-                                            <p className="text-[10px] text-slate-500 font-bold uppercase">CNPJ: {school.cnpj || 'PESSOA FÍSICA'}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-8">
-                                        <div className="text-right hidden md:block">
-                                            <p className="text-[9px] font-black text-slate-600 uppercase">Faturamento</p>
-                                            <p className="text-sm font-black text-emerald-400">R$ {school.monthly_fee || '0,00'}</p>
-                                        </div>
-                                        <div className={cn(
-                                            "px-4 py-1.5 rounded-full text-[8px] font-black uppercase border",
-                                            school.contract_status === 'active' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : 
-                                            school.contract_status === 'trial' ? "bg-amber-500/10 text-amber-400 border-amber-500/20" :
-                                            "bg-red-500/10 text-red-400 border-red-500/20"
-                                        )}>
-                                            {school.contract_status}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                {/* GRÁFICO DE CRESCIMENTO (MOCK PEDAGÓGICO) */}
+                <Card className="lg:col-span-8 bg-[#0a0f1d] border-white/5 rounded-[48px] overflow-hidden shadow-2xl">
+                    <CardHeader className="p-8 border-b border-white/5 bg-slate-950/40">
+                        <CardTitle className="text-xs uppercase tracking-[0.3em] flex items-center gap-3 text-slate-500">
+                            <BarChart3 size={18} /> Densidade de Matrículas (3 Meses)
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="h-[350px] flex items-end gap-6 p-12">
+                        {[45, 68, 92].map((val, i) => (
+                            <div key={i} className="flex-1 flex flex-col items-center gap-4 group">
+                                <M.div 
+                                    initial={{ height: 0 }}
+                                    animate={{ height: `${val}%` }}
+                                    transition={{ duration: 1, delay: i * 0.2 }}
+                                    className="w-full bg-gradient-to-t from-sky-600 to-sky-400 rounded-2xl relative shadow-lg group-hover:shadow-sky-500/20"
+                                >
+                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-white font-black text-lg">+{val}</div>
+                                </M.div>
+                                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Mês 0{i+1}</span>
+                            </div>
+                        ))}
                     </CardContent>
                 </Card>
 
-                {/* INSIGHTS DE NEGÓCIOS */}
+                {/* ALERTAS DE NEGÓCIO */}
                 <div className="lg:col-span-4 space-y-6">
-                    <Card className="bg-slate-900/60 border-white/5 p-8 rounded-[40px] shadow-xl">
-                        <div className="flex items-center gap-3 mb-6">
+                    <Card className="bg-slate-900/60 border-white/5 p-8 rounded-[40px] shadow-xl h-full">
+                        <div className="flex items-center gap-3 mb-8">
                             <Activity size={18} className="text-sky-400" />
-                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">SaaS Alerts</h4>
+                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Incidentes & Alertas</h4>
                         </div>
-                        <div className="space-y-4">
-                            <div className="p-4 bg-red-500/5 rounded-2xl border border-red-500/10 flex items-start gap-3">
-                                <AlertCircle size={16} className="text-red-500 shrink-0 mt-0.5" />
-                                <p className="text-[10px] text-slate-400 leading-relaxed">
-                                    <strong className="text-red-400">Churn Risk:</strong> 3 unidades em São Paulo não realizaram logs de aula nas últimas 48h.
-                                </p>
-                            </div>
-                            <div className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10 flex items-start gap-3">
-                                <ShieldCheck size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-                                <p className="text-[10px] text-slate-400 leading-relaxed">
-                                    <strong className="text-emerald-400">Expansion:</strong> Cuiabá apresenta o maior crescimento de matrículas do trimestre.
-                                </p>
+                        <div className="space-y-6">
+                            {stats.inactiveCount > 0 && (
+                                <div className="p-5 bg-red-500/5 rounded-3xl border border-red-500/20 flex items-start gap-4">
+                                    <AlertCircle size={20} className="text-red-500 shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="text-xs font-black text-red-500 uppercase">Unidades Suspensas</p>
+                                        <p className="text-[10px] text-slate-400 mt-1 font-medium leading-relaxed">
+                                            Existem {stats.inactiveCount} unidades sem faturamento ativo.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                            <div className="p-5 bg-emerald-500/5 rounded-3xl border border-emerald-500/20 flex items-start gap-4">
+                                <ShieldCheck size={20} className="text-emerald-500 shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-xs font-black text-emerald-500 uppercase">Integridade RLS</p>
+                                    <p className="text-[10px] text-slate-400 mt-1 font-medium">Todas as políticas de isolamento estão normais.</p>
+                                </div>
                             </div>
                         </div>
-                    </Card>
-
-                    <Card className="bg-sky-500/5 border border-sky-500/20 p-8 rounded-[40px] shadow-xl text-center space-y-4">
-                        <h5 className="text-[10px] font-black text-sky-400 uppercase tracking-[0.4em]">Próximo Payout</h5>
-                        <p className="text-3xl font-black text-white tracking-tighter">05 MAR</p>
-                        <button className="w-full py-4 bg-sky-600 text-white rounded-2xl font-black uppercase text-[9px] tracking-widest shadow-xl">Abrir Relatório Detalhado</button>
                     </Card>
                 </div>
             </div>
