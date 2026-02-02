@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { supabase } from '../lib/supabaseClient.ts';
@@ -13,8 +12,9 @@ export function useProfessorData() {
             if (!teacherId) return null;
 
             // Busca paralela para otimização de banda e latência
+            // Removidos JOINS complexos com profiles para evitar recursão infinita no RLS
             const [resStudents, resClasses, resAudit] = await Promise.all([
-                // 1. Alunos vinculados
+                // 1. Alunos vinculados diretamente ao ID do professor
                 supabase.from('students')
                     .select('*')
                     .eq('professor_id', teacherId)
@@ -26,9 +26,10 @@ export function useProfessorData() {
                     .eq('professor_id', teacherId)
                     .order('start_time', { ascending: true }),
 
-                // 3. Logs de Atividade (XP Events) via Join Relacional
+                // 3. Logs de Atividade (XP Events) simplificados
+                // Nota: Usamos join apenas com students que é uma tabela sem recursão circular no RLS
                 supabase.from('xp_events')
-                    .select('*, students!inner(name, avatar_url, professor_id)')
+                    .select('*, students(name, avatar_url, professor_id)')
                     .eq('students.professor_id', teacherId)
                     .order('created_at', { ascending: false })
                     .limit(20)
@@ -36,7 +37,10 @@ export function useProfessorData() {
 
             const students = resStudents.data || [];
             const classes = resClasses.data || [];
-            const auditLogs = resAudit.data || [];
+            const auditLogs = (resAudit.data || []).map(log => ({
+                ...log,
+                student_name: log.students?.name || 'Músico'
+            }));
 
             // Agregação de KPIs
             const totalXp = students.reduce((acc, s) => acc + (s.xp || 0), 0);

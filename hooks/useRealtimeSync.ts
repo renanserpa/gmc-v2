@@ -6,7 +6,6 @@ import { notify } from '../lib/notification';
 /**
  * useRealtimeSync: O sistema nervoso reativo do Maestro.
  * Transforma qualquer tabela do Postgres em um stream de dados síncrono na UI.
- * Suporta filtros manuais no padrão Supabase (ex: 'school_id=eq.uuid')
  */
 export function useRealtimeSync<T extends { id: string | number }>(
   tableName: string,
@@ -22,7 +21,6 @@ export function useRealtimeSync<T extends { id: string | number }>(
     try {
       let query = supabase.from(tableName).select('*');
       
-      // Aplica filtro CDC manual se fornecido
       if (filter) {
           const parts = filter.split('=');
           if (parts.length === 2) {
@@ -39,9 +37,16 @@ export function useRealtimeSync<T extends { id: string | number }>(
 
       if (fetchError) throw fetchError;
       setData(result || []);
+      setError(null);
     } catch (err: any) {
-      setError(err.message);
-      console.error(`[Realtime Sync Engine] Falha no fetch: ${tableName}`, err);
+      // DIAGNÓSTICO DE RECURSÃO INFINITA (Error 42P17)
+      if (err.code === '42P17') {
+          const msg = `ERRO CRÍTICO RLS: Loop infinito detectado em "${tableName}". Execute o patch de segurança no SQL Editor.`;
+          setError(msg);
+          console.error(`%c[Maestro Security] ${msg}`, 'color: #ff4444; font-weight: bold;');
+      } else {
+          setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -50,9 +55,7 @@ export function useRealtimeSync<T extends { id: string | number }>(
   useEffect(() => {
     fetchData();
 
-    // Configura o Canal de Sincronia via WebSocket (CDC - Change Data Capture)
     const channelName = `db-pulse-${tableName}-${filter || 'global'}`;
-    
     const channel = supabase.channel(channelName)
       .on(
         'postgres_changes' as any,
@@ -63,36 +66,26 @@ export function useRealtimeSync<T extends { id: string | number }>(
           filter: filter
         },
         (payload: any) => {
-          const { eventType, new: newRecord, old: oldRecord } = payload;
-          
-          // Feedback tátil para cada pulso de dados recebido (Phygital Feel)
           haptics.light();
 
           setData((current) => {
-            switch (eventType) {
+            switch (payload.eventType) {
               case 'INSERT':
-                if (current.some(i => i.id === newRecord.id)) return current;
-                return [newRecord as T, ...current];
-              
+                if (current.some(i => i.id === payload.new.id)) return current;
+                return [payload.new as T, ...current];
               case 'UPDATE':
                 return current.map(item => 
-                  item.id === newRecord.id ? { ...item, ...newRecord } : item
+                  item.id === payload.new.id ? { ...item, ...payload.new } : item
                 );
-
               case 'DELETE':
-                return current.filter(item => item.id !== oldRecord.id);
-
+                return current.filter(item => item.id !== payload.old.id);
               default:
                 return current;
             }
           });
         }
       )
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR') {
-          notify.error(`Cluster de sincronia offline: ${tableName}`);
-        }
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);

@@ -19,7 +19,7 @@ export default function TenantManager() {
     const loadAllTenants = async () => {
         setLoading(true);
         try {
-            // QUERY LIMPA: Super Admin ignora filtros de propriedade
+            // QUERY MASTER: Super Admin agora ignora filtros de propriedade para ver toda a rede
             const { data, error } = await supabase
                 .from('schools')
                 .select('*')
@@ -41,14 +41,14 @@ export default function TenantManager() {
     const handleSelectContext = (id: string) => {
         haptics.heavy();
         setSchoolOverride(id);
-        notify.success("Contexto do Kernel alterado com sucesso!");
+        notify.success("Contexto do Kernel alterado para esta Unidade.");
     };
 
     const handleToggleStatus = async (id: string, current: boolean) => {
         haptics.medium();
         const { error } = await supabase.from('schools').update({ is_active: !current }).eq('id', id);
         if (!error) {
-            notify.info("Status da unidade atualizado.");
+            notify.info("Status da unidade atualizado no ecossistema.");
             loadAllTenants();
         }
     };
@@ -58,7 +58,7 @@ export default function TenantManager() {
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900/40 p-8 rounded-[40px] border border-white/5 backdrop-blur-xl">
                 <div>
                     <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">Tenant <span className="text-sky-500">Master</span></h1>
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Visão Root: Todas as Unidades Escolares Ativas</p>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Visão Root: Todas as Unidades Escolares Ativas no Ecossistema</p>
                 </div>
                 <Button leftIcon={Plus} className="rounded-2xl px-10 py-6 bg-sky-600 shadow-xl text-xs font-black uppercase tracking-widest">
                     Projetar Nova Escola
@@ -68,7 +68,7 @@ export default function TenantManager() {
             {loading ? (
                 <div className="flex flex-col items-center py-20 gap-4">
                     <Loader2 className="animate-spin text-sky-500" size={40} />
-                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em]">Sincronizando Nodes...</p>
+                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em]">Sincronizando Nodes da Rede...</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -77,7 +77,7 @@ export default function TenantManager() {
                             <Card className={cn(
                                 "bg-slate-900 border transition-all rounded-[40px] overflow-hidden shadow-2xl relative",
                                 t.is_active ? "border-white/5 hover:border-sky-500/40" : "border-red-500/30 opacity-70",
-                                schoolId === t.id && "ring-2 ring-sky-500 border-sky-500"
+                                schoolId === t.id && "ring-2 ring-sky-500 border-sky-500 bg-slate-900/80"
                             )}>
                                 <CardContent className="p-8 space-y-6">
                                     <div className="flex justify-between items-start">
@@ -114,8 +114,8 @@ export default function TenantManager() {
                                             <button 
                                                 onClick={() => handleToggleStatus(t.id, t.is_active)}
                                                 className={cn(
-                                                    "flex items-center gap-2 text-[9px] font-black uppercase tracking-widest",
-                                                    t.is_active ? "text-red-500" : "text-emerald-500"
+                                                    "flex items-center gap-2 text-[9px] font-black uppercase tracking-widest transition-colors",
+                                                    t.is_active ? "text-red-500 hover:text-red-400" : "text-emerald-500 hover:text-emerald-400"
                                                 )}
                                             >
                                                 {t.is_active ? <PowerOff size={14} /> : <Power size={14} />}

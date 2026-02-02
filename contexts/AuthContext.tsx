@@ -59,13 +59,21 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
     
     if (rootEmails.includes(currentUser.email?.toLowerCase() || '')) {
       setRole('super_admin');
+      
+      // Tentativa de buscar school_id real para super_admin se existir
+      const { data: realProf } = await supabase.from('profiles').select('school_id, schools(name)').eq('id', currentUser.id).maybeSingle();
+      
       setProfile({
           id: currentUser.id,
           email: currentUser.email!,
           full_name: "Master Root (Bypass)",
           role: 'super_admin',
+          school_id: realProf?.school_id || null,
           created_at: new Date().toISOString()
       } as Profile);
+      
+      setSchoolId(realProf?.school_id || null);
+      console.log(`%c[Maestro Core] Contexto Ativo: ${realProf?.schools?.name || 'Global / SuperAdmin'}`, 'color: #38bdf8; font-weight: bold;');
       setLoading(false);
       return;
     }
@@ -73,7 +81,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*, schools(is_active)')
+        .select('*, schools(name, is_active)')
         .eq('id', currentUser.id)
         .maybeSingle();
 
@@ -86,6 +94,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
         setProfile(data as Profile);
         setRole(data.role);
         setSchoolId(data.school_id);
+        console.log(`%c[Maestro Core] Contexto Ativo: ${data.schools?.name || 'Independente'}`, 'color: #38bdf8; font-weight: bold;');
       } else {
         const metaRole = currentUser.user_metadata?.role || 'student';
         setRole(metaRole);
@@ -140,7 +149,10 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   const value = {
     session, user, profile, role, schoolId, loading, getDashboardPath,
     setRoleOverride: (newRole: string | null) => setRole(newRole),
-    setSchoolOverride: (newSchoolId: string | null) => setSchoolId(newSchoolId),
+    setSchoolOverride: (newSchoolId: string | null) => {
+        setSchoolId(newSchoolId);
+        if (profile) setProfile({...profile, school_id: newSchoolId});
+    },
     signOut: () => internalSignOut(),
     signIn: async (email: string, password: string) => {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
