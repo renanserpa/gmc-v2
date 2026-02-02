@@ -9,26 +9,15 @@ export interface TableStatus {
 }
 
 const TABLES_TO_CHECK = [
-    'profiles',
-    'schools',
-    'music_classes', // Módulo 2
-    'enrollments',   // Módulo 2
-    'class_logs',    // Módulo 2
-    'students',
-    'missions',
-    'xp_events',
-    'store_items',
-    'content_library',
-    'knowledge_docs',
-    'system_configs',
-    'audit_logs',
-    'notices'
+    'profiles', 'schools', 'music_classes', 'enrollments', 
+    'class_logs', 'students', 'missions', 'xp_events', 
+    'store_items', 'content_library', 'knowledge_docs', 
+    'system_configs', 'audit_logs', 'notices'
 ];
 
 export const databaseService = {
     async checkHealth(): Promise<TableStatus[]> {
         const results: TableStatus[] = [];
-
         for (const tableName of TABLES_TO_CHECK) {
             try {
                 const { count, error } = await supabase
@@ -52,42 +41,31 @@ export const databaseService = {
                     });
                 }
             } catch (err: any) {
-                results.push({
-                    tableName,
-                    exists: false,
-                    rowCount: 0,
-                    error: 'Falha de conexão serial.'
-                });
+                results.push({ tableName, exists: false, rowCount: 0, error: 'Falha serial.' });
             }
         }
         return results;
     },
 
-    subscribeToTable(
-        tableName: string, 
-        filter: string, 
-        callback: (payload: any) => void
-    ): any {
-        const channel = supabase.channel(`db-sync-${tableName}-${filter}`)
-            .on(
-                'postgres_changes' as any,
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: tableName,
-                    filter: filter
-                },
-                (payload: any) => {
-                    console.debug(`[Realtime] Evento detectado em ${tableName}:`, payload.eventType);
-                    callback(payload);
-                }
-            )
-            .subscribe((status) => {
-                if (status === 'SUBSCRIBED') {
-                    console.debug(`[Realtime] Sintonizado na tabela ${tableName} com filtro: ${filter}`);
-                }
-            });
+    /**
+     * SQL Lab: Executa uma query de leitura via Supabase JS.
+     * Para God Mode, permitimos selecionar qualquer tabela do esquema público.
+     */
+    async runQuery(tableName: string, queryParams: any = {}): Promise<any> {
+        let query = supabase.from(tableName).select(queryParams.select || '*');
+        
+        if (queryParams.limit) query = query.limit(queryParams.limit);
+        if (queryParams.order) query = query.order(queryParams.order.column, { ascending: queryParams.order.ascending });
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        return data;
+    },
 
+    subscribeToTable(tableName: string, filter: string, callback: (payload: any) => void): any {
+        const channel = supabase.channel(`db-sync-${tableName}-${filter}`)
+            .on('postgres_changes' as any, { event: '*', schema: 'public', table: tableName, filter: filter }, (payload: any) => callback(payload))
+            .subscribe();
         return channel;
     }
 };

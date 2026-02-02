@@ -23,17 +23,18 @@ const StaffDirectory = lazy(() => import('@/pages/admin/StaffDirectory'));
 const TenantManager = lazy(() => import('@/pages/admin/TenantManager'));
 
 // God Mode Pages
-const GodModeDashboard = lazy(() => import('@/pages/admin/GodModeDashboard'));
 const GodConsole = lazy(() => import('@/pages/admin/GodConsole'));
 const SecurityAudit = lazy(() => import('@/pages/admin/SecurityAudit'));
-const SystemExplorer = lazy(() => import('@/pages/admin/SystemExplorer'));
-const BroadcastCenter = lazy(() => import('@/pages/admin/BroadcastCenter'));
+const SQLLab = lazy(() => import('@/pages/admin/SQLLab'));
+const ClassroomMonitor = lazy(() => import('@/pages/admin/ClassroomMonitor')); // Placeholder para implementar logic
+const AssetFactory = lazy(() => import('@/pages/admin/AssetFactory'));
+const GhostingLab = lazy(() => import('@/pages/admin/GhostingLab'));
 
 const RootHandler = () => {
   const { user, role, loading } = useAuth();
   if (loading) return <LoadingScreen />;
   if (user && user.email === 'serparenan@gmail.com') return <ProfileSelector />;
-  if (user) return <Navigate to={role === 'professor' ? '/teacher' : '/student'} replace />;
+  if (user) return <Navigate to={role === 'professor' ? '/teacher/classes' : '/student/dashboard'} replace />;
   return <LandingPage />;
 };
 
@@ -61,11 +62,12 @@ export default function App() {
               {/* GOD MODE SYSTEM PANEL */}
               <Route path="/system" element={<ProtectedRoute allowedRoles={['god_mode']} requireRoot><AdminLayout mode="god" /></ProtectedRoute>}>
                 <Route index element={<Navigate to="console" replace />} />
-                <Route path="console" element={<GodModeDashboard />} />
-                <Route path="broadcast" element={<BroadcastCenter />} />
-                <Route path="staff" element={<GodConsole />} />
+                <Route path="console" element={<GodConsole />} />
+                <Route path="monitor" element={<ClassroomMonitor />} />
+                <Route path="assets" element={<AssetFactory />} />
+                <Route path="ghosting" element={<GhostingLab />} />
                 <Route path="audit" element={<SecurityAudit />} />
-                <Route path="explorer" element={<SystemExplorer />} />
+                <Route path="sql" element={<SQLLab />} />
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />

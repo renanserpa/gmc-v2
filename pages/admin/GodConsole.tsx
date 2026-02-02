@@ -1,171 +1,124 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card.tsx';
-import { Button } from '../../components/ui/Button.tsx';
+import { motion } from 'framer-motion';
 import { 
-    Terminal, UserPlus, ShieldAlert, Mail, 
-    Lock, Key, Zap, CheckCircle2, Loader2,
-    ShieldCheck, Fingerprint
+    Cpu, ShieldAlert, Power, Building2, 
+    Search, Activity, Radio, Database, 
+    Zap, AlertTriangle, RefreshCw, Ban,
+    Globe, Server, ShieldCheck
 } from 'lucide-react';
+import { useRealtimeSync } from '../../hooks/useRealtimeSync.ts';
 import { supabase } from '../../lib/supabaseClient.ts';
 import { notify } from '../../lib/notification.ts';
 import { haptics } from '../../lib/haptics.ts';
+import { Card, CardContent } from '../../components/ui/Card.tsx';
+import { Button } from '../../components/ui/Button.tsx';
 import { cn } from '../../lib/utils.ts';
+import { KPICard } from '../../components/dashboard/KPICard.tsx';
+
+const M = motion as any;
 
 export default function GodConsole() {
-    const [loading, setLoading] = useState(false);
-    const [form, setForm] = useState({
-        email: '',
-        password: '',
-        fullName: '',
-        role: 'saas_admin_global'
-    });
+    const { data: schools, loading: loadingSchools } = useRealtimeSync<any>('schools', undefined, { column: 'name', ascending: true });
+    const [search, setSearch] = useState('');
 
-    const handleCreateStaff = async () => {
-        if (!form.email || !form.password || !form.fullName) {
-            notify.error("O manifesto staff exige preenchimento total.");
-            return;
-        }
-
-        setLoading(true);
+    const handleToggleMaintenance = async (school: any) => {
+        const nextState = !school.maintenance_mode;
         haptics.heavy();
-
+        
         try {
-            // 1. Registro no Supabase Auth
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-                email: form.email,
-                password: form.password,
-                options: {
-                    data: {
-                        full_name: form.fullName,
-                        role: form.role
-                    }
-                }
-            });
-
-            if (authError) throw authError;
-
-            // 2. Garantia de persistência no profiles (Bypass de Trigger caso necessário)
-            if (authData.user) {
-                const { error: profileError } = await supabase.from('profiles').upsert({
-                    id: authData.user.id,
-                    email: form.email.toLowerCase().trim(),
-                    full_name: form.fullName,
-                    role: form.role,
-                    school_id: null
-                });
-                if (profileError) throw profileError;
-            }
-
-            notify.success(`Protocolo Finalizado: Staff ${form.email} ativado.`);
-            setForm({ email: '', password: '', fullName: '', role: 'saas_admin_global' });
-        } catch (e: any) {
-            notify.error("FALHA NO KERNEL: " + e.message);
-        } finally {
-            setLoading(false);
+            const { error } = await supabase
+                .from('schools')
+                .update({ maintenance_mode: nextState })
+                .eq('id', school.id);
+            
+            if (error) throw error;
+            notify.error(nextState ? `UNIT FREEZE: ${school.name} está em manutenção.` : `UNIT THAW: ${school.name} reativada.`);
+        } catch (e) {
+            notify.error("Falha ao propagar Kill Switch.");
         }
     };
 
+    const filteredSchools = (schools || []).filter(s => 
+        s.name.toLowerCase().includes(search.toLowerCase())
+    );
+
     return (
-        <div className="space-y-10 animate-in fade-in duration-700">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 bg-red-600 rounded-[28px] flex items-center justify-center text-white shadow-2xl">
-                        <Terminal size={32} />
+        <div className="space-y-10 animate-in fade-in duration-700 pb-32">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-red-950/10 p-10 rounded-[56px] border border-red-500/20 backdrop-blur-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-32 bg-red-500/5 blur-[100px] pointer-events-none" />
+                <div className="flex items-center gap-6 relative z-10">
+                    <div className="p-4 bg-red-600 rounded-[28px] text-white shadow-xl shadow-red-900/40">
+                        <Cpu size={32} />
                     </div>
                     <div>
-                        <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
-                            Creator <span className="text-red-500">Terminal</span>
-                        </h1>
-                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-3">High-Privilege Identity Provisioning</p>
+                        <h1 className="text-3xl font-black text-white uppercase italic tracking-tighter leading-none">System <span className="text-red-500">Console</span></h1>
+                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-3">Governance & Infrastructure Kill-Switch</p>
                     </div>
                 </div>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <Card className="lg:col-span-7 bg-[#050000] border-red-900/30 rounded-[48px] overflow-hidden shadow-2xl">
-                    <div className="p-10 border-b border-red-900/10 bg-red-950/10 flex items-center gap-4">
-                        <div className="p-3 bg-red-600 rounded-2xl text-white shadow-lg"><UserPlus size={24} /></div>
-                        <div>
-                            <h4 className="text-xl font-black text-white uppercase italic">Manifesto de Staff</h4>
-                            <p className="text-[9px] font-black text-red-500/60 uppercase tracking-widest mt-1">Sincronia direta com Supabase Auth</p>
-                        </div>
-                    </div>
-                    <CardContent className="p-10 space-y-8">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Nome do Operador</label>
-                                <input 
-                                    value={form.fullName}
-                                    onChange={e => setForm({...form, fullName: e.target.value})}
-                                    placeholder="Ex: Renan Fundador"
-                                    className="w-full bg-slate-900 border border-white/5 rounded-2xl p-5 text-white outline-none focus:ring-4 focus:ring-red-500/20"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Poder (Role)</label>
-                                <select 
-                                    value={form.role}
-                                    onChange={e => setForm({...form, role: e.target.value})}
-                                    className="w-full bg-slate-900 border border-white/5 rounded-2xl p-5 text-white outline-none"
-                                >
-                                    <option value="saas_admin_global">SaaS Global Admin</option>
-                                    <option value="saas_admin_finance">SaaS Finance Admin</option>
-                                    <option value="saas_admin_ops">SaaS Ops Admin</option>
-                                    <option value="god_mode">God Mode (Absolute)</option>
-                                </select>
-                            </div>
-                        </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <KPICard title="Units Online" value={schools.filter(s => !s.maintenance_mode).length} icon={Globe} color="text-sky-400" border="border-sky-500" />
+                <KPICard title="Schema Health" value="STABLE" icon={Database} color="text-emerald-400" border="border-emerald-500" />
+                <KPICard title="Security Layer" value="HARDENED" icon={ShieldCheck} color="text-red-400" border="border-red-500" />
+            </div>
 
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">E-mail Corporativo</label>
-                            <input 
-                                value={form.email}
-                                onChange={e => setForm({...form, email: e.target.value})}
-                                placeholder="exemplo@adm.com"
-                                className="w-full bg-slate-900 border border-white/5 rounded-2xl p-5 text-white font-mono text-sm"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Chave de Acesso (Senha)</label>
-                            <input 
-                                type="password"
-                                value={form.password}
-                                onChange={e => setForm({...form, password: e.target.value})}
-                                placeholder="Mínimo 6 caracteres"
-                                className="w-full bg-slate-900 border border-white/5 rounded-2xl p-5 text-white font-mono"
-                            />
-                        </div>
-
-                        <Button 
-                            onClick={handleCreateStaff}
-                            isLoading={loading}
-                            className="w-full py-8 mt-4 rounded-3xl bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-[0.3em] shadow-xl shadow-red-900/30"
-                            leftIcon={Zap}
-                        >
-                            Injetar Staff no Kernel
-                        </Button>
-                    </CardContent>
-                </Card>
-
-                <div className="lg:col-span-5 space-y-6">
-                    <div className="p-8 bg-slate-900/60 border border-white/5 rounded-[40px] space-y-6">
-                        <div className="flex items-center gap-3">
-                            <ShieldAlert className="text-red-500" size={20} />
-                            <h5 className="text-[10px] font-black text-white uppercase tracking-widest">Protocolo Root</h5>
-                        </div>
-                        <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
-                            O provisionamento manual via God Mode cria usuários com bypass de convite. O e-mail deve ser corporativo para manter a integridade dos logs de auditoria.
-                        </p>
-                        <div className="bg-black/40 p-5 rounded-2xl border border-white/5 flex items-center gap-4">
-                            <Fingerprint className="text-slate-700" size={32} />
-                            <p className="text-[10px] text-slate-600 font-bold uppercase leading-snug">
-                                Cada disparo aqui gera um log imutável na tabela "audit_logs".
-                            </p>
-                        </div>
-                    </div>
+            <Card className="bg-slate-900 border-white/5 p-2 rounded-3xl shadow-lg">
+                <div className="relative">
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
+                    <input 
+                        value={search} onChange={e => setSearch(e.target.value)}
+                        placeholder="Pesquisar unidades por nome ou tenant ID..." 
+                        className="w-full bg-transparent border-none outline-none py-5 pl-14 pr-6 text-sm text-white font-mono" 
+                    />
                 </div>
+            </Card>
+
+            <div className="grid grid-cols-1 gap-4">
+                {filteredSchools.map(school => (
+                    <Card key={school.id} className={cn(
+                        "bg-[#0a0f1d] border-white/5 rounded-[40px] p-8 flex flex-col md:flex-row items-center justify-between gap-8 group transition-all",
+                        school.maintenance_mode && "border-red-600/40 bg-red-950/10"
+                    )}>
+                        <div className="flex items-center gap-6">
+                            <div className={cn(
+                                "p-5 rounded-3xl transition-all shadow-inner",
+                                school.maintenance_mode ? "bg-red-600 text-white" : "bg-slate-900 text-sky-400"
+                            )}>
+                                <Building2 size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black text-white uppercase italic">{school.name}</h3>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Tenant ID: <span className="text-slate-400">{school.id}</span></p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-8">
+                             <div className="text-right">
+                                <p className="text-[9px] font-black text-slate-600 uppercase mb-1">Status do Core</p>
+                                <span className={cn(
+                                    "px-3 py-1 rounded-full text-[10px] font-black uppercase border",
+                                    school.maintenance_mode ? "bg-red-500/20 text-red-400 border-red-500/30" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                                )}>
+                                    {school.maintenance_mode ? 'SESSÃO BLOQUEADA' : 'OPERACIONAL'}
+                                </span>
+                             </div>
+
+                             <button 
+                                onClick={() => handleToggleMaintenance(school)}
+                                className={cn(
+                                    "flex items-center gap-3 px-6 py-4 rounded-2xl text-[10px] font-black uppercase transition-all shadow-xl",
+                                    school.maintenance_mode 
+                                        ? "bg-emerald-600 text-white hover:bg-emerald-500" 
+                                        : "bg-red-600 text-white hover:bg-red-500"
+                                )}
+                             >
+                                <Ban size={16} /> {school.maintenance_mode ? 'Reativar Unidade' : 'Congelar Unidade'}
+                             </button>
+                        </div>
+                    </Card>
+                ))}
             </div>
         </div>
     );
