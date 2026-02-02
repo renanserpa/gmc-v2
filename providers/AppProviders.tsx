@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer } from 'react-toastify';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary.tsx';
 import { TooltipProvider } from '../components/ui/Tooltip.tsx';
-import { useSchoolBranding } from '../hooks/useSchoolBranding.ts';
+import { useSchoolTheme } from '../hooks/useSchoolTheme.ts';
 import '../lib/i18n.ts';
 
 const queryClient = new QueryClient({
@@ -22,10 +22,8 @@ const queryClient = new QueryClient({
   },
 });
 
-// Componente Wrapper para injetar hooks que dependem de Contextos
-// FIX: Changed children to optional (children?: ReactNode) to prevent TypeScript errors when no children are provided or when children is undefined
 const BrandingWrapper = ({ children }: { children?: ReactNode }) => {
-    useSchoolBranding(); // Injeta o CSS da escola ativa
+    useSchoolTheme(); // Injeta o motor de cores dinâmicas
     return <>{children}</>;
 };
 
