@@ -1,5 +1,3 @@
-
-
 import { createClient } from '@supabase/supabase-js';
 import { config } from '../config.ts';
 
@@ -12,8 +10,16 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('⚠️ GCM ALERTA: Chaves de API do Supabase não encontradas no arquivo de configuração. O sistema rodará em modo limitado.');
 }
 
-// Criação do cliente exportado
+// Criação do cliente exportado com persistência reforçada
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: window.localStorage // Garante uso do localStorage para "Salvar Login"
+    }
+  }
 );

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient.ts';
 import { Profile, UserRole } from '../types.ts';
 import { logger } from '../lib/logger.ts';
@@ -29,6 +29,9 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   const [role, setRole] = useState<string | null>(null);
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Watchdog para evitar travamento infinito
+  const watchdogRef = useRef<number | null>(null);
 
   const getDashboardPath = useCallback((userRole: string | null): string => {
     if (!userRole) return '/login';
@@ -47,109 +50,114 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   }, []);
 
   const internalSignOut = async (reason?: string) => {
+    setLoading(true);
     await (supabase.auth as any).signOut();
-    localStorage.clear();
+    localStorage.removeItem('supabase.auth.token'); // Limpa token específico
+    setProfile(null);
+    setUser(null);
+    setRole(null);
     if (reason) notify.error(reason);
-    window.location.href = '/login';
+    setLoading(false);
+    window.location.href = '/#/login';
   };
 
   const syncProfile = async (currentUser: any) => {
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      console.log(`[Maestro Kernel] Sincronizando perfil para: ${currentUser.email}`);
+      console.debug(`[Maestro Kernel] Sincronizando perfil: ${currentUser.email}`);
       
-      let { data, error } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*, schools(name, is_active)')
         .eq('id', currentUser.id)
         .maybeSingle();
 
-      // AUTO-CURA SPRINT 1.1: Tentativa de provisionamento automático do Root
-      if (!data && currentUser.email === 'serparenan@gmail.com') {
-        console.log("[Maestro Kernel] Root detectado sem perfil. Tentando Auto-Cura...");
-        
-        const { data: healed, error: healError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: currentUser.id,
-            email: currentUser.email,
-            full_name: 'Maestro Renan Serpa (Root)',
-            role: 'super_admin'
-          })
-          .select()
-          .maybeSingle();
-        
-        if (healError) {
-          console.error("[Maestro Kernel] Falha na Auto-Cura (RLS Block):", healError.message);
-          // Se falhou aqui, o usuário verá o aviso de perfil pendente na UI
-        } else {
-          data = healed;
-          console.log("[Maestro Kernel] Auto-Cura concluída com sucesso.");
-        }
-      }
+      if (error) throw error;
 
       if (data) {
         if (data.school_id && data.schools && data.schools.is_active === false && data.role !== 'super_admin') {
            await internalSignOut("Sessão Bloqueada: Esta unidade escolar está suspensa.");
            return;
         }
-
         setProfile(data as Profile);
         setRole(data.role);
         setSchoolId(data.school_id);
-        
-        if (data.role === 'super_admin') {
-            console.log(`%c[Maestro Kernel] Godmode Ativado: ${currentUser.email}`, 'color: #facc15; font-weight: bold; background: #422006; padding: 4px 8px; border-radius: 8px;');
-        }
+      } else if (currentUser.email === 'serparenan@gmail.com') {
+        // Auto-cura para o Root
+        setRole('super_admin');
       } else {
-        const metaRole = currentUser.user_metadata?.role || 'student';
-        setRole(metaRole);
-        console.warn("[Maestro] Perfil não encontrado no banco de dados.");
+        setRole(currentUser.user_metadata?.role || 'student');
       }
     } catch (e) {
-      logger.error("[Auth] Falha crítica de sincronia", e);
-      setRole('student');
+      logger.error("[Auth] Falha na sincronia de perfil", e);
+      setRole('student'); // Fallback para não travar
     } finally {
       setLoading(false);
+      if (watchdogRef.current) window.clearTimeout(watchdogRef.current);
     }
   };
 
   useEffect(() => {
-    (supabase.auth as any).getSession().then(({ data: { session: initSession } }: any) => {
-      const u = initSession?.user ?? null;
-      setSession(initSession);
-      setUser(u);
-      if (u) syncProfile(u);
-      else setLoading(false);
-    });
+    let mounted = true;
+
+    const initAuth = async () => {
+      // Ativa Watchdog: Se em 8 segundos não resolver, libera o loading
+      watchdogRef.current = window.setTimeout(() => {
+        if (mounted && loading) {
+          console.warn("[Maestro Watchdog] O carregamento demorou demais. Forçando liberação da UI.");
+          setLoading(false);
+        }
+      }, 8000);
+
+      const { data: { session: initSession } } = await (supabase.auth as any).getSession();
+      
+      if (!mounted) return;
+
+      if (initSession) {
+        setSession(initSession);
+        setUser(initSession.user);
+        await syncProfile(initSession.user);
+      } else {
+        setLoading(false);
+        if (watchdogRef.current) window.clearTimeout(watchdogRef.current);
+      }
+    };
+
+    initAuth();
 
     const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: any, currentSession: any) => {
-      const u = currentSession?.user ?? null;
-      setSession(currentSession);
-      setUser(u);
+      if (!mounted) return;
       
-      if (u && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
-        setLoading(true);
-        await syncProfile(u);
-      } else if (event === 'SIGNED_OUT') {
+      if (currentSession) {
+        setSession(currentSession);
+        setUser(currentSession.user);
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          await syncProfile(currentSession.user);
+        }
+      } else {
+        setSession(null);
+        setUser(null);
         setProfile(null);
         setRole(null);
-        setSchoolId(null);
         setLoading(false);
       }
     });
 
     return () => {
-        subscription.unsubscribe();
+      mounted = false;
+      subscription.unsubscribe();
+      if (watchdogRef.current) window.clearTimeout(watchdogRef.current);
     };
   }, []);
 
   const value = {
     session, user, profile, role, schoolId, loading, getDashboardPath,
     setRoleOverride: (newRole: string | null) => setRole(newRole),
-    setSchoolOverride: (newSchoolId: string | null) => {
-        setSchoolId(newSchoolId);
-        if (profile) setProfile({...profile, school_id: newSchoolId});
-    },
+    setSchoolOverride: (newSchoolId: string | null) => setSchoolId(newSchoolId),
     signOut: () => internalSignOut(),
     signIn: async (email: string, password: string) => {
       const { data, error } = await (supabase.auth as any).signInWithPassword({ email, password });
@@ -164,11 +172,8 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
     },
     devLogin: async (userId: string, targetRole: string) => {
       setRole(targetRole);
-      setUser({ 
-        id: userId, 
-        email: `dev-${targetRole}@oliemusic.dev`,
-        user_metadata: { role: targetRole }
-      } as any);
+      setUser({ id: userId, email: `dev-${targetRole}@oliemusic.dev` } as any);
+      setLoading(false);
     }
   };
 

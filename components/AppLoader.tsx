@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Music, ShieldCheck, Database, RefreshCw, Loader2, Terminal, AlertCircle } from 'lucide-react';
+import { Music, ShieldCheck, Database, RefreshCw, Loader2, AlertCircle, LogOut, Home } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { audioManager } from '../lib/audioManager.ts';
+import { Button } from './ui/Button.tsx';
 
 interface AppLoaderProps {
     children: React.ReactNode;
@@ -17,116 +17,84 @@ const STEPS = [
 ];
 
 export const AppLoader: React.FC<AppLoaderProps> = ({ children }) => {
-    const { loading: authLoading, user } = useAuth();
-    const [fatalError, setFatalError] = useState<any>(null);
+    const { loading: authLoading, signOut } = useAuth();
     const [stepIdx, setStepIdx] = useState(0);
+    const [showRescue, setShowRescue] = useState(false);
     const [showContent, setShowContent] = useState(false);
-
-    // Sistema de Auto-Resumo de Áudio
-    const resumeAudioEngine = useCallback(async () => {
-        try {
-            const ctx = await audioManager.getContext();
-            if (ctx.state === 'suspended') {
-                await ctx.resume();
-            }
-            ['click', 'keydown', 'touchstart'].forEach(evt => 
-                window.removeEventListener(evt, resumeAudioEngine)
-            );
-        } catch (e) {}
-    }, []);
-
-    useEffect(() => {
-        ['click', 'keydown', 'touchstart'].forEach(evt => 
-            window.addEventListener(evt, resumeAudioEngine, { passive: true })
-        );
-
-        // Safety Gate: Timeout de Emergência para liberar a tela
-        const safetyTimeout = setTimeout(() => {
-            if (authLoading && user) {
-                console.warn("[AppLoader] SAFETY BYPASS: O sistema demorou muito para responder. Liberando UI.");
-                setShowContent(true);
-            }
-        }, 8000);
-
-        const errorChecker = setInterval(() => {
-            const globalErrors = (window as any).__maestro_errors;
-            if (globalErrors && globalErrors.length > 0) {
-                setFatalError(globalErrors[0]);
-                clearInterval(errorChecker);
-            }
-        }, 500);
-
-        return () => {
-            clearInterval(errorChecker);
-            clearTimeout(safetyTimeout);
-            ['click', 'keydown', 'touchstart'].forEach(evt => 
-                window.removeEventListener(evt, resumeAudioEngine)
-            );
-        };
-    }, [resumeAudioEngine, authLoading, user]);
 
     useEffect(() => {
         if (!authLoading) {
-            setShowContent(true);
+            const timer = setTimeout(() => setShowContent(true), 200);
+            return () => clearTimeout(timer);
         } else {
+            setShowContent(false);
             const stepInterval = setInterval(() => {
                 setStepIdx(prev => (prev + 1) % STEPS.length);
-            }, 600);
-            return () => clearInterval(stepInterval);
+            }, 800);
+
+            // Reduzido para 4 segundos para melhor UX
+            const rescueTimer = setTimeout(() => {
+                setShowRescue(true);
+            }, 4000);
+
+            return () => {
+                clearInterval(stepInterval);
+                clearTimeout(rescueTimer);
+            };
         }
     }, [authLoading]);
 
-    const handleHardReset = () => {
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.href = '/';
-    };
-
-    if (fatalError) {
+    if (!showContent) {
         return (
-            <div className="fixed inset-0 z-[9999] bg-[#020617] flex flex-col items-center justify-center p-8 text-center font-mono">
-                <div className="bg-red-500/10 p-6 rounded-[40px] border border-red-500/20 mb-8">
-                    <AlertCircle size={48} className="text-red-500" />
+            <div className="fixed inset-0 z-[9998] bg-[#020617] flex flex-col items-center justify-center p-6">
+                <div className="relative flex flex-col items-center gap-10 max-w-sm w-full">
+                    <motion.div 
+                        animate={{ scale: [1, 1.05, 1], opacity: [0.8, 1, 0.8] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        className="relative bg-slate-900 p-10 rounded-[48px] border border-white/10 shadow-[0_0_50px_rgba(56,189,248,0.1)]"
+                    >
+                        <Loader2 className="animate-spin text-sky-400" size={56} />
+                    </motion.div>
+                    
+                    <div className="text-center space-y-4">
+                        <h2 className="text-white font-black uppercase tracking-[0.3em] text-xs h-4">
+                            {STEPS[stepIdx].label}
+                        </h2>
+                        <p className="text-slate-600 text-[10px] font-bold uppercase tracking-widest animate-pulse">Sincronizando com Maestro Core...</p>
+                    </div>
+
+                    <AnimatePresence>
+                        {showRescue && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="flex flex-col gap-3 w-full pt-8"
+                            >
+                                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl mb-2 flex items-start gap-3">
+                                    <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                                    <p className="text-[10px] text-amber-200/60 leading-relaxed font-medium">O Kernel está demorando para responder. Deseja forçar a entrada ou limpar a sessão?</p>
+                                </div>
+                                <Button 
+                                    variant="primary" 
+                                    onClick={() => setShowContent(true)}
+                                    className="w-full py-6 rounded-2xl text-[10px] font-black uppercase shadow-xl"
+                                    leftIcon={Home}
+                                >
+                                    Forçar Entrada (Bypass)
+                                </Button>
+                                <button 
+                                    onClick={() => signOut()}
+                                    className="w-full py-2 text-[10px] font-black uppercase text-slate-500 hover:text-red-500 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <LogOut size={12} /> Limpar Cache de Login
+                                </button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
-                <h1 className="text-2xl font-black text-white uppercase tracking-tighter mb-4 italic">Kernel Panic</h1>
-                <p className="text-slate-500 text-sm max-w-md mb-8">
-                    Ocorreu um erro crítico durante a inicialização dos módulos neurais.
-                </p>
-                <button 
-                    onClick={handleHardReset}
-                    className="bg-white text-slate-900 px-10 py-4 rounded-2xl font-black uppercase tracking-widest flex items-center gap-2 hover:scale-105 transition-all"
-                >
-                    <RefreshCw size={18} /> Limpeza de Cache e Reinício
-                </button>
             </div>
         );
     }
 
-    return (
-        <>
-            <AnimatePresence mode="wait">
-                {!showContent && (
-                    <motion.div 
-                        key="loader"
-                        initial={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[9998] bg-[#020617] flex flex-col items-center justify-center p-6"
-                    >
-                        <div className="relative flex flex-col items-center gap-10 max-w-sm w-full">
-                            <div className="relative bg-slate-900 p-6 rounded-[32px] border border-white/5 shadow-2xl">
-                                <Loader2 className="animate-spin text-sky-400" size={40} />
-                            </div>
-                            <div className="text-center space-y-3">
-                                <h2 className="text-white font-black uppercase tracking-widest text-xs h-4">{STEPS[stepIdx].label}</h2>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-            
-            <div className={showContent ? "contents" : "hidden"}>
-                {children}
-            </div>
-        </>
-    );
+    return <>{children}</>;
 };

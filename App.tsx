@@ -47,6 +47,11 @@ const RootHandler = () => {
   
   if (loading) return <LoadingScreen />;
   
+  // Se estiver logado mas sem role definida no banco ainda
+  if (user && !role) {
+    return <ProfileSelector />;
+  }
+
   // OWNER BYPASS: Redireciona para o cockpit admin
   if (user?.email === 'serparenan@gmail.com') {
     return <Navigate to="/admin" replace />;
