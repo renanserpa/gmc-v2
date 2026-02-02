@@ -1,20 +1,23 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { haptics } from '../lib/haptics';
 import { notify } from '../lib/notification';
 
 /**
  * useRealtimeSync: O sistema nervoso reativo do Maestro.
- * Transforma qualquer tabela do Postgres em um stream de dados síncrono na UI.
+ * Ajustado para prevenir loops infinitos em componentes administrativos.
  */
 export function useRealtimeSync<T extends { id: string | number }>(
   tableName: string,
   filter?: string,
-  orderBy: { column: string; ascending?: boolean } = { column: 'created_at', ascending: false }
+  orderByConfig: { column: string; ascending?: boolean } = { column: 'created_at', ascending: false }
 ) {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Memoiza as configurações para evitar disparos acidentais no useEffect
+  const memoizedOrder = useMemo(() => orderByConfig, [orderByConfig.column, orderByConfig.ascending]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -33,24 +36,21 @@ export function useRealtimeSync<T extends { id: string | number }>(
       }
 
       const { data: result, error: fetchError } = await query
-        .order(orderBy.column, { ascending: !!orderBy.ascending });
+        .order(memoizedOrder.column, { ascending: !!memoizedOrder.ascending });
 
       if (fetchError) throw fetchError;
       setData(result || []);
       setError(null);
     } catch (err: any) {
-      // DIAGNÓSTICO DE RECURSÃO INFINITA (Error 42P17)
       if (err.code === '42P17') {
-          const msg = `ERRO CRÍTICO RLS: Loop infinito detectado em "${tableName}". Execute o patch de segurança no SQL Editor.`;
-          setError(msg);
-          console.error(`%c[Maestro Security] ${msg}`, 'color: #ff4444; font-weight: bold;');
+          setError("Recursão detectada.");
       } else {
           setError(err.message);
       }
     } finally {
       setLoading(false);
     }
-  }, [tableName, filter, orderBy.column, orderBy.ascending]);
+  }, [tableName, filter, memoizedOrder]);
 
   useEffect(() => {
     fetchData();
@@ -66,8 +66,6 @@ export function useRealtimeSync<T extends { id: string | number }>(
           filter: filter
         },
         (payload: any) => {
-          haptics.light();
-
           setData((current) => {
             switch (payload.eventType) {
               case 'INSERT':
@@ -92,5 +90,5 @@ export function useRealtimeSync<T extends { id: string | number }>(
     };
   }, [tableName, filter, fetchData]);
 
-  return { data, loading, error, refresh: fetchData };
+  return { data, setData, loading, error, refresh: fetchData };
 }

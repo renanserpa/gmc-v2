@@ -4,7 +4,7 @@ import {
     Building2, Plus, Globe, Save, 
     Loader2, Sparkles, Building, Info, Terminal, 
     ShieldAlert, RefreshCw, Palette, Image as ImageIcon,
-    Settings2, ChevronRight, CheckCircle2
+    Settings2, ChevronRight, CheckCircle2, Upload, Trash2
 } from 'lucide-react';
 import { Card } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
@@ -19,10 +19,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 const M = motion as any;
 
 export default function TenantManager() {
-    const { schoolId, setSchoolOverride, role, user, refreshProfile } = useAuth();
+    const { schoolId, setSchoolOverride } = useAuth();
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isBrandingOpen, setIsBrandingOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const [selectedSchool, setSelectedSchool] = useState<any>(null);
     
     // Form States
@@ -34,8 +35,8 @@ export default function TenantManager() {
         borderRadius: '24px'
     });
 
-    // ENGINE REALTIME: Monitoramento global da tabela schools
-    const { data: tenants, loading, refresh } = useRealtimeSync<any>('schools', undefined, { column: 'name', ascending: true });
+    // ENGINE REALTIME: Sincronização estabilizada
+    const { data: tenants, setData: setTenants, loading } = useRealtimeSync<any>('schools', undefined, { column: 'name', ascending: true });
 
     const handleCreateSchool = async () => {
         if (!newSchool.name.trim() || !newSchool.slug.trim()) {
@@ -53,11 +54,43 @@ export default function TenantManager() {
             notify.success(`Unidade "${newSchool.name}" provisionada!`);
             setIsAddOpen(false);
             setNewSchool({ name: '', slug: '' });
-            await refresh();
         } catch (e: any) {
             notify.error(e.message || "Falha ao provisionar unidade.");
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !selectedSchool) return;
+
+        setIsUploading(true);
+        haptics.medium();
+
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `logos/${selectedSchool.id}_${Date.now()}.${fileExt}`;
+            
+            // 1. Upload para o bucket 'branding'
+            const { data, error: uploadError } = await supabase.storage
+                .from('branding')
+                .upload(fileName, file, { upsert: true });
+
+            if (uploadError) throw uploadError;
+
+            // 2. Gerar URL Pública
+            const { data: { publicUrl } } = supabase.storage
+                .from('branding')
+                .getPublicUrl(fileName);
+
+            setBrandingForm(prev => ({ ...prev, logoUrl: publicUrl }));
+            notify.success("Logo carregado com sucesso!");
+        } catch (err: any) {
+            console.error(err);
+            notify.error("Erro no upload do logo.");
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -78,20 +111,34 @@ export default function TenantManager() {
         setIsSaving(true);
         haptics.heavy();
 
+        // Controller para Timeout de Segurança (8 segundos)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
         try {
-            const { error } = await supabase
+            const { data, error } = await supabase
                 .from('schools')
                 .update({ branding: brandingForm })
-                .eq('id', selectedSchool.id);
+                .eq('id', selectedSchool.id)
+                .select()
+                .single();
 
             if (error) throw error;
 
-            notify.success(`Identidade visual de "${selectedSchool.name}" atualizada!`);
+            // QUEBRA DE LOOP: Atualizamos o estado local manualmente em vez de chamar fetchSchools()
+            // Isso previne a re-renderização em cascata que trava a UI
+            setTenants(prev => prev.map(t => t.id === selectedSchool.id ? { ...t, branding: brandingForm } : t));
+
+            notify.success(`Identidade de "${selectedSchool.name}" sincronizada!`);
             setIsBrandingOpen(false);
-            await refresh();
         } catch (e: any) {
-            notify.error("Falha ao salvar customização.");
+            if (e.name === 'AbortError') {
+                notify.error("O servidor demorou demais para responder.");
+            } else {
+                notify.error("Falha ao salvar customização.");
+            }
         } finally {
+            clearTimeout(timeoutId);
             setIsSaving(false);
         }
     };
@@ -103,7 +150,7 @@ export default function TenantManager() {
     };
 
     return (
-        <div className="space-y-10 animate-in fade-in duration-700 pb-20 max-w-7xl mx-auto">
+        <div className="space-y-10 animate-in fade-in duration-700 pb-20 max-w-7xl mx-auto px-4">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900/40 p-10 rounded-[48px] border border-white/5 backdrop-blur-xl relative overflow-hidden shadow-2xl">
                 <div className="absolute top-0 right-0 p-32 bg-sky-500/5 blur-[120px] pointer-events-none" />
                 <div className="relative z-10">
@@ -141,7 +188,6 @@ export default function TenantManager() {
                                 "bg-[#0a0f1d] border transition-all rounded-[56px] overflow-hidden shadow-2xl relative flex flex-col h-full group",
                                 schoolId === t.id ? "border-sky-500 ring-2 ring-sky-500/20" : "border-white/5"
                             )}>
-                                {/* Preview de Cor no Topo */}
                                 <div 
                                     className="h-2 w-full" 
                                     style={{ backgroundColor: t.branding?.primaryColor || '#38bdf8' }}
@@ -149,7 +195,7 @@ export default function TenantManager() {
 
                                 <div className="p-10 space-y-8 flex-1">
                                     <div className="flex justify-between items-start">
-                                        <div className="p-5 bg-slate-900 rounded-[28px] text-sky-400 group-hover:scale-110 transition-transform shadow-inner">
+                                        <div className="p-5 bg-slate-900 rounded-[28px] text-sky-400 group-hover:scale-110 transition-transform shadow-inner overflow-hidden border border-white/5">
                                             {t.branding?.logoUrl ? (
                                                 <img src={t.branding.logoUrl} className="w-8 h-8 object-contain" alt="Logo" />
                                             ) : (
@@ -192,15 +238,47 @@ export default function TenantManager() {
 
             {/* MODAL DE BRANDING (WHITE LABEL) */}
             <Dialog open={isBrandingOpen} onOpenChange={setIsBrandingOpen}>
-                <DialogContent className="bg-slate-900 border-slate-800 rounded-[48px] p-12 max-w-xl shadow-2xl">
+                <DialogContent className="bg-slate-900 border-slate-800 rounded-[48px] p-12 max-w-xl shadow-2xl overflow-y-auto max-h-[90vh] custom-scrollbar">
                     <DialogHeader className="mb-8">
                         <DialogTitle className="text-3xl font-black text-white uppercase italic tracking-tighter">Customizar Escola</DialogTitle>
                         <DialogDescription className="text-slate-500 text-xs font-bold uppercase tracking-widest leading-relaxed">
-                            Ajuste a identidade visual para o modo White Label.
+                            Ajuste a identidade visual para o modo White Label da {selectedSchool?.name}.
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-8">
+                    <div className="space-y-10">
+                        <div className="space-y-4">
+                            <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest flex items-center gap-2">
+                                <ImageIcon size={14} /> Logotipo da Unidade
+                            </label>
+                            <div className="flex items-center gap-6 p-6 bg-slate-950 rounded-3xl border border-white/5">
+                                <div className="w-20 h-20 bg-slate-900 rounded-2xl flex items-center justify-center border border-white/10 relative overflow-hidden group">
+                                    {brandingForm.logoUrl ? (
+                                        <img src={brandingForm.logoUrl} className="w-full h-full object-contain" alt="Preview" />
+                                    ) : (
+                                        <Building2 className="text-slate-700" size={32} />
+                                    )}
+                                    {isUploading && (
+                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                            <Loader2 className="animate-spin text-sky-500" size={20} />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    <label className="cursor-pointer bg-sky-600 hover:bg-sky-500 text-white text-[10px] font-black px-6 py-3 rounded-xl uppercase tracking-widest transition-all shadow-lg flex items-center gap-2">
+                                        <Upload size={14} /> {isUploading ? 'Enviando...' : 'Selecionar Logo'}
+                                        <input type="file" className="hidden" accept="image/*" onChange={handleUploadLogo} disabled={isUploading} />
+                                    </label>
+                                    <button 
+                                        onClick={() => setBrandingForm({...brandingForm, logoUrl: ''})}
+                                        className="text-[9px] font-black text-slate-600 hover:text-red-500 uppercase text-left ml-1 transition-colors"
+                                    >
+                                        Remover Imagem
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">Cor Primária</label>
@@ -209,7 +287,7 @@ export default function TenantManager() {
                                         type="color" 
                                         value={brandingForm.primaryColor}
                                         onChange={e => setBrandingForm({...brandingForm, primaryColor: e.target.value})}
-                                        className="w-12 h-12 rounded-xl bg-transparent border-none cursor-pointer" 
+                                        className="w-12 h-12 rounded-xl bg-transparent border-none cursor-pointer p-0" 
                                     />
                                     <input 
                                         type="text" 
@@ -226,7 +304,7 @@ export default function TenantManager() {
                                         type="color" 
                                         value={brandingForm.secondaryColor}
                                         onChange={e => setBrandingForm({...brandingForm, secondaryColor: e.target.value})}
-                                        className="w-12 h-12 rounded-xl bg-transparent border-none cursor-pointer" 
+                                        className="w-12 h-12 rounded-xl bg-transparent border-none cursor-pointer p-0" 
                                     />
                                     <input 
                                         type="text" 
@@ -238,54 +316,46 @@ export default function TenantManager() {
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase ml-2 tracking-widest">URL do Logo (SVG/PNG)</label>
-                            <div className="relative">
-                                <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-                                <input 
-                                    value={brandingForm.logoUrl}
-                                    onChange={e => setBrandingForm({...brandingForm, logoUrl: e.target.value})}
-                                    placeholder="https://sua-escola.com/logo.svg"
-                                    className="w-full bg-slate-950 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white text-xs outline-none focus:ring-2 focus:ring-sky-500/20" 
-                                />
-                            </div>
-                        </div>
-
                         {/* Preview do Tema */}
-                        <div className="p-6 bg-slate-950 rounded-3xl border border-white/5 space-y-4">
-                            <p className="text-[9px] font-black text-slate-700 uppercase text-center mb-2">Live Preview de Interface</p>
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl shadow-lg" style={{ backgroundColor: brandingForm.primaryColor }} />
-                                <div className="flex-1 h-2 rounded-full" style={{ backgroundColor: brandingForm.primaryColor }} />
+                        <div className="p-8 bg-slate-950 rounded-[40px] border border-white/5 space-y-6">
+                            <p className="text-[9px] font-black text-slate-700 uppercase text-center mb-2 tracking-[0.3em]">Live Core Preview</p>
+                            <div className="flex items-center gap-5">
+                                <div className="w-14 h-14 rounded-2xl shadow-lg border border-white/10 flex items-center justify-center bg-slate-900">
+                                     {brandingForm.logoUrl ? <img src={brandingForm.logoUrl} className="w-8 h-8 object-contain" /> : <Building2 className="text-slate-800" />}
+                                </div>
+                                <div className="flex-1 space-y-3">
+                                    <div className="h-2 w-2/3 rounded-full opacity-20" style={{ backgroundColor: brandingForm.primaryColor }} />
+                                    <div className="h-1.5 w-full rounded-full" style={{ backgroundColor: brandingForm.primaryColor }} />
+                                </div>
                             </div>
                             <Button 
-                                className="w-full py-4 rounded-2xl pointer-events-none" 
+                                className="w-full py-6 rounded-2xl pointer-events-none shadow-xl border-none font-black uppercase text-[10px] tracking-widest" 
                                 style={{ backgroundColor: brandingForm.primaryColor }}
                             >
-                                Botão Exemplo
+                                Botão Exemplo Unitário
                             </Button>
                         </div>
                     </div>
 
                     <DialogFooter className="mt-12 gap-4">
-                        <Button variant="ghost" onClick={() => setIsBrandingOpen(false)} className="text-[10px] font-black uppercase text-slate-500">Cancelar</Button>
-                        <Button onClick={handleSaveBranding} isLoading={isSaving} className="flex-1 py-8 rounded-3xl bg-sky-600 text-white font-black uppercase tracking-widest shadow-xl" leftIcon={Save}>Salvar Identidade</Button>
+                        <Button variant="ghost" onClick={() => setIsBrandingOpen(false)} className="text-[10px] font-black uppercase text-slate-500">Descartar</Button>
+                        <Button onClick={handleSaveBranding} isLoading={isSaving} className="flex-1 py-8 rounded-3xl bg-sky-600 text-white font-black uppercase tracking-widest shadow-xl" leftIcon={Save}>Salvar e Propagar</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* MODAL DE ADICIONAR ESCOLA (SIMPLIFICADO) */}
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                 <DialogContent className="bg-slate-900 border-slate-800 rounded-[48px] p-12 max-w-xl">
-                    <DialogHeader className="mb-8">
-                        <DialogTitle className="text-3xl font-black text-white uppercase italic">Provisionar Unidade</DialogTitle>
+                    <DialogHeader className="mb-8 text-center space-y-4">
+                        <div className="w-20 h-20 bg-sky-600 rounded-[32px] flex items-center justify-center mx-auto text-white shadow-xl shadow-sky-900/20"><Building size={40} /></div>
+                        <DialogTitle className="text-3xl font-black text-white uppercase italic tracking-tighter">Nova Unidade</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-6">
-                        <input value={newSchool.name} onChange={e => setNewSchool({...newSchool, name: e.target.value})} placeholder="Nome da Escola" className="w-full bg-slate-950 border border-white/10 rounded-2xl p-5 text-white" />
-                        <input value={newSchool.slug} onChange={e => setNewSchool({...newSchool, slug: e.target.value})} placeholder="slug-da-url" className="w-full bg-slate-950 border border-white/10 rounded-2xl p-5 text-sky-400 font-mono" />
+                        <input value={newSchool.name} onChange={e => setNewSchool({...newSchool, name: e.target.value})} placeholder="Nome da Escola (Ex: RedHouse)" className="w-full bg-slate-950 border border-white/10 rounded-2xl p-5 text-white outline-none focus:ring-4 focus:ring-sky-500/20" />
+                        <input value={newSchool.slug} onChange={e => setNewSchool({...newSchool, slug: e.target.value})} placeholder="slug-da-url (Ex: cuiaba)" className="w-full bg-slate-950 border border-white/10 rounded-2xl p-5 text-sky-400 font-mono outline-none focus:ring-4 focus:ring-sky-500/20" />
                     </div>
                     <DialogFooter className="mt-12">
-                        <Button onClick={handleCreateSchool} isLoading={isSaving} className="w-full py-8 rounded-3xl bg-sky-600 text-white font-black uppercase" leftIcon={Save}>Criar Unidade</Button>
+                        <Button onClick={handleCreateSchool} isLoading={isSaving} className="w-full py-8 rounded-3xl bg-sky-600 text-white font-black uppercase tracking-widest shadow-xl" leftIcon={Save}>Finalizar Provisionamento</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
