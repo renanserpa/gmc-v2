@@ -23,7 +23,8 @@ const queryClient = new QueryClient({
 });
 
 // Componente Wrapper para injetar hooks que dependem de Contextos
-const BrandingWrapper = ({ children }: { children: ReactNode }) => {
+// FIX: Changed children to optional (children?: ReactNode) to prevent TypeScript errors when no children are provided or when children is undefined
+const BrandingWrapper = ({ children }: { children?: ReactNode }) => {
     useSchoolBranding(); // Injeta o CSS da escola ativa
     return <>{children}</>;
 };

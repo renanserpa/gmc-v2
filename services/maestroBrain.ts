@@ -1,4 +1,3 @@
-
 import { supabase } from '../lib/supabaseClient';
 import { notify } from '../lib/notification';
 import { MESSAGES } from '../config/constants';
@@ -28,7 +27,8 @@ export const maestroBrain = {
    * Isso é usado para habilitar ferramentas de debug em todo o ecossistema.
    */
   canBypassRLS: async (): Promise<boolean> => {
-    const { data: { user } } = await supabase.auth.getUser();
+    // FIX: Cast supabase.auth to any to resolve getUser() missing property error
+    const { data: { user } } = await (supabase.auth as any).getUser();
     if (!user) return false;
     
     // Verifica por email root ou por role no banco

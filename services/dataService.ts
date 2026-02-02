@@ -36,7 +36,8 @@ export const updateSchoolStatus = async (schoolId: string, isActive: boolean) =>
 };
 
 export const createAdminSchool = async (schoolData: Partial<School> & { slug: string }) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    // FIX: Cast supabase.auth to any to resolve getUser() missing property error
+    const { data: { user } } = await (supabase.auth as any).getUser();
     
     const { data, error } = await supabase
         .from('schools')
@@ -84,7 +85,8 @@ export const updateUserInfo = async (userId: string, updates: Partial<Profile>) 
 };
 
 export const logSecurityAudit = async (action: string, metadata: any = {}) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    // FIX: Cast supabase.auth to any to resolve getUser() missing property error
+    const { data: { user } } = await (supabase.auth as any).getUser();
     if (!user) return;
 
     await supabase.from('audit_logs').insert([{
@@ -197,7 +199,8 @@ export const updateStudent = async (studentId: string, updates: Partial<Student>
 };
 
 export const linkStudentAccount = async (code: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    // FIX: Cast supabase.auth to any to resolve getUser() missing property error
+    const { data: { user } } = await (supabase.auth as any).getUser();
     if (!user) throw new Error("Não autenticado");
 
     const { data, error } = await supabase
@@ -407,7 +410,8 @@ export const giveHighFive = async (hallId: string) => {
 };
 
 export const linkGuardianAccount = async (code: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    // FIX: Cast supabase.auth to any to resolve getUser() missing property error
+    const { data: { user } } = await (supabase.auth as any).getUser();
     if (!user) throw new Error("Não autenticado");
 
     const { data, error } = await supabase

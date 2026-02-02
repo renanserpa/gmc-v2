@@ -1,13 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
-import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabaseClient.ts';
 import { Profile, UserRole } from '../types.ts';
 import { logger } from '../lib/logger.ts';
 import { notify } from '../lib/notification.ts';
 
 interface AuthContextType {
-  session: Session | null;
-  user: User | null;
+  session: any | null;
+  user: any | null;
   profile: Profile | null;
   role: string | null;
   schoolId: string | null;
@@ -24,8 +23,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const AuthProvider = ({ children }: { children?: ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<any | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [schoolId, setSchoolId] = useState<string | null>(null);
@@ -48,22 +47,47 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   }, []);
 
   const internalSignOut = async (reason?: string) => {
-    await supabase.auth.signOut();
+    await (supabase.auth as any).signOut();
     localStorage.clear();
     if (reason) notify.error(reason);
     window.location.href = '/login';
   };
 
-  const syncProfile = async (currentUser: User) => {
+  const syncProfile = async (currentUser: any) => {
     try {
-      const { data, error } = await supabase
+      console.log(`[Maestro Kernel] Sincronizando perfil para: ${currentUser.email}`);
+      
+      let { data, error } = await supabase
         .from('profiles')
         .select('*, schools(name, is_active)')
         .eq('id', currentUser.id)
         .maybeSingle();
 
+      // AUTO-CURA SPRINT 1.1: Tentativa de provisionamento automático do Root
+      if (!data && currentUser.email === 'serparenan@gmail.com') {
+        console.log("[Maestro Kernel] Root detectado sem perfil. Tentando Auto-Cura...");
+        
+        const { data: healed, error: healError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: currentUser.id,
+            email: currentUser.email,
+            full_name: 'Maestro Renan Serpa (Root)',
+            role: 'super_admin'
+          })
+          .select()
+          .maybeSingle();
+        
+        if (healError) {
+          console.error("[Maestro Kernel] Falha na Auto-Cura (RLS Block):", healError.message);
+          // Se falhou aqui, o usuário verá o aviso de perfil pendente na UI
+        } else {
+          data = healed;
+          console.log("[Maestro Kernel] Auto-Cura concluída com sucesso.");
+        }
+      }
+
       if (data) {
-        // Bloqueio de Tenant Suspenso
         if (data.school_id && data.schools && data.schools.is_active === false && data.role !== 'super_admin') {
            await internalSignOut("Sessão Bloqueada: Esta unidade escolar está suspensa.");
            return;
@@ -73,20 +97,16 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
         setRole(data.role);
         setSchoolId(data.school_id);
         
-        // SPRINT 1.1 GODMODE LOG
         if (data.role === 'super_admin') {
-            console.log(`%c[Maestro Kernel] Modo Godmode Ativo para: ${currentUser.email}`, 'color: #facc15; font-weight: bold; background: #422006; padding: 4px 8px; border-radius: 8px;');
-        } else {
-            console.log(`%c[Maestro Kernel] Contexto Ativo: ${data.schools?.name || 'Global'}`, 'color: #38bdf8; font-weight: bold; background: #0f172a; padding: 2px 5px; border-radius: 4px;');
+            console.log(`%c[Maestro Kernel] Godmode Ativado: ${currentUser.email}`, 'color: #facc15; font-weight: bold; background: #422006; padding: 4px 8px; border-radius: 8px;');
         }
       } else {
-        // Fallback: Usuário autenticado sem perfil na tabela profiles ainda
         const metaRole = currentUser.user_metadata?.role || 'student';
         setRole(metaRole);
-        console.warn("[Maestro] Perfil pendente na tabela public.profiles.");
+        console.warn("[Maestro] Perfil não encontrado no banco de dados.");
       }
     } catch (e) {
-      logger.error("[Auth] Falha de sincronia RLS", e);
+      logger.error("[Auth] Falha crítica de sincronia", e);
       setRole('student');
     } finally {
       setLoading(false);
@@ -94,7 +114,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: initSession } }) => {
+    (supabase.auth as any).getSession().then(({ data: { session: initSession } }: any) => {
       const u = initSession?.user ?? null;
       setSession(initSession);
       setUser(u);
@@ -102,7 +122,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
       else setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+    const { data: { subscription } } = (supabase.auth as any).onAuthStateChange(async (event: any, currentSession: any) => {
       const u = currentSession?.user ?? null;
       setSession(currentSession);
       setUser(u);
@@ -132,7 +152,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
     },
     signOut: () => internalSignOut(),
     signIn: async (email: string, password: string) => {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await (supabase.auth as any).signInWithPassword({ email, password });
       if (error) throw error;
       return data;
     },
@@ -143,14 +163,12 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
       }
     },
     devLogin: async (userId: string, targetRole: string) => {
-      localStorage.setItem('oliemusic_dev_user_id', userId);
-      localStorage.setItem('oliemusic_dev_role', targetRole);
       setRole(targetRole);
       setUser({ 
         id: userId, 
         email: `dev-${targetRole}@oliemusic.dev`,
-        user_metadata: { role: targetRole, full_name: `Dev ${targetRole}` }
-      } as unknown as User);
+        user_metadata: { role: targetRole }
+      } as any);
     }
   };
 

@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabaseClient';
-import { RealtimeChannel } from '@supabase/supabase-js';
+// FIX: Removed missing RealtimeChannel export and replaced with any in function signatures
 
 export interface TableStatus {
     tableName: string;
@@ -69,7 +69,7 @@ export const databaseService = {
         tableName: string, 
         filter: string, 
         callback: (payload: any) => void
-    ): RealtimeChannel {
+    ): any { // FIX: Using any instead of missing RealtimeChannel export
         const channel = supabase.channel(`db-sync-${tableName}-${filter}`)
             .on(
                 'postgres_changes' as any,

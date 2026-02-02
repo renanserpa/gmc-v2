@@ -22,7 +22,8 @@ export const getProfessorDashboardStats = async (professorId: string): Promise<P
 };
 
 export const getFirstStudentForGuardian = async (): Promise<string | null> => {
-    const { data: { user } } = await supabase.auth.getUser();
+    // FIX: Cast supabase.auth to any to resolve getUser() missing property error
+    const { data: { user } } = await (supabase.auth as any).getUser();
     if (!user) return null;
     const { data } = await supabase.from('students').select('id').eq('guardian_id', user.id).limit(1).maybeSingle();
     return data?.id || null;

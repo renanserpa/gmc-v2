@@ -32,15 +32,16 @@ async function seed() {
       console.log(`\n📧 Processando: ${user.email}`);
 
       // 1. Tentar localizar usuário no Auth
-      // FIX: Added error handling and explicit typing for find callback to resolve 'never' type error
-      const { data: list, error: listError } = await supabase.auth.admin.listUsers();
+      // FIX: Cast supabase.auth to any to resolve admin property missing property error
+      const { data: list, error: listError } = await (supabase.auth as any).admin.listUsers();
       if (listError) throw listError;
       
       let authUser = list?.users?.find((u: any) => u.email === user.email);
 
       if (!authUser) {
         // Criar no Auth se não existir
-        const { data: created, error: authErr } = await supabase.auth.admin.createUser({
+        // FIX: Cast supabase.auth to any to resolve admin property missing property error
+        const { data: created, error: authErr } = await (supabase.auth as any).admin.createUser({
           email: user.email,
           password: '123456',
           email_confirm: true,
