@@ -55,29 +55,8 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const syncProfile = async (currentUser: User) => {
-    const rootEmails = ['serparenan@gmail.com', 'admin@oliemusic.dev'];
+    const rootEmails = ['serparenan@gmail.com', 'admin@oliemusic.dev', 'adm@adm.com'];
     
-    if (rootEmails.includes(currentUser.email?.toLowerCase() || '')) {
-      setRole('super_admin');
-      
-      // Tentativa de buscar school_id real para super_admin se existir
-      const { data: realProf } = await supabase.from('profiles').select('school_id, schools(name)').eq('id', currentUser.id).maybeSingle();
-      
-      setProfile({
-          id: currentUser.id,
-          email: currentUser.email!,
-          full_name: "Master Root (Bypass)",
-          role: 'super_admin',
-          school_id: realProf?.school_id || null,
-          created_at: new Date().toISOString()
-      } as Profile);
-      
-      setSchoolId(realProf?.school_id || null);
-      console.log(`%c[Maestro Core] Contexto Ativo: ${realProf?.schools?.name || 'Global / SuperAdmin'}`, 'color: #38bdf8; font-weight: bold;');
-      setLoading(false);
-      return;
-    }
-
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -86,7 +65,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
         .maybeSingle();
 
       if (data) {
-        if (data.school_id && data.schools && data.schools.is_active === false) {
+        if (data.school_id && data.schools && data.schools.is_active === false && data.role !== 'super_admin') {
            await internalSignOut("Esta unidade escolar foi suspensa pelo Administrador Master.");
            return;
         }
@@ -94,13 +73,18 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
         setProfile(data as Profile);
         setRole(data.role);
         setSchoolId(data.school_id);
-        console.log(`%c[Maestro Core] Contexto Ativo: ${data.schools?.name || 'Independente'}`, 'color: #38bdf8; font-weight: bold;');
+        
+        // LOG DE CONTEXTO ATIVO EXIGIDO NO SPRINT 1.1
+        console.log(`%c[Maestro Kernel] Contexto Ativo: ${data.schools?.name || 'Global'}`, 'color: #38bdf8; font-weight: bold; background: #0f172a; padding: 2px 5px; border-radius: 4px;');
+      } else if (rootEmails.includes(currentUser.email?.toLowerCase() || '')) {
+        setRole('super_admin');
+        console.warn("[Maestro] Perfil não encontrado no DB, aplicando bypass SuperAdmin via Email.");
       } else {
         const metaRole = currentUser.user_metadata?.role || 'student';
         setRole(metaRole);
       }
     } catch (e) {
-      logger.error("[Auth] Perfil não encontrado ou erro de RLS", e);
+      logger.error("[Auth] Falha crítica de sincronia RLS", e);
       setRole('student');
     } finally {
       setLoading(false);

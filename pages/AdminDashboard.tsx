@@ -20,12 +20,9 @@ import { haptics } from '../lib/haptics.ts';
 const M = motion as any;
 
 const KERNEL_BACKLOG: BacklogItem[] = [
-    { id: '1', title: 'Stripe Connect (Tenants)', description: 'Divisão automática de pagamentos entre a Olie e as escolas franqueadas.', status: BacklogStatus.InProgress, type: 'tenants' },
-    { id: '2', title: 'Anti-Cheat Engine (Economy)', description: 'Detecção de macros e scripts de automação de prática musical.', status: BacklogStatus.Idea, type: 'economy' },
-    { id: '3', title: 'Broadcast Analytics', description: 'Monitoramento de taxa de leitura e engajamento dos alertas globais.', status: BacklogStatus.Planned, type: 'broadcast' },
-    { id: '4', title: 'Audio Worklet Profiling', description: 'Telemetria profunda do uso de CPU no processamento de sinal em tempo real.', status: BacklogStatus.InProgress, type: 'health' },
-    { id: '5', title: 'Provisionamento Custom Domain', description: 'Interface para que escolas usem seus próprios domínios (escola.com).', status: BacklogStatus.Idea, type: 'tenants' },
-    { id: '6', title: 'Ledger Auditável (Blockchain)', description: 'Registro imutável de cada OlieCoin para evitar inflação no sistema.', status: BacklogStatus.Idea, type: 'economy' }
+    { id: '1', title: 'Provisionar RedHouse Cuiabá', description: 'Criar a primeira unidade escolar via Tenant Manager.', status: BacklogStatus.InProgress, type: 'tenants' },
+    { id: '2', title: 'Cadastrar Primeiro Professor', description: 'Vincular um docente à RedHouse para gestão de turmas.', status: BacklogStatus.Planned, type: 'tenants' },
+    { id: '3', title: 'Testar Sincronia Realtime', description: 'Validar se as missões aparecem instantaneamente para o aluno.', status: BacklogStatus.Idea, type: 'health' }
 ];
 
 export default function AdminDashboard() {
@@ -50,10 +47,10 @@ export default function AdminDashboard() {
   }
 
   const QUICK_TOOLS = [
-    { id: 'users', label: 'Identity', icon: Fingerprint, color: 'text-purple-400', path: '/admin/users', desc: 'Controle de Acesso' },
-    { id: 'tenants', label: 'Tenants', icon: Globe, color: 'text-sky-400', path: '/admin/tenants', desc: 'Gerenciar Escolas' },
+    { id: 'tenants', label: 'Tenants', icon: Globe, color: 'text-sky-400', path: '/admin/tenants', desc: 'Provisionar Escolas' },
+    { id: 'users', label: 'Identity', icon: Fingerprint, color: 'text-purple-400', path: '/admin/users', desc: 'Gerenciar Mestres' },
     { id: 'broadcast', label: 'Alerts', icon: Megaphone, color: 'text-red-400', path: '/admin/broadcast', desc: 'Avisos Globais' },
-    { id: 'economy', label: 'Economy', icon: Coins, color: 'text-amber-400', path: '/admin/economy', desc: 'OlieCoins & XP' },
+    { id: 'economy', label: 'Economy', icon: Coins, color: 'text-amber-400', path: '/admin/economy', desc: 'Políticas de XP' },
   ];
 
   return (
@@ -68,7 +65,7 @@ export default function AdminDashboard() {
             God <span className="text-sky-500">Mode</span>
           </h1>
           <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.4em] mt-3 flex items-center gap-2">
-            <Cpu size={12} className="text-sky-500" /> Kernel Maestro v5.2 • Roadmap de Infraestrutura
+            <Cpu size={12} className="text-sky-500" /> Kernel Maestro v7.0 • Marco Zero Ativado
           </p>
         </div>
         
@@ -85,8 +82,8 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <KPICard title="Nós de Alunos" value={stats.totalStudents} icon={Users} color="text-sky-400" border="border-sky-500" />
           <KPICard title="Mestres Ativos" value={stats.totalProfs} icon={Music} color="text-purple-400" border="border-purple-500" />
-          <KPICard title="OlieCoins Circulantes" value="142.5k" icon={ShoppingBag} color="text-amber-400" border="border-amber-500" />
-          <KPICard title="Uptime Global" value="99.9%" icon={Globe} color="text-emerald-400" border="border-emerald-500" />
+          <KPICard title="Escolas na Rede" value="0" icon={Globe} color="text-emerald-400" border="border-emerald-500" />
+          <KPICard title="Status Kernel" value="STABLE" icon={CheckCircle2} color="text-amber-400" border="border-amber-500" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -106,13 +103,12 @@ export default function AdminDashboard() {
                 ))}
             </div>
 
-            {/* Backlog Widget Expandido para refletir o status da aplicação */}
             <Card className="bg-slate-900 border-white/5 rounded-[48px] overflow-hidden shadow-2xl">
                 <CardHeader className="p-8 border-b border-white/5 bg-slate-950/20 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
-                        <Construction size={18} className="text-amber-500" /> Backlog de Engenharia (Incompleto)
+                        <Construction size={18} className="text-amber-500" /> Roadmap de Lançamento
                     </CardTitle>
-                    <span className="text-[9px] font-black text-slate-600 bg-slate-950 px-3 py-1 rounded-full border border-white/5 uppercase">Auditoria V5.2</span>
+                    <span className="text-[9px] font-black text-slate-600 bg-slate-950 px-3 py-1 rounded-full border border-white/5 uppercase">Fase 1: Setup</span>
                 </CardHeader>
                 <CardContent className="p-0">
                     <div className="divide-y divide-white/5">
@@ -131,15 +127,6 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <span className={cn(
-                                        "text-[8px] font-black uppercase px-2 py-1 rounded border",
-                                        item.type === 'tenants' ? "text-sky-400 border-sky-400/20 bg-sky-400/5" :
-                                        item.type === 'economy' ? "text-amber-400 border-amber-400/20 bg-amber-400/5" :
-                                        item.type === 'broadcast' ? "text-red-400 border-red-400/20 bg-red-400/5" :
-                                        "text-purple-400 border-purple-400/20 bg-purple-400/5"
-                                    )}>
-                                        {item.type}
-                                    </span>
                                     <span className="text-[8px] font-black uppercase text-slate-600 bg-slate-950 px-2 py-1 rounded border border-white/5">
                                         {item.status}
                                     </span>
@@ -161,23 +148,16 @@ export default function AdminDashboard() {
                     <div className="flex items-center justify-between p-4 bg-slate-950 rounded-2xl border border-white/5">
                         <div className="flex items-center gap-3">
                             <CheckCircle2 size={16} className="text-emerald-500" />
-                            <span className="text-[10px] font-black text-slate-400 uppercase">Supabase Sync</span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase">RLS Firewall</span>
                         </div>
-                        <span className="text-[10px] font-mono text-emerald-500">Online</span>
+                        <span className="text-[10px] font-mono text-emerald-500">Active</span>
                     </div>
                     <div className="flex items-center justify-between p-4 bg-slate-950 rounded-2xl border border-white/5">
                         <div className="flex items-center gap-3">
                             <Clock size={16} className="text-amber-500" />
-                            <span className="text-[10px] font-black text-slate-400 uppercase">Cron Jobs</span>
-                            <span className="text-[8px] bg-amber-500/10 text-amber-500 px-1 rounded uppercase">Delayed</span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase">Root Profile</span>
                         </div>
-                    </div>
-                    <div className="flex items-center justify-between p-4 bg-slate-950 rounded-2xl border border-white/5">
-                        <div className="flex items-center gap-3">
-                            <Zap size={16} className="text-purple-500" />
-                            <span className="text-[10px] font-black text-slate-400 uppercase">Realtime Bus</span>
-                        </div>
-                        <span className="text-[10px] font-mono text-purple-500">Active</span>
+                        <span className="text-[10px] font-mono text-amber-500">Verified</span>
                     </div>
                 </div>
             </div>
@@ -186,8 +166,8 @@ export default function AdminDashboard() {
                 <div className="absolute top-0 right-0 p-16 bg-white/5 blur-3xl rounded-full" />
                 <div className="relative z-10">
                     <div className="p-3 bg-white/10 rounded-2xl w-fit mb-4"><Gavel size={24} className="text-sky-300" /></div>
-                    <h4 className="text-sm font-black text-white uppercase tracking-widest">Compliance & LGPD</h4>
-                    <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">Criptografia de dados de menores ativa. Purga de logs órfãos agendada para 24h. Firewall RLS auditado.</p>
+                    <h4 className="text-sm font-black text-white uppercase tracking-widest">Controle Master</h4>
+                    <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">Você está operando como Root Authority. Todas as ações são registradas no log imutável de auditoria.</p>
                 </div>
             </Card>
           </aside>
