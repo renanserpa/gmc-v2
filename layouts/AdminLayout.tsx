@@ -7,7 +7,8 @@ import {
     Activity, ShieldAlert, LogOut, Cpu,
     History, Database, UserPlus, Briefcase, 
     DollarSign, Users, ArrowLeftRight, Settings,
-    FileText, HeartPulse, Megaphone
+    FileText, HeartPulse, Megaphone, GraduationCap,
+    Zap, Rocket
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { cn } from '../lib/utils.ts';
@@ -26,7 +27,7 @@ export default function AdminLayout({ mode }: AdminLayoutProps) {
     const isGodView = location.pathname.startsWith('/system');
 
     const navItemClass = ({ isActive }: { isActive: boolean }) => cn(
-        "flex items-center gap-4 px-6 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all group",
+        "flex items-center gap-4 px-6 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all group",
         isActive 
             ? (isGodView ? "bg-red-600 text-white shadow-xl" : "bg-sky-600 text-white shadow-xl") 
             : "text-slate-500 hover:text-slate-200 hover:bg-white/5"
@@ -42,7 +43,7 @@ export default function AdminLayout({ mode }: AdminLayoutProps) {
                     <div className="flex items-center gap-4">
                         <div className={cn(
                             "w-12 h-12 rounded-[20px] flex items-center justify-center text-white shadow-2xl transition-all",
-                            isGodView ? "bg-red-600 rotate-12" : "bg-sky-600"
+                            isGodView ? "bg-red-600 rotate-12 shadow-red-900/40" : "bg-sky-600 shadow-sky-900/40"
                         )}>
                             {isGodView ? <Terminal size={24} /> : <Briefcase size={24} />}
                         </div>
@@ -51,7 +52,7 @@ export default function AdminLayout({ mode }: AdminLayoutProps) {
                                 Maestro <span className={isGodView ? "text-red-500" : "text-sky-500"}>{isGodView ? "GOD" : "SaaS"}</span>
                             </h1>
                             <p className="text-[8px] font-black text-slate-600 uppercase tracking-[0.4em] mt-1.5">
-                                {isGodView ? "Kernel Sovereign" : "Business Intelligence"}
+                                {isGodView ? "System Sovereign" : "Business Intelligence"}
                             </p>
                         </div>
                     </div>
@@ -70,28 +71,39 @@ export default function AdminLayout({ mode }: AdminLayoutProps) {
                     )}
                 </div>
 
-                <nav className="flex-1 p-6 space-y-2 overflow-y-auto">
-                    {isGodView ? (
-                        <>
-                            <p className="px-6 text-[9px] font-black text-red-900 uppercase tracking-[0.5em] mb-4">Core Engine</p>
-                            <NavLink to="/system/console" className={navItemClass}><Cpu size={18} /> Infra Dashboard</NavLink>
-                            <NavLink to="/system/broadcast" className={navItemClass}><Megaphone size={18} /> Broadcast</NavLink>
-                            <NavLink to="/system/audit" className={navItemClass}><History size={18} /> Audit Logs</NavLink>
-                            <NavLink to="/system/explorer" className={navItemClass}><Database size={18} /> DB Explorer</NavLink>
-                        </>
-                    ) : (
-                        <>
-                            <p className="px-6 text-[9px] font-black text-slate-700 uppercase tracking-[0.5em] mb-4">Operations</p>
-                            <NavLink to="/admin/business" className={navItemClass}><LayoutDashboard size={18} /> Dashboard</NavLink>
-                            <NavLink to="/admin/tenants" className={navItemClass}><Building2 size={18} /> Unidades SaaS</NavLink>
-                            <NavLink to="/admin/hr" className={navItemClass}><Users size={18} /> RH: MESTRES</NavLink>
-                        </>
+                <nav className="flex-1 p-6 space-y-2 overflow-y-auto custom-scrollbar">
+                    {/* SEÇÃO KERNEL (SEMPRE VISÍVEL PARA GOD) */}
+                    {(isGodView || isRoot) && (
+                        <div className="pb-6">
+                            <p className="px-6 text-[8px] font-black text-red-900 uppercase tracking-[0.5em] mb-4">Core Engine</p>
+                            <NavLink to="/system/console" className={navItemClass}><Cpu size={16} /> Console</NavLink>
+                            <NavLink to="/system/broadcast" className={navItemClass}><Megaphone size={16} /> Broadcast</NavLink>
+                            <NavLink to="/system/audit" className={navItemClass}><History size={16} /> Audit Logs</NavLink>
+                        </div>
+                    )}
+
+                    {/* SEÇÃO OPERAÇÕES */}
+                    <div className="pb-6">
+                        <p className="px-6 text-[8px] font-black text-slate-700 uppercase tracking-[0.5em] mb-4">Operations</p>
+                        <NavLink to="/admin/business" className={navItemClass}><LayoutDashboard size={16} /> Dashboard</NavLink>
+                        <NavLink to="/admin/tenants" className={navItemClass}><Building2 size={16} /> Unidades</NavLink>
+                        <NavLink to="/admin/hr" className={navItemClass}><Users size={16} /> RH: Mestres</NavLink>
+                    </div>
+
+                    {/* SEÇÃO PEDAGÓGICO (VISÍVEL PARA TESTES DO GOD) */}
+                    {isRoot && (
+                        <div>
+                            <p className="px-6 text-[8px] font-black text-emerald-900 uppercase tracking-[0.5em] mb-4">Live Lab</p>
+                            <NavLink to="/teacher/classes" className={navItemClass}><GraduationCap size={16} /> Minhas Turmas</NavLink>
+                            <NavLink to="/teacher/tasks" className={navItemClass}><Rocket size={16} /> Game Lab</NavLink>
+                            <NavLink to="/teacher/library" className={navItemClass}><Database size={16} /> Assets</NavLink>
+                        </div>
                     )}
                 </nav>
 
                 <div className="p-8 border-t border-white/5 bg-black/20">
-                    <button onClick={signOut} className="flex items-center gap-3 w-full text-[10px] font-black text-slate-600 hover:text-red-500 transition-all uppercase tracking-[0.2em]">
-                        <LogOut size={16} /> Logout Central
+                    <button onClick={signOut} className="flex items-center gap-3 w-full text-[10px] font-black text-slate-700 hover:text-red-500 transition-all uppercase tracking-[0.2em]">
+                        <LogOut size={16} /> Terminar Sessão
                     </button>
                 </div>
             </aside>

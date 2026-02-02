@@ -1,3 +1,4 @@
+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -11,8 +12,9 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      // O alias '@' aponta para a raiz absoluta do projeto (conceitualmente o diretório 'src')
-      '@': path.resolve(__dirname, '.'),
+      // O alias '@' mapeia para a raiz do projeto (o diretório 'src' conceitual).
+      // Isso permite que o código use imports como '@/components/ui/Card' de forma consistente.
+      '@': path.resolve(__dirname, './'),
     },
   },
   build: {

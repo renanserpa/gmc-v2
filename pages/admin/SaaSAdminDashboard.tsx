@@ -1,43 +1,47 @@
 
-import React, { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card.tsx';
+
+import React, { useMemo, useState } from 'react';
+import { Card, CardContent } from '../../components/ui/Card.tsx';
 import { KPICard } from '../../components/dashboard/KPICard.tsx';
 import { 
-    Building2, TrendingUp, DollarSign, 
-    ArrowUpRight, Users, AlertCircle, ShoppingCart, 
-    ShieldCheck, Calendar, Activity, BarChart3
+    Building2, DollarSign, Users, ShieldCheck, Activity, 
+    BarChart3, CheckCircle2, TrendingUp, UserPlus, 
+    ShoppingBag, BadgeAlert, Wallet, Zap
 } from 'lucide-react';
 import { useRealtimeSync } from '../../hooks/useRealtimeSync.ts';
 import { cn } from '../../lib/utils.ts';
 import { motion } from 'framer-motion';
+import { Button } from '../../components/ui/Button.tsx';
+import { ProvisioningWizard } from '../../components/admin/ProvisioningWizard.tsx';
 
 const M = motion as any;
 
 export default function SaaSAdminDashboard() {
-    const { data: schools, loading: loadingSchools } = useRealtimeSync<any>('schools');
-    const { data: students, loading: loadingStudents } = useRealtimeSync<any>('students');
+    const [isWizardOpen, setIsWizardOpen] = useState(false);
+    
+    const { data: schools, refresh: refreshSchools } = useRealtimeSync<any>('schools');
+    const { data: students } = useRealtimeSync<any>('students');
     const { data: profiles } = useRealtimeSync<any>('profiles');
 
     const stats = useMemo(() => {
-        if (!schools || !students || !profiles) return { totalMRR: 0, activeCount: 0, pendingCount: 0, totalStaff: 0 };
+        if (!schools || !students || !profiles) return { mrr: 0, units: 0, teachers: 0, pupils: 0, lateUnits: 0 };
         
         const activeSchools = schools.filter((s: any) => s.is_active);
-        const totalStaff = profiles.filter((p: any) => p.role === 'professor' || p.role === 'teacher_owner').length;
         
-        // Cálculo de Receita Real (Fee Fixo + Variável por Aluno)
-        const totalMRR = schools.reduce((acc: number, s: any) => {
+        // MRR Real: Fixo + Royalties (Fee per Student * Students in that school)
+        const revenue = activeSchools.reduce((acc: number, s: any) => {
             const schoolStudents = students.filter((st: any) => st.school_id === s.id).length;
-            const fixed = Number(s.monthly_fee) || 0;
-            const variable = schoolStudents * (Number(s.fee_per_student) || 0);
+            const fixed = Number(s.monthly_fee || 0);
+            const variable = (Number(s.fee_per_student || 0)) * schoolStudents;
             return acc + fixed + variable;
         }, 0);
-        
+
         return {
-            totalMRR: totalMRR.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-            activeCount: activeSchools.length,
-            inactiveCount: schools.length - activeSchools.length,
-            totalStudents: students.length,
-            totalStaff
+            mrr: revenue,
+            units: schools.length,
+            teachers: profiles.filter((p: any) => p.role === 'teacher_owner' || p.role === 'professor').length,
+            pupils: students.length,
+            lateUnits: schools.filter((s: any) => s.contract_status === 'suspended').length
         };
     }, [schools, students, profiles]);
 
@@ -46,78 +50,92 @@ export default function SaaSAdminDashboard() {
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
                     <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
-                        Operations <span className="text-sky-500">Center</span>
+                        Operações <span className="text-sky-500">BI</span>
                     </h1>
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-3">Business Intelligence & Governance</p>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-3">SaaS Governance & Financial Telemetry</p>
                 </div>
-                <div className="bg-slate-900 px-6 py-3 rounded-2xl border border-white/5 flex items-center gap-4 shadow-xl">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Sincronia Live Maestro: Ativa</span>
-                </div>
+                <Button 
+                    onClick={() => setIsWizardOpen(true)}
+                    className="rounded-[32px] h-16 px-10 bg-sky-600 hover:bg-sky-500 font-black uppercase text-xs shadow-[0_20px_50px_rgba(14,165,233,0.3)] border-none"
+                    leftIcon={UserPlus}
+                >
+                    Novo Contrato
+                </Button>
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <KPICard title="Receita Projetada" value={stats.totalMRR} icon={DollarSign} color="text-emerald-400" border="border-emerald-500" />
-                <KPICard title="Unidades Ativas" value={stats.activeCount} icon={Building2} color="text-sky-400" border="border-sky-500" />
-                <KPICard title="Total Alunos" value={stats.totalStudents} icon={Users} color="text-purple-400" border="border-purple-500" />
-                <KPICard title="Licenciados" value={stats.totalStaff} icon={ShieldCheck} color="text-amber-400" border="border-amber-500" />
+                <KPICard 
+                    title="Faturamento Projetado" 
+                    value={stats.mrr.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} 
+                    icon={Wallet} 
+                    color="text-emerald-400" 
+                    border="border-emerald-500" 
+                />
+                <KPICard title="Unidades Ativas" value={stats.units} icon={Building2} color="text-sky-400" border="border-sky-500" />
+                <KPICard title="Total de Alunos" value={stats.pupils} icon={Users} color="text-purple-400" border="border-purple-500" />
+                <KPICard 
+                    title="Unidades Inadimplentes" 
+                    value={stats.lateUnits} 
+                    icon={BadgeAlert} 
+                    color={stats.lateUnits > 0 ? "text-red-500" : "text-slate-500"} 
+                    border={stats.lateUnits > 0 ? "border-red-500" : "border-white/5"} 
+                />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* GRÁFICO DE CRESCIMENTO (MOCK PEDAGÓGICO) */}
-                <Card className="lg:col-span-8 bg-[#0a0f1d] border-white/5 rounded-[48px] overflow-hidden shadow-2xl">
-                    <CardHeader className="p-8 border-b border-white/5 bg-slate-950/40">
-                        <CardTitle className="text-xs uppercase tracking-[0.3em] flex items-center gap-3 text-slate-500">
-                            <BarChart3 size={18} /> Densidade de Matrículas (3 Meses)
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="h-[350px] flex items-end gap-6 p-12">
-                        {[45, 68, 92].map((val, i) => (
-                            <div key={i} className="flex-1 flex flex-col items-center gap-4 group">
-                                <M.div 
-                                    initial={{ height: 0 }}
-                                    animate={{ height: `${val}%` }}
-                                    transition={{ duration: 1, delay: i * 0.2 }}
-                                    className="w-full bg-gradient-to-t from-sky-600 to-sky-400 rounded-2xl relative shadow-lg group-hover:shadow-sky-500/20"
-                                >
-                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 text-white font-black text-lg">+{val}</div>
-                                </M.div>
-                                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Mês 0{i+1}</span>
-                            </div>
-                        ))}
-                    </CardContent>
+                <Card className="lg:col-span-8 bg-[#0a0f1d] border-white/5 rounded-[48px] overflow-hidden shadow-2xl p-12">
+                    <div className="flex justify-between items-start mb-12">
+                        <div>
+                             <h3 className="text-2xl font-black text-white uppercase italic tracking-tight mb-2">Market Share por Unidade</h3>
+                             <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Distribuição de alunos e penetração de rede</p>
+                        </div>
+                        <TrendingUp className="text-sky-500" size={32} />
+                    </div>
+                    <div className="h-64 flex items-end gap-6 pt-10">
+                        {schools?.slice(0, 12).map((s: any) => {
+                            const count = students?.filter((st: any) => st.school_id === s.id).length || 0;
+                            const h = Math.min(100, (count / 20) * 100);
+                            return (
+                                <div key={s.id} className="flex-1 flex flex-col items-center gap-4 group">
+                                    <M.div initial={{ height: 0 }} animate={{ height: `${h}%` }} className={cn("w-full rounded-2xl transition-all border shadow-lg group-hover:scale-110", s.is_active ? "bg-sky-500/20 border-sky-500/40" : "bg-red-950/20 border-red-500/20")} />
+                                    <span className="text-[8px] font-black text-slate-700 uppercase vertical-text group-hover:text-white transition-colors">{s.name.split(' ')[0]}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </Card>
 
-                {/* ALERTAS DE NEGÓCIO */}
                 <div className="lg:col-span-4 space-y-6">
-                    <Card className="bg-slate-900/60 border-white/5 p-8 rounded-[40px] shadow-xl h-full">
-                        <div className="flex items-center gap-3 mb-8">
-                            <Activity size={18} className="text-sky-400" />
-                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Incidentes & Alertas</h4>
-                        </div>
-                        <div className="space-y-6">
-                            {stats.inactiveCount > 0 && (
-                                <div className="p-5 bg-red-500/5 rounded-3xl border border-red-500/20 flex items-start gap-4">
-                                    <AlertCircle size={20} className="text-red-500 shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="text-xs font-black text-red-500 uppercase">Unidades Suspensas</p>
-                                        <p className="text-[10px] text-slate-400 mt-1 font-medium leading-relaxed">
-                                            Existem {stats.inactiveCount} unidades sem faturamento ativo.
-                                        </p>
+                    <Card className="bg-slate-900 border-white/5 rounded-[40px] p-8 shadow-xl">
+                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                            <Activity size={14} className="text-emerald-500" /> Logs de Provisionamento
+                        </h4>
+                        <div className="space-y-4">
+                            {schools?.slice(0, 4).map((s: any) => (
+                                <div key={s.id} className="flex justify-between items-center p-4 bg-black/20 rounded-2xl border border-white/5">
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] font-black text-white uppercase truncate max-w-[120px]">{s.name}</span>
+                                        <span className="text-[7px] text-slate-600 font-bold uppercase">{s.contract_status}</span>
                                     </div>
+                                    <CheckCircle2 size={16} className="text-emerald-500" />
                                 </div>
-                            )}
-                            <div className="p-5 bg-emerald-500/5 rounded-3xl border border-emerald-500/20 flex items-start gap-4">
-                                <ShieldCheck size={20} className="text-emerald-500 shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="text-xs font-black text-emerald-500 uppercase">Integridade RLS</p>
-                                    <p className="text-[10px] text-slate-400 mt-1 font-medium">Todas as políticas de isolamento estão normais.</p>
-                                </div>
-                            </div>
+                            ))}
                         </div>
                     </Card>
+                    <div className="p-8 bg-sky-500/5 border border-sky-500/10 rounded-[40px] flex items-start gap-4">
+                         <Zap className="text-sky-500 shrink-0" size={20} />
+                         <p className="text-[10px] text-slate-400 font-medium leading-relaxed italic">
+                            O provisionamento automático garante que o Professor já encontre sua escola configurada no primeiro login.
+                         </p>
+                    </div>
                 </div>
             </div>
+
+            <ProvisioningWizard 
+                isOpen={isWizardOpen} 
+                onClose={() => setIsWizardOpen(false)}
+                onSuccess={refreshSchools}
+            />
         </div>
     );
 }

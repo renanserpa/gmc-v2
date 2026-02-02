@@ -1,32 +1,81 @@
+
 /**
- * GCM Maestro V3.0 - Fonte da Verdade do Banco de Dados
- * Este arquivo contém o DDL completo para restauração do ambiente.
+ * GCM Maestro V4.0 - Fonte da Verdade do Banco de Dados
+ * Este arquivo contém o DDL completo para restauração do ambiente SaaS e God Mode.
  */
 
-export const GCM_DB_SCHEMA = `-- GCM MAESTRO V3.0 - SCRIPT DE INFRAESTRUTURA COMPLETO
+export const GCM_DB_SCHEMA = `-- GCM MAESTRO V4.0 - SCRIPT DE INFRAESTRUTURA SAAS COMPLETO
 
--- 1. Extensões
+-- 1. Extensões e Limpeza
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. Tabela de Perfis
+-- 2. Tabela de Perfis (Hardened for SaaS Roles)
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    email TEXT,
+    email TEXT UNIQUE NOT NULL,
     full_name TEXT,
-    role TEXT DEFAULT 'student' CHECK (role IN ('admin', 'super_admin', 'professor', 'student', 'guardian', 'manager', 'school_manager')),
+    role TEXT DEFAULT 'student',
     school_id UUID,
+    reputation_points INTEGER DEFAULT 0,
+    avatar_url TEXT,
+    accessibility_settings JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 3. Configurações Globais
+-- 3. Unidades Escolares (Tenant Layer)
+CREATE TABLE IF NOT EXISTS public.schools (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    owner_id UUID REFERENCES auth.users(id),
+    billing_model TEXT DEFAULT 'fixed',
+    monthly_fee NUMERIC DEFAULT 0.00,
+    fee_per_student NUMERIC DEFAULT 0.00,
+    branding JSONB DEFAULT '{"borderRadius": "24px", "primaryColor": "#38bdf8", "secondaryColor": "#0f172a"}'::jsonb,
+    contract_status TEXT DEFAULT 'trial',
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 4. Biblioteca Global e IA (Brain Center)
+CREATE TABLE IF NOT EXISTS public.knowledge_docs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    type TEXT DEFAULT 'theory',
+    level TEXT DEFAULT 'beginner',
+    tokens INTEGER,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 5. Performance e Dossiê (Technical Layer)
+CREATE TABLE IF NOT EXISTS public.performance_recordings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID REFERENCES public.profiles(id),
+    song_id UUID,
+    audio_url TEXT NOT NULL,
+    stats JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 6. Mural Social (Concert Hall)
+CREATE TABLE IF NOT EXISTS public.concert_hall (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    recording_id UUID REFERENCES public.performance_recordings(id),
+    professor_id UUID REFERENCES public.profiles(id),
+    high_fives_count INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 7. Configurações de Economia e Sistema
 CREATE TABLE IF NOT EXISTS public.system_configs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    key TEXT UNIQUE NOT NULL,
+    key TEXT PRIMARY KEY,
     value JSONB NOT NULL,
+    description TEXT,
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 4. Auditoria Imutável
+-- 8. Auditoria de God Mode
 CREATE TABLE IF NOT EXISTS public.audit_logs (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id UUID,
@@ -38,15 +87,10 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 5. Avisos Globais e de Unidade
-CREATE TABLE IF NOT EXISTS public.notices (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    title TEXT NOT NULL,
-    message TEXT,
-    priority TEXT DEFAULT 'normal',
-    school_id UUID,
-    created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- Outras tabelas omitidas para brevidade no auditor...
+-- SEEDS INICIAIS
+INSERT INTO public.system_configs (key, value, description) VALUES 
+('XP_MULTIPLIER', '1.0', 'Multiplicador global de ganho de XP'),
+('COIN_RATIO', '0.1', 'Taxa de conversão XP para Coins (10%)'),
+('STORAGE_LIMIT_SCHOOL', '5120', 'Limite de storage por escola em MB')
+ON CONFLICT (key) DO NOTHING;
 `;

@@ -1,4 +1,5 @@
 
+
 export enum UserRole {
     GodMode = 'god_mode',
     SaaSAdminGlobal = 'saas_admin_global',
@@ -68,6 +69,8 @@ export interface School {
     contract_status: 'trial' | 'active' | 'suspended' | 'canceled';
     cnpj?: string;
     fee_per_student: number;
+    // Added enabled_modules property to satisfy usage in Layout and admin components
+    enabled_modules?: Record<string, boolean>;
 }
 
 export interface Student {
