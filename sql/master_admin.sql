@@ -1,26 +1,31 @@
--- 1. Garante colunas de Multitenancy e Templates em Missions
-ALTER TABLE IF EXISTS public.missions 
-ADD COLUMN IF NOT EXISTS is_template BOOLEAN DEFAULT false,
-ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES public.schools(id),
-ADD COLUMN IF NOT EXISTS slug TEXT;
+-- GCM MAESTRO - PATCH DE ATIVAÇÃO REDHOUSE V4.6
+-- 1. Garantir colunas essenciais na tabela de escolas
+ALTER TABLE IF EXISTS public.schools ADD COLUMN IF NOT EXISTS slug TEXT;
+ALTER TABLE IF EXISTS public.schools ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES auth.users(id);
 
--- 2. Insere/Corrige a RedHouse com todos os campos obrigatórios para o Kernel
-INSERT INTO public.schools (id, name, slug, is_active, branding)
+-- 2. Upsert da RedHouse com SLUG e OWNER (Vinculando ao executor)
+-- O ID '7777...' é reservado para a RedHouse no Kernel Maestro
+INSERT INTO public.schools (id, name, slug, is_active, owner_id, branding)
 VALUES (
     '77777777-7777-7777-7777-777777777777', 
     'RedHouse School Cuiaba', 
     'redhouse-cuiaba', 
     true, 
-    '{"primaryColor": "#E11D48", "secondaryColor": "#000000", "borderRadius": "40px", "logoUrl": null}'::jsonb
+    auth.uid(), 
+    '{"primaryColor": "#E11D48", "secondaryColor": "#0F172A", "borderRadius": "40px", "logoUrl": null}'::jsonb
 )
 ON CONFLICT (id) DO UPDATE SET 
     slug = EXCLUDED.slug,
+    owner_id = EXCLUDED.owner_id,
     is_active = true,
     branding = EXCLUDED.branding;
 
--- 3. Vincula o Perfil do Renan como Super Admin da Unidade RedHouse
--- Nota: Usamos auth.uid() para aplicar ao usuário logado no momento da execução
-UPDATE public.profiles 
-SET school_id = '77777777-7777-7777-7777-777777777777', 
-    role = 'super_admin'
-WHERE email = 'serparenan@gmail.com';
+-- 3. Bypass de Segurança: Admins veem TUDO
+DROP POLICY IF EXISTS "Admins veem todas as escolas" ON public.schools;
+CREATE POLICY "Admins veem todas as escolas" ON public.schools 
+FOR ALL TO authenticated USING (
+    (SELECT role FROM public.profiles WHERE id = auth.uid()) IN ('super_admin', 'admin')
+);
+
+-- 4. Garantir coluna is_template em missions (prevenção de erro frontend)
+ALTER TABLE IF EXISTS public.missions ADD COLUMN IF NOT EXISTS is_template BOOLEAN DEFAULT false;

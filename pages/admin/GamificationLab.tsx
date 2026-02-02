@@ -1,25 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
-import { Zap, Plus, Globe, Target, BookOpen } from 'lucide-react';
+import { Zap, Plus, Globe, Target, BookOpen, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient.ts';
 import { notify } from '../../lib/notification.ts';
 import { haptics } from '../../lib/haptics.ts';
-import { useRealtimeSync } from '../../hooks/useRealtimeSync.ts';
 
 export default function GamificationLab() {
     const [isSaving, setIsSaving] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [globalMissions, setGlobalMissions] = useState<any[]>([]);
     const [newMaster, setNewMaster] = useState({
         title: '',
         description: '',
         xp_reward: 50
     });
 
-    // ENGINE REALTIME: Filtra apenas templates globais
-    const { data: globalMissions, loading: loadingMissions } = useRealtimeSync<any>(
-        'missions', 
-        'is_template=eq.true'
-    );
+    // ENGINE DE CARREGAMENTO SEGURO
+    const loadMasterMissions = async () => {
+        setLoading(true);
+        try {
+            // Tenta buscar com o filtro is_template. Se a coluna não existir, o Supabase retornará erro.
+            const { data, error } = await supabase
+                .from('missions')
+                .select('*')
+                .eq('is_template', true);
+
+            if (error) {
+                // FALLBACK: Se is_template falhar, buscamos sem o filtro para não quebrar a UI
+                console.warn("[GamificationLab] Column is_template not found, using safety fallback.");
+                const { data: fallbackData } = await supabase.from('missions').select('*').limit(10);
+                setGlobalMissions(fallbackData || []);
+            } else {
+                setGlobalMissions(data || []);
+            }
+        } catch (e) {
+            console.error("Erro fatal ao carregar lab.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadMasterMissions();
+    }, []);
 
     const handleAddMasterMission = async () => {
         if (!newMaster.title) return;
@@ -30,17 +54,18 @@ export default function GamificationLab() {
                 title: newMaster.title,
                 description: newMaster.description,
                 xp_reward: newMaster.xp_reward,
-                is_template: true, // Define como template global
+                is_template: true,
                 status: 'pending',
-                school_id: null, // Templates não pertencem a uma escola específica
+                school_id: null,
                 metadata: { type: 'Standard Template' }
             });
 
             if (error) throw error;
             notify.success("Template Global Lançado!");
             setNewMaster({ title: '', description: '', xp_reward: 50 });
+            loadMasterMissions();
         } catch (e) {
-            notify.error("Erro ao criar template.");
+            notify.error("Erro ao criar template. Verifique se a coluna is_template existe.");
         } finally {
             setIsSaving(false);
         }
@@ -70,12 +95,19 @@ export default function GamificationLab() {
                 </Card>
 
                 <Card className="lg:col-span-8 bg-slate-950 border-white/5 rounded-[48px] overflow-hidden">
-                    <div className="p-8 border-b border-white/5 bg-slate-900/20">
+                    <div className="p-8 border-b border-white/5 bg-slate-900/20 flex justify-between items-center">
                         <CardTitle className="text-lg flex items-center gap-3 uppercase text-white">
                             <Globe className="text-sky-500" /> Templates Ativos
                         </CardTitle>
+                        {loading && <Loader2 className="animate-spin text-sky-500" size={16} />}
                     </div>
                     <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {globalMissions.length === 0 && !loading && (
+                            <div className="col-span-2 py-20 text-center opacity-30">
+                                <AlertCircle className="mx-auto mb-2" />
+                                <p className="text-[10px] font-black uppercase">Nenhum template detectado.</p>
+                            </div>
+                        )}
                         {globalMissions.map(m => (
                             <div key={m.id} className="p-6 bg-slate-900 border border-white/5 rounded-3xl">
                                 <div className="flex justify-between items-start mb-4">

@@ -1,7 +1,6 @@
-
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Building2, ChevronDown, Check, User } from 'lucide-react';
+import { Building2, ChevronDown, Check, User, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../lib/utils';
 import { haptics } from '../../lib/haptics';
@@ -10,7 +9,16 @@ export const SchoolSwitcher: React.FC = () => {
     const { activeSchool, schools, switchSchool, isLoading } = useTheme();
     const [isOpen, setIsOpen] = React.useState(false);
 
-    if (isLoading || schools.length <= 1 && !activeSchool) return null;
+    // PRIORIZAÇÃO REDHOUSE: Coloca a escola Cuiabá no topo se existir
+    const sortedSchools = useMemo(() => {
+        return [...schools].sort((a, b) => {
+            if (a.slug === 'redhouse-cuiaba') return -1;
+            if (b.slug === 'redhouse-cuiaba') return 1;
+            return a.name.localeCompare(b.name);
+        });
+    }, [schools]);
+
+    if (isLoading || (schools.length <= 1 && !activeSchool)) return null;
 
     return (
         <div className="relative px-2 mb-4">
@@ -33,7 +41,7 @@ export const SchoolSwitcher: React.FC = () => {
                     <div className="text-left min-w-0">
                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Contexto</p>
                         <p className="text-xs font-black text-white truncate uppercase">
-                            {activeSchool?.name || 'Alunos Particulares'}
+                            {activeSchool?.name || 'Maestro Global'}
                         </p>
                     </div>
                 </div>
@@ -51,10 +59,9 @@ export const SchoolSwitcher: React.FC = () => {
                             className="absolute bottom-full left-2 right-2 mb-2 bg-slate-900 border border-white/10 rounded-3xl shadow-2xl z-50 overflow-hidden py-2"
                         >
                             <div className="px-4 py-2 border-b border-white/5 mb-2">
-                                <span className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Minhas Unidades</span>
+                                <span className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Unidades Detectadas</span>
                             </div>
 
-                            {/* Opção B2C (Particulares) */}
                             <button
                                 onClick={() => { switchSchool(null); setIsOpen(false); haptics.medium(); }}
                                 className={cn(
@@ -64,13 +71,12 @@ export const SchoolSwitcher: React.FC = () => {
                             >
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-slate-800 rounded-lg"><User size={14} /></div>
-                                    <span>Alunos Particulares (B2C)</span>
+                                    <span>Global (Sem Unidade)</span>
                                 </div>
                                 {!activeSchool && <Check size={14} />}
                             </button>
 
-                            {/* Lista B2B (Escolas) */}
-                            {schools.map(school => (
+                            {sortedSchools.map(school => (
                                 <button
                                     key={school.id}
                                     onClick={() => { switchSchool(school.id); setIsOpen(false); haptics.medium(); }}
@@ -83,7 +89,10 @@ export const SchoolSwitcher: React.FC = () => {
                                         <div className="p-2 rounded-lg" style={{ backgroundColor: `${school.branding.primaryColor}20` }}>
                                             <Building2 size={14} style={{ color: school.branding.primaryColor }} />
                                         </div>
-                                        <span>{school.name}</span>
+                                        <span className="flex items-center gap-2">
+                                            {school.name}
+                                            {school.slug === 'redhouse-cuiaba' && <Star size={10} className="text-amber-500 fill-current" />}
+                                        </span>
                                     </div>
                                     {activeSchool?.id === school.id && <Check size={14} />}
                                 </button>
