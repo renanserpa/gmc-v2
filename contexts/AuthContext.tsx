@@ -37,7 +37,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
     
     switch(r) {
       case 'super_admin': 
-      case 'admin': return '/admin/ecosystem';
+      case 'admin': return '/admin';
       case 'professor': return '/teacher/classes';
       case 'student': return '/student/arcade';
       case 'guardian': return '/guardian/insights';
@@ -55,8 +55,6 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const syncProfile = async (currentUser: User) => {
-    const rootEmails = ['serparenan@gmail.com', 'admin@oliemusic.dev', 'adm@adm.com'];
-    
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -65,8 +63,9 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
         .maybeSingle();
 
       if (data) {
+        // Bloqueio de Tenant Suspenso
         if (data.school_id && data.schools && data.schools.is_active === false && data.role !== 'super_admin') {
-           await internalSignOut("Esta unidade escolar foi suspensa pelo Administrador Master.");
+           await internalSignOut("Sessão Bloqueada: Esta unidade escolar está suspensa.");
            return;
         }
 
@@ -74,17 +73,20 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
         setRole(data.role);
         setSchoolId(data.school_id);
         
-        // LOG DE CONTEXTO ATIVO EXIGIDO NO SPRINT 1.1
-        console.log(`%c[Maestro Kernel] Contexto Ativo: ${data.schools?.name || 'Global'}`, 'color: #38bdf8; font-weight: bold; background: #0f172a; padding: 2px 5px; border-radius: 4px;');
-      } else if (rootEmails.includes(currentUser.email?.toLowerCase() || '')) {
-        setRole('super_admin');
-        console.warn("[Maestro] Perfil não encontrado no DB, aplicando bypass SuperAdmin via Email.");
+        // SPRINT 1.1 GODMODE LOG
+        if (data.role === 'super_admin') {
+            console.log(`%c[Maestro Kernel] Modo Godmode Ativo para: ${currentUser.email}`, 'color: #facc15; font-weight: bold; background: #422006; padding: 4px 8px; border-radius: 8px;');
+        } else {
+            console.log(`%c[Maestro Kernel] Contexto Ativo: ${data.schools?.name || 'Global'}`, 'color: #38bdf8; font-weight: bold; background: #0f172a; padding: 2px 5px; border-radius: 4px;');
+        }
       } else {
+        // Fallback: Usuário autenticado sem perfil na tabela profiles ainda
         const metaRole = currentUser.user_metadata?.role || 'student';
         setRole(metaRole);
+        console.warn("[Maestro] Perfil pendente na tabela public.profiles.");
       }
     } catch (e) {
-      logger.error("[Auth] Falha crítica de sincronia RLS", e);
+      logger.error("[Auth] Falha de sincronia RLS", e);
       setRole('student');
     } finally {
       setLoading(false);
@@ -116,19 +118,10 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
       }
     });
 
-    const channel = supabase.channel('maestro_global_control')
-      .on('broadcast', { event: 'tenant_suspended' }, ({ payload }) => {
-          if (profile?.school_id === payload.school_id && role !== 'super_admin') {
-              internalSignOut("Sessão Encerrada: Sua unidade escolar acaba de ser suspensa por motivos administrativos.");
-          }
-      })
-      .subscribe();
-
     return () => {
         subscription.unsubscribe();
-        supabase.removeChannel(channel);
     };
-  }, [profile?.school_id, role]);
+  }, []);
 
   const value = {
     session, user, profile, role, schoolId, loading, getDashboardPath,
