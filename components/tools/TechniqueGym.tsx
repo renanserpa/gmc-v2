@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { TablatureView } from './TablatureView';
@@ -10,16 +9,16 @@ import { haptics } from '../../lib/haptics';
 import { notify } from '../../lib/notification';
 import { applyXpEvent } from '../../services/gamificationService';
 import { useAuth } from '../../contexts/AuthContext';
-// FIX: Integrated useCurrentStudent to access correctly identified student profile and school_id
 import { useCurrentStudent } from '../../hooks/useCurrentStudent';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MaestroLiveTip } from './MaestroLiveTip';
 
 const FINGER_COLORS: Record<number, string> = {
-    1: 'text-emerald-400', // Indicador -> Verde
-    2: 'text-yellow-400',  // Médio -> Amarelo
-    3: 'text-orange-500',  // Anelar -> Laranja
-    4: 'text-red-500'      // Mínimo -> Vermelho
+    1: 'text-emerald-400', 
+    2: 'text-yellow-400',  
+    3: 'text-orange-500',  
+    4: 'text-red-500'      
 };
 
 const EXERCISES = [
@@ -28,14 +27,15 @@ const EXERCISES = [
     { id: 'seven_nation_army', label: 'Riff: Seven Nation', icon: '🎸', desc: 'Seu primeiro Riff de Rock!' }
 ];
 
-export const TechniqueGym: React.FC = () => {
+export const TechniqueGym: React.FC<{ lessonBpm?: number }> = ({ lessonBpm }) => {
     const { user } = useAuth();
-    // FIX: Accessing student profile to obtain proper student.id and student.school_id
     const { student } = useCurrentStudent();
     const [type, setType] = useState<keyof typeof RENAN_SERPA_TABS>('spider_walk_v1');
     const [isTraining, setIsTraining] = useState(false);
     const [loopCount, setLoopCount] = useState(0);
     const [highlightedNote, setHighlightedNote] = useState<any>(null);
+    const [errorStreak, setErrorStreak] = useState(0);
+    const [activeTip, setActiveTip] = useState<string | null>(null);
 
     const apiRef = useRef<any>(null);
 
@@ -48,15 +48,19 @@ export const TechniqueGym: React.FC = () => {
 
     const handleReady = (api: any) => {
         apiRef.current = api;
+        
+        // Aplica BPM da lição se existir
+        if (lessonBpm) {
+            api.playbackSpeed = lessonBpm / 100; // AlphaTab usa multiplicador (100bpm = 1.0)
+        }
+
         api.playerFinished.on(() => {
             setLoopCount(c => c + 1);
             haptics.success();
             if (isTraining) api.player.play();
             
-            // FIX: Ensuring student exists and providing correct schoolId to satisfy tenancy constraints
             if (loopCount === 4 && student) {
                  notify.success("BADGE DESBLOQUEADA: O Domador de Aranhas! 🕷️✨");
-                 // FIX: Updated applyXpEvent call with student specific ID and schoolId
                  applyXpEvent({
                     studentId: student.id,
                     eventType: 'MISSION_COMPLETE',
@@ -64,6 +68,24 @@ export const TechniqueGym: React.FC = () => {
                     contextType: 'tools',
                     schoolId: student.school_id || ""
                  });
+            }
+        });
+
+        // Monitoramento de Precisão (Telemetria RedHouse)
+        api.noteHit.on((note: any) => {
+            setErrorStreak(0);
+            setActiveTip(null);
+            setHighlightedNote(note);
+        });
+
+        api.noteMiss.on(() => {
+            const newStreak = errorStreak + 1;
+            setErrorStreak(newStreak);
+            haptics.error();
+
+            if (newStreak >= 3) {
+                setActiveTip("Relaxe o polegar atrás do braço do violão! Isso ajuda na subida.");
+                haptics.fever();
             }
         });
     };
@@ -76,29 +98,31 @@ export const TechniqueGym: React.FC = () => {
 
     return (
         <div className="space-y-8 max-w-6xl mx-auto pb-32">
+            <MaestroLiveTip message={activeTip} type="warning" />
+
             <header className="flex flex-col md:flex-row justify-between items-end gap-6">
                 <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sky-400">
+                    <div className="flex items-center gap-2 text-rose-500">
                         <Dumbbell size={24} />
-                        <span className="text-[12px] font-black uppercase tracking-[0.4em]">Academia Técnica Maestro</span>
+                        <span className="text-[12px] font-black uppercase tracking-[0.4em]">RedHouse Technical Lab</span>
                     </div>
                     <h2 className="text-6xl font-black text-white uppercase tracking-tighter leading-none">Technique Gym</h2>
                 </div>
                 
                 <div className="flex bg-slate-900/60 p-3 rounded-[32px] border border-white/10 backdrop-blur-2xl shadow-2xl">
                     <div className="px-8 py-2 border-r border-white/5">
-                        <p className="text-[10px] font-black text-slate-500 uppercase text-center mb-1">Ciclos Concluídos</p>
-                        <p className="text-4xl font-black text-white font-mono text-center">{loopCount}<span className="text-slate-700 text-lg">/5</span></p>
+                        <p className="text-[10px] font-black text-slate-500 uppercase text-center mb-1">Target BPM</p>
+                        <p className="text-4xl font-black text-white font-mono text-center">{lessonBpm || 100}</p>
                     </div>
                     <button 
                         onClick={toggleTraining}
                         className={cn(
-                            "px-12 py-4 rounded-2xl text-sm font-black uppercase tracking-widest transition-all ml-4 flex items-center gap-3",
-                            isTraining ? "bg-red-600 text-white shadow-red-900/20" : "bg-sky-600 text-white shadow-sky-900/20"
+                            "px-12 py-4 rounded-2xl text-sm font-black uppercase tracking-widest transition-all ml-4 flex items-center gap-3 shadow-xl",
+                            isTraining ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"
                         )}
                     >
                         {isTraining ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
-                        {isTraining ? "PAUSAR" : "INICIAR TREINO"}
+                        {isTraining ? "PAUSAR" : "INICIAR"}
                     </button>
                 </div>
             </header>
@@ -112,64 +136,36 @@ export const TechniqueGym: React.FC = () => {
                         onNoteHighlight={setHighlightedNote}
                     />
                     
-                    {/* Fretboard com Pulso para Thumb Jump */}
                     <div className="relative">
-                        <AnimatePresence>
-                            {type === 'thumb_jump' && highlightedNote && (
-                                <motion.div 
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    className="absolute -top-12 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 px-6 py-2 rounded-full font-black text-xs uppercase tracking-widest z-50 shadow-xl border-4 border-slate-950"
-                                >
-                                    Tocar Corda {highlightedNote.string}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
                         <Fretboard 
                             rootKey="E" 
                             detectedNoteIdx={highlightedNote?.fret} 
                             className={cn(
-                                "opacity-95 transition-all duration-300",
-                                type === 'thumb_jump' ? "border-amber-500/50 shadow-amber-500/10" : "shadow-sky-500/10"
+                                "opacity-95 transition-all duration-300 border-2",
+                                errorStreak >= 3 ? "border-rose-500/50 shadow-rose-500/20" : "border-white/5"
                             )}
                         />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <Card className="bg-slate-950 border-slate-800 p-10 rounded-[48px] shadow-2xl flex flex-col items-center text-center group">
-                            <p className="text-[11px] font-black text-slate-600 uppercase tracking-[0.4em] mb-6">Instrução Técnica</p>
+                            <p className="text-[11px] font-black text-slate-600 uppercase tracking-[0.4em] mb-6">Mapa de Dedos</p>
                             <div className={cn(
                                 "text-7xl font-black transition-all duration-500 drop-shadow-xl",
                                 highlightedNote ? (getFingerInfo(highlightedNote.fret)?.color || "text-slate-800") : "text-slate-800"
                             )}>
                                 {highlightedNote && getFingerInfo(highlightedNote.fret) ? `DEDO ${highlightedNote.fret}` : "--"}
                             </div>
-                            <div className="mt-8 flex gap-3">
-                                {[1,2,3,4].map(f => (
-                                    <div key={f} className={cn(
-                                        "w-4 h-4 rounded-full border-2 border-white/10 transition-all duration-300",
-                                        highlightedNote?.fret === f ? FINGER_COLORS[f].replace('text', 'bg') : 'bg-slate-900'
-                                    )} 
-                                    style={{ boxShadow: highlightedNote?.fret === f ? '0 0 20px currentColor' : 'none' }}
-                                    />
-                                ))}
-                            </div>
                         </Card>
 
                         <Card className="bg-slate-950 border-slate-800 p-10 rounded-[48px] shadow-2xl flex flex-col items-center text-center justify-center gap-6 relative overflow-hidden">
-                             <div className="absolute top-0 right-0 p-20 bg-sky-500/5 blur-3xl rounded-full" />
-                             <div className="w-20 h-20 bg-sky-500/10 rounded-[32px] flex items-center justify-center text-sky-400 relative z-10">
+                             <div className="w-20 h-20 bg-rose-500/10 rounded-[32px] flex items-center justify-center text-rose-400">
                                 <Activity size={40} />
                              </div>
                              <div className="relative z-10">
-                                <h4 className="text-lg font-black text-white uppercase tracking-tight">Dica de Performance</h4>
-                                <p className="text-sm text-slate-500 leading-relaxed mt-3 italic font-medium">
-                                    {type === 'spider_walk_v1' 
-                                        ? '"Mantenha o arco da mão esquerda. Não encoste a palma no braço do violão!"' 
-                                        : type === 'thumb_jump' 
-                                            ? '"Use apenas o peso do polegar. A corda deve soar limpa e constante."'
-                                            : '"Sinta a batida constante na corda Lá. Rock n\' Roll!"'}
+                                <h4 className="text-lg font-black text-white uppercase tracking-tight italic">Feedback Lucca</h4>
+                                <p className="text-sm text-slate-400 leading-relaxed mt-3 italic font-medium">
+                                    {errorStreak >= 3 ? "Não aperte muito forte as cordas! Use apenas a pontinha dos dedos." : "Ótimo ritmo! Mantenha a mão em formato de concha."}
                                 </p>
                              </div>
                         </Card>
@@ -179,43 +175,26 @@ export const TechniqueGym: React.FC = () => {
                 <aside className="lg:col-span-3 space-y-6">
                     <Card className="bg-slate-900 border-slate-800 rounded-[40px] overflow-hidden shadow-2xl">
                         <CardHeader className="bg-slate-950/60 p-8 border-b border-white/5">
-                            <CardTitle className="text-[11px] uppercase tracking-[0.4em] text-slate-500 flex items-center gap-3">
-                                <Settings2 size={16} /> Playlist Nível 1
-                            </CardTitle>
+                            <CardTitle className="text-[11px] uppercase tracking-[0.4em] text-slate-500">Módulos Sugeridos</CardTitle>
                         </CardHeader>
                         <CardContent className="p-4 space-y-3">
                             {EXERCISES.map(g => (
                                 <button
                                     key={g.id}
-                                    onClick={() => { setType(g.id as any); setLoopCount(0); haptics.light(); }}
+                                    onClick={() => { setType(g.id as any); setLoopCount(0); setErrorStreak(0); haptics.light(); }}
                                     className={cn(
-                                        "w-full p-6 rounded-3xl border-2 transition-all text-left group relative overflow-hidden",
+                                        "w-full p-6 rounded-3xl border-2 transition-all text-left",
                                         type === g.id 
-                                            ? "bg-sky-500/10 border-sky-500 text-sky-400 shadow-xl" 
-                                            : "bg-slate-950 border-transparent text-slate-500 hover:bg-slate-900 hover:text-slate-300"
+                                            ? "bg-rose-500/10 border-rose-500 text-rose-400 shadow-xl" 
+                                            : "bg-slate-950 border-transparent text-slate-500 hover:bg-slate-900"
                                     )}
                                 >
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-sm font-black uppercase tracking-tight">{g.icon} {g.label}</span>
-                                        {type === g.id && <Sparkles size={16} className="text-amber-500 animate-pulse" fill="currentColor" />}
-                                    </div>
-                                    <p className="text-[10px] opacity-60 font-bold uppercase tracking-widest">{g.desc}</p>
+                                    <span className="text-sm font-black uppercase tracking-tight block">{g.icon} {g.label}</span>
+                                    <p className="text-[9px] opacity-60 font-bold uppercase tracking-widest mt-1">{g.desc}</p>
                                 </button>
                             ))}
                         </CardContent>
                     </Card>
-
-                    <div className="p-12 bg-slate-950 border-2 border-dashed border-slate-800 rounded-[48px] text-center space-y-6 shadow-2xl group hover:border-amber-500/30 transition-all">
-                        <div className="w-24 h-24 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto border-4 border-amber-500/20 group-hover:scale-110 transition-transform">
-                            <Award size={48} className="text-amber-500" />
-                        </div>
-                        <div>
-                            <h4 className="text-md font-black text-white uppercase tracking-widest">Desafio Lucca</h4>
-                            <p className="text-xs text-slate-500 leading-relaxed italic mt-4 font-medium">
-                                "Ajude a Aranha Lucca a subir a parede sem cair! Cada nota é um degrau. Complete 5 ciclos para ganhar a Badge Dourada!"
-                            </p>
-                        </div>
-                    </div>
                 </aside>
             </div>
         </div>

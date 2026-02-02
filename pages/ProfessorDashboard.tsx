@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Users, GraduationCap, Zap, TrendingUp, Sparkles, 
     Plus, Clock, AlertTriangle, ChevronRight,
     Brain, Play, Loader2, Fingerprint, Activity,
-    History, Search
+    History, Search, Building2
 } from 'lucide-react';
 
 // Kernels & Hooks
 import { useProfessorData } from '../hooks/useProfessorData';
 import { useGlobalSettings } from '../hooks/useGlobalSettings';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { useAuth } from '../contexts/AuthContext';
 
 // UI Components
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
@@ -22,15 +23,33 @@ import { KPICard } from '../components/dashboard/KPICard';
 // Utils
 import { cn } from '../lib/utils';
 import { formatDate } from '../lib/date';
+import { getAdminSchools } from '../services/dataService';
+import { School } from '../types';
 
 const M = motion as any;
 
 export default function ProfessorDashboard() {
     usePageTitle("Cockpit Mestre");
     
+    const { user, schoolId, setSchoolOverride } = useAuth();
     const { data, isLoading, error } = useProfessorData();
     const { xpMultiplier, activeBroadcast } = useGlobalSettings();
     const [activeTab, setActiveTab] = useState<'sessions' | 'audit'>('sessions');
+    
+    // Suporte Super Admin
+    const [schools, setSchools] = useState<School[]>([]);
+    const isSuperAdmin = user?.email === 'serparenan@gmail.com';
+
+    useEffect(() => {
+        if (isSuperAdmin) {
+            getAdminSchools().then(setSchools);
+        }
+    }, [isSuperAdmin]);
+
+    const handleSchoolSwitch = (id: string) => {
+        setSchoolOverride(id === 'null' ? null : id);
+        window.location.reload(); // Refresh total para reinicializar o Kernel com o novo Tenant
+    };
 
     if (error) {
         return (
@@ -45,23 +64,33 @@ export default function ProfessorDashboard() {
         );
     }
 
-    if (!isLoading && data?.isNewTeacher) {
-        return (
-            <div className="min-h-[80vh] flex flex-col items-center justify-center text-center p-10 animate-in fade-in duration-1000">
-                <div className="w-24 h-24 bg-sky-500/10 rounded-[32px] flex items-center justify-center text-sky-400 mb-8 border border-sky-500/20 animate-pulse">
-                    < GraduationCap size={48} />
-                </div>
-                <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">Cockpit <span className="text-sky-500">Mestre</span></h1>
-                <p className="text-slate-500 max-w-md mt-4 text-lg font-medium">Sua frequência neural ainda não tem alunos vinculados. Vamos provisionar sua primeira turma?</p>
-                <Button className="mt-10 px-12 py-8 rounded-[32px] text-lg font-black uppercase tracking-widest shadow-2xl shadow-sky-900/40" leftIcon={Plus}>
-                    Configurar Turma
-                </Button>
-            </div>
-        );
-    }
-
     return (
         <div className="space-y-8 max-w-7xl mx-auto pb-24 relative animate-in fade-in duration-700">
+            {/* Seletor de Unidade (Apenas Super Admin) */}
+            {isSuperAdmin && (
+                <M.div 
+                    initial={{ y: -20, opacity: 0 }} 
+                    animate={{ y: 0, opacity: 1 }}
+                    className="bg-slate-900/60 backdrop-blur-xl border border-white/5 p-4 rounded-[32px] flex items-center justify-between px-8 shadow-2xl"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="p-2 bg-amber-500/10 rounded-xl text-amber-500"><Building2 size={20} /></div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Visão Global Administrador</p>
+                            <p className="text-xs font-bold text-white">Alternar Unidade Escolar</p>
+                        </div>
+                    </div>
+                    <select 
+                        value={schoolId || 'null'}
+                        onChange={(e) => handleSchoolSwitch(e.target.value)}
+                        className="bg-slate-950 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-sky-400 outline-none cursor-pointer"
+                    >
+                        <option value="null">Autônomos / Geral</option>
+                        {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                </M.div>
+            )}
+
             <AnimatePresence>
                 {activeBroadcast && (
                     <M.div 
@@ -150,7 +179,7 @@ export default function ProfessorDashboard() {
                                                         <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">{c.start_time} • Sincronia Local</p>
                                                     </div>
                                                 </div>
-                                                <Button variant="ghost" size="sm" rightIcon={ChevronRight} className="text-[10px] uppercase font-black">Controlar Sala</Button>
+                                                <Button variant="ghost" size="sm" rightIcon={ChevronRight} className="text-[10px] uppercase font-black" onClick={() => window.location.href = `#/teacher/classroom?classId=${c.id}`}>Controlar Sala</Button>
                                             </div>
                                         ))}
                                         {!isLoading && data?.classes?.length === 0 && (

@@ -1,46 +1,26 @@
--- GCM MAESTRO - MULTITENANCY & RLS SHIELD V3.3 (ULTRA STABLE)
--- Este script prepara o banco para o isolamento de dados e funcionalidades avançadas.
+-- 1. Garante colunas de Multitenancy e Templates em Missions
+ALTER TABLE IF EXISTS public.missions 
+ADD COLUMN IF NOT EXISTS is_template BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES public.schools(id),
+ADD COLUMN IF NOT EXISTS slug TEXT;
 
--- 1. Estrutura da Tabela SCHOOLS
-ALTER TABLE IF EXISTS public.schools ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
-ALTER TABLE IF EXISTS public.schools ADD COLUMN IF NOT EXISTS branding JSONB DEFAULT '{"primaryColor": "#38bdf8", "secondaryColor": "#a78bfa", "borderRadius": "24px", "logoUrl": null}';
-ALTER TABLE IF EXISTS public.schools ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{"max_students": 50, "storage_gb": 5}';
+-- 2. Insere/Corrige a RedHouse com todos os campos obrigatórios para o Kernel
+INSERT INTO public.schools (id, name, slug, is_active, branding)
+VALUES (
+    '77777777-7777-7777-7777-777777777777', 
+    'RedHouse School Cuiaba', 
+    'redhouse-cuiaba', 
+    true, 
+    '{"primaryColor": "#E11D48", "secondaryColor": "#000000", "borderRadius": "40px", "logoUrl": null}'::jsonb
+)
+ON CONFLICT (id) DO UPDATE SET 
+    slug = EXCLUDED.slug,
+    is_active = true,
+    branding = EXCLUDED.branding;
 
--- 2. Estrutura da Tabela MISSIONS (Correção do Erro reported)
-ALTER TABLE IF EXISTS public.missions ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES public.schools(id);
-ALTER TABLE IF EXISTS public.missions ADD COLUMN IF NOT EXISTS is_template BOOLEAN DEFAULT false;
-ALTER TABLE IF EXISTS public.missions ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}';
-ALTER TABLE IF EXISTS public.missions ADD COLUMN IF NOT EXISTS week_start TIMESTAMPTZ DEFAULT now();
-
--- 3. Estrutura de Vínculos Multitenant
-ALTER TABLE IF EXISTS public.music_classes ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES public.schools(id);
-ALTER TABLE IF EXISTS public.students ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES public.schools(id);
-ALTER TABLE IF EXISTS public.profiles ADD COLUMN IF NOT EXISTS school_id UUID REFERENCES public.schools(id);
-
--- 4. Habilitar RLS (Row Level Security)
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.schools ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.music_classes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.missions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
-
--- 5. Função de Segurança para Super Admin
-CREATE OR REPLACE FUNCTION public.is_super_admin()
-RETURNS BOOLEAN AS $$
-BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() 
-    AND (role = 'super_admin' OR email = 'serparenan@gmail.com')
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 6. Política Global de Visibilidade de Missões (Exemplo RLS)
-DROP POLICY IF EXISTS "Missions isolation" ON public.missions;
-CREATE POLICY "Missions isolation" ON public.missions
-FOR ALL USING (
-    is_super_admin() OR 
-    school_id = (SELECT school_id FROM public.profiles WHERE id = auth.uid()) OR
-    (is_template = true AND school_id IS NULL)
-);
+-- 3. Vincula o Perfil do Renan como Super Admin da Unidade RedHouse
+-- Nota: Usamos auth.uid() para aplicar ao usuário logado no momento da execução
+UPDATE public.profiles 
+SET school_id = '77777777-7777-7777-7777-777777777777', 
+    role = 'super_admin'
+WHERE email = 'serparenan@gmail.com';

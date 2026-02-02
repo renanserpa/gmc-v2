@@ -1,7 +1,7 @@
--- PROVISIONAMENTO FINAL: REDHOUSE CUIABÁ (REPAIR MODE)
--- Este script garante a inserção dos dados com a estrutura já corrigida.
+-- PROVISIONAMENTO REDHOUSE SCHOOL CUIABÁ - HOMOLOGAÇÃO V1
+-- Este script assume que o master_admin.sql já foi executado.
 
--- 1. Criar Unidade Escolar (Tenant) com Branding Oficial
+-- 1. Criar a Unidade Escolar
 INSERT INTO public.schools (id, name, slug, is_active, branding, settings)
 VALUES (
     '88888888-4444-4444-4444-121212121212',
@@ -16,19 +16,16 @@ VALUES (
     }',
     '{"max_students": 150, "storage_gb": 50, "audio_latency_max": 100}'
 ) ON CONFLICT (id) DO UPDATE SET 
-    name = EXCLUDED.name,
     branding = EXCLUDED.branding,
     settings = EXCLUDED.settings;
 
--- 2. Vinculação do Professor Titular (Renan Serpa)
--- Garante que o perfil do professor aponte para a RedHouse para o RLS funcionar
+-- 2. Sincronizar o Perfil Master (Renan Serpa) com a Unidade
 UPDATE public.profiles 
 SET school_id = '88888888-4444-4444-4444-121212121212',
     role = 'professor'
 WHERE email = 'serparenan@gmail.com';
 
--- 3. Missão de Boas-Vindas (Spider Walk v1)
--- Agora utilizando is_template e metadata após a correção no master_admin.sql
+-- 3. Criar Missão Spider Walk (Referência Pedagógica)
 INSERT INTO public.missions (
     title, 
     description, 
@@ -37,16 +34,14 @@ INSERT INTO public.missions (
     school_id, 
     is_template, 
     status,
-    week_start,
     metadata
 ) VALUES (
-    'Spider Walk: O Despertar',
-    'Aqueça os motores rítmicos na RedHouse! Complete 4 ciclos subindo as cordas com precisão.',
-    200,
-    (SELECT id FROM public.profiles WHERE email = 'serparenan@gmail.com'),
+    'Spider Walk: Desafio RedHouse Cuiabá',
+    'Execute a subida rítmica (1-2-3-4) em todas as cordas mantendo o arco da mão esquerda.',
+    300,
+    (SELECT id FROM public.profiles WHERE email = 'serparenan@gmail.com' LIMIT 1),
     '88888888-4444-4444-4444-121212121212',
     true,
     'pending',
-    now(),
-    '{"bpm_target": 75, "required_accuracy": 0.85, "type": "Technique"}'
+    '{"bpm_target": 75, "required_accuracy": 0.85, "type": "Technique", "fret_range": [1, 4]}'
 );

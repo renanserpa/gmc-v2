@@ -1,115 +1,47 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Building2, Plus, Power, PowerOff, Settings2, ShieldCheck } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
-import { Building2, Plus, ArrowRight, Loader2, HardDrive, UserCheck, Power, PowerOff } from 'lucide-react';
-import { createAdminSchool, getStudentCountBySchool, updateSchoolStatus } from '../../services/dataService.ts';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../../components/ui/Dialog.tsx';
+import { supabase } from '../../lib/supabaseClient.ts';
 import { notify } from '../../lib/notification.ts';
 import { haptics } from '../../lib/haptics.ts';
 import { cn } from '../../lib/utils.ts';
-import { motion } from 'framer-motion';
-import { useRealtimeSync } from '../../hooks/useRealtimeSync.ts';
 
 const M = motion as any;
 
-const ResourceUsage = ({ current, max, label, icon: Icon, color }: any) => {
-    const percent = Math.min((current / max) * 100, 100);
-    return (
-        <div className="space-y-2">
-            <div className="flex justify-between items-end">
-                <div className="flex items-center gap-1.5 text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                    <Icon size={12} className={color} /> {label}
-                </div>
-                <span className="text-[10px] font-mono font-bold text-white">{current}/{max}</span>
-            </div>
-            <div className="h-1.5 bg-slate-950 rounded-full overflow-hidden border border-white/5">
-                <M.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${percent}%` }}
-                    className={cn("h-full transition-all duration-1000", percent > 90 ? "bg-red-500" : percent > 70 ? "bg-amber-500" : color.replace('text-', 'bg-'))}
-                />
-            </div>
-        </div>
-    );
-};
-
 export default function TenantManager() {
-    const [usageData, setUsageData] = useState<Record<string, number>>({});
-    const [isAddOpen, setIsAddOpen] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
-    const [actionLoading, setActionLoading] = useState<string | null>(null);
-    const [newSchool, setNewSchool] = useState({ 
-        name: '', 
-        slug: '', 
-        primaryColor: '#38bdf8',
-        max_students: 50,
-        storage_gb: 5
-    });
+    const [tenants, setTenants] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    // ENGINE REALTIME: Fonte da verdade reativa das escolas
-    const { data: tenants, loading } = useRealtimeSync<any>('schools', undefined, { column: 'created_at', ascending: false });
-
-    // Atualiza contagens de alunos quando novos inquilinos surgirem ou mudarem
-    useEffect(() => {
-        if (tenants.length > 0) {
-            tenants.forEach(async (s) => {
-                if (usageData[s.id] === undefined) {
-                    const count = await getStudentCountBySchool(s.id);
-                    setUsageData(prev => ({ ...prev, [s.id]: count }));
-                }
-            });
-        }
-    }, [tenants]);
-
-    const handleToggleStatus = async (school: any) => {
-        const nextStatus = !school.is_active;
-        if (!nextStatus && !window.confirm(`ATENÇÃO: Suspender a unidade "${school.name}" deslogará IMEDIATAMENTE todos os usuários vinculados. Confirmar suspensão?`)) return;
-
-        setActionLoading(school.id);
-        haptics.heavy();
-
+    const loadAllTenants = async () => {
+        setLoading(true);
         try {
-            await updateSchoolStatus(school.id, nextStatus);
-            notify.success(nextStatus ? `Unidade "${school.name}" reativada.` : `Unidade "${school.name}" SUSPENSA.`);
+            // SUPER ADMIN BYPASS: Busca pura em todas as escolas
+            const { data, error } = await supabase
+                .from('schools')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setTenants(data || []);
         } catch (e) {
-            notify.error("Falha ao alterar status da unidade.");
+            notify.error("Erro ao sincronizar tenants globais.");
         } finally {
-            setActionLoading(null);
+            setLoading(false);
         }
     };
 
-    const handleCreate = async () => {
-        if (!newSchool.name || !newSchool.slug) {
-            notify.warning("Preencha o nome e o identificador (slug).");
-            return;
-        }
+    useEffect(() => {
+        loadAllTenants();
+    }, []);
 
-        setIsSaving(true);
+    const handleToggleStatus = async (id: string, current: boolean) => {
         haptics.heavy();
-
-        try {
-            await createAdminSchool({
-                name: newSchool.name,
-                slug: newSchool.slug.toLowerCase().trim().replace(/[^a-z0-9]/g, '-'),
-                branding: { 
-                    primaryColor: newSchool.primaryColor, 
-                    secondaryColor: '#a78bfa',
-                    borderRadius: '24px', 
-                    logoUrl: null 
-                },
-                settings: {
-                    max_students: newSchool.max_students,
-                    storage_gb: newSchool.storage_gb
-                }
-            });
-            
-            notify.success("Unidade Provisionada com Sucesso!");
-            setNewSchool({ name: '', slug: '', primaryColor: '#38bdf8', max_students: 50, storage_gb: 5 });
-            setIsAddOpen(false);
-        } catch (e: any) {
-            notify.error(e.message?.includes('unique') ? "Este Slug já está em uso." : "Falha na conexão.");
-        } finally {
-            setIsSaving(false);
+        const { error } = await supabase.from('schools').update({ is_active: !current }).eq('id', id);
+        if (!error) {
+            notify.info("Status da unidade atualizado.");
+            loadAllTenants();
         }
     };
 
@@ -118,34 +50,25 @@ export default function TenantManager() {
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900/40 p-8 rounded-[40px] border border-white/5 backdrop-blur-xl">
                 <div>
                     <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">Tenant <span className="text-sky-500">Master</span></h1>
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Governança B2B e Controle de Resiliência</p>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Visão Root: Todas as Unidades Escolares</p>
                 </div>
-                <Button 
-                    onClick={() => { haptics.light(); setIsAddOpen(true); }}
-                    leftIcon={Plus} 
-                    className="rounded-2xl px-10 py-6 bg-sky-600 hover:bg-sky-500 shadow-xl shadow-sky-900/20 text-xs font-black uppercase tracking-widest"
-                >
-                    Projetar Nova Escola
+                <Button leftIcon={Plus} className="rounded-2xl px-10 py-6 bg-sky-600 shadow-xl text-xs font-black uppercase tracking-widest">
+                    Nova Franquia
                 </Button>
             </header>
 
-            {loading && tenants.length === 0 ? (
-                <div className="py-20 text-center space-y-4">
-                    <Loader2 className="animate-spin mx-auto text-sky-500" size={48} />
-                    <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Sincronizando Malha de Escolas...</p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {tenants.map(t => (
-                        <Card key={t.id} className={cn(
-                            "bg-slate-900 border transition-all group rounded-[40px] overflow-hidden",
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {tenants.map(t => (
+                    <M.div layout key={t.id}>
+                        <Card className={cn(
+                            "bg-slate-900 border transition-all rounded-[40px] overflow-hidden shadow-2xl",
                             t.is_active ? "border-white/5 hover:border-sky-500/40" : "border-red-500/30 opacity-70"
                         )}>
                             <CardContent className="p-8 space-y-6">
                                 <div className="flex justify-between items-start">
                                     <div 
-                                        className="p-4 rounded-2xl text-white group-hover:scale-110 transition-all shadow-inner"
-                                        style={{ backgroundColor: t.is_active ? (t.branding?.primaryColor || '#0ea5e9') : '#475569' }}
+                                        className="p-4 rounded-2xl text-white shadow-inner"
+                                        style={{ backgroundColor: t.branding?.primaryColor || '#0ea5e9' }}
                                     >
                                         <Building2 size={28} />
                                     </div>
@@ -157,82 +80,31 @@ export default function TenantManager() {
                                     </div>
                                 </div>
                                 
-                                <div className="space-y-1">
-                                    <h3 className="text-xl font-black text-white uppercase tracking-tight">{t.name}</h3>
-                                    <p className="text-[9px] text-slate-500 font-mono">ID: {t.id.substring(0,8)}...</p>
+                                <div>
+                                    <h3 className="text-xl font-black text-white uppercase tracking-tight truncate">{t.name}</h3>
+                                    <p className="text-[9px] text-slate-500 font-mono tracking-widest uppercase mt-1">/{t.slug}</p>
                                 </div>
 
-                                <div className="space-y-4 py-4 border-y border-white/5">
-                                    <ResourceUsage 
-                                        label="Alunos" 
-                                        current={usageData[t.id] || 0} 
-                                        max={t.settings?.max_students || 100} 
-                                        icon={UserCheck} 
-                                        color="text-sky-400" 
-                                    />
-                                    <ResourceUsage 
-                                        label="Cloud Storage" 
-                                        current={0.1} 
-                                        max={t.settings?.storage_gb || 10} 
-                                        icon={HardDrive} 
-                                        color="text-purple-400" 
-                                    />
-                                </div>
-
-                                <div className="pt-2 flex justify-between items-center">
+                                <div className="pt-4 flex justify-between items-center gap-2">
                                     <button 
-                                        onClick={() => handleToggleStatus(t)}
-                                        disabled={actionLoading === t.id}
+                                        onClick={() => handleToggleStatus(t.id, t.is_active)}
                                         className={cn(
-                                            "flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all",
-                                            t.is_active ? "text-red-500 hover:text-red-400" : "text-emerald-500 hover:text-emerald-400"
+                                            "flex items-center gap-2 text-[9px] font-black uppercase tracking-widest",
+                                            t.is_active ? "text-red-500" : "text-emerald-500"
                                         )}
                                     >
-                                        {actionLoading === t.id ? (
-                                            <Loader2 className="animate-spin" size={14} />
-                                        ) : (
-                                            t.is_active ? <PowerOff size={14} /> : <Power size={14} />
-                                        )}
-                                        {t.is_active ? 'Suspender Unidade' : 'Reativar Unidade'}
+                                        {t.is_active ? <PowerOff size={14} /> : <Power size={14} />}
+                                        {t.is_active ? 'Suspender' : 'Ativar'}
                                     </button>
-                                    <Button variant="ghost" size="sm" rightIcon={ArrowRight} className="text-[10px] font-black uppercase">Dashboard</Button>
+                                    <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase text-sky-400">
+                                        <Settings2 size={14} className="mr-2"/> Config
+                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
-                    ))}
-                </div>
-            )}
-
-            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                <DialogContent className="bg-slate-900 border-slate-800 rounded-[40px] max-w-xl p-8 shadow-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Provisionar Unidade</DialogTitle>
-                        <DialogDescription>Configuração de Quotas e Isolamento de Dados Master.</DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-6 py-6">
-                        <div className="grid grid-cols-2 gap-4">
-                            <input value={newSchool.name} onChange={e => setNewSchool({...newSchool, name: e.target.value})} placeholder="Nome da Instituição" className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:ring-2 focus:ring-sky-500/20" />
-                            <input value={newSchool.slug} onChange={e => setNewSchool({...newSchool, slug: e.target.value})} placeholder="Slug Identificador" className="bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm font-mono outline-none focus:ring-2 focus:ring-sky-500/20" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Max Alunos</label>
-                                <input type="number" value={newSchool.max_students} onChange={e => setNewSchool({...newSchool, max_students: Number(e.target.value)})} className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[9px] font-black text-slate-500 uppercase ml-1">Storage GB</label>
-                                <input type="number" value={newSchool.storage_gb} onChange={e => setNewSchool({...newSchool, storage_gb: Number(e.target.value)})} className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-white text-sm" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => setIsAddOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleCreate} isLoading={isSaving} className="bg-sky-600">Provisionar</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    </M.div>
+                ))}
+            </div>
         </div>
     );
 }

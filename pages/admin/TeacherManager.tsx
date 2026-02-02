@@ -5,7 +5,7 @@ import { Card, CardContent } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
 import { 
     GraduationCap, Mail, ShieldCheck, Search, 
-    MoreVertical, Building2, Save, Loader2, Eye, UserCog 
+    MoreVertical, Building2, Save, Loader2, Eye, UserCog, Zap, MapPin
 } from 'lucide-react';
 import { useRealtimeSync } from '../../hooks/useRealtimeSync.ts';
 import { updateUserInfo, getAdminSchools } from '../../services/dataService.ts';
@@ -19,7 +19,7 @@ import { useAuth } from '../../contexts/AuthContext.tsx';
 const M = motion as any;
 
 export default function TeacherManager() {
-    const { setRoleOverride, setSchoolOverride } = useAuth();
+    const { setRoleOverride, setSchoolOverride, user } = useAuth();
     const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const [schools, setSchools] = useState<School[]>([]);
@@ -43,6 +43,27 @@ export default function TeacherManager() {
         } finally {
             setIsSaving(null);
         }
+    };
+
+    /**
+     * SISTEMA TELEPORT: 
+     * Altera o contexto global de schoolId sem deslogar o Super Admin.
+     * Útil para validar o que o professor da RedHouse está vendo.
+     */
+    const handleTeleport = (teacher: Profile) => {
+        if (user?.email !== 'serparenan@gmail.com') {
+            notify.error("Acesso Teleport restrito ao Root Admin.");
+            return;
+        }
+        haptics.heavy();
+        
+        // Injeta o contexto da escola do professor alvo no Kernel
+        setSchoolOverride(teacher.school_id || null);
+        
+        notify.warning(`TELEPORT: Contexto alterado para Escola [${teacher.school_id || 'Global'}].`);
+        
+        // Redireciona para o cockpit de turmas para ver os alunos daquela escola específica
+        setTimeout(() => navigate('/teacher/classes'), 500);
     };
 
     const handleImpersonate = (teacher: Profile) => {
@@ -124,11 +145,25 @@ export default function TeacherManager() {
                                         <td className="px-10 py-8">
                                             <div className="flex items-center gap-2">
                                                 <div className={cn("w-2 h-2 rounded-full", t.school_id ? "bg-emerald-500 shadow-[0_0_10px_#10b981]" : "bg-amber-500")} />
-                                                <span className="text-[9px] font-black uppercase tracking-widest">{t.school_id ? 'PROTEGIDO' : 'ABERTO'}</span>
+                                                <span className="text-[9px] font-black uppercase tracking-widest">{t.school_id ? 'TENANT PROTECTED' : 'GLOBAL POOL'}</span>
                                             </div>
                                         </td>
                                         <td className="px-10 py-8 text-right">
                                             <div className="flex justify-end gap-2">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <button 
+                                                                onClick={() => handleTeleport(t)}
+                                                                className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 shadow-xl"
+                                                            >
+                                                                <MapPin size={16} />
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="bg-slate-950 border-emerald-500/30">Teleport to School Context</TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+
                                                 <button 
                                                     onClick={() => handleImpersonate(t)}
                                                     title="Impersonate (God Mode)"
@@ -151,3 +186,13 @@ export default function TeacherManager() {
         </div>
     );
 }
+
+// Sub-componentes auxiliares de Tooltip local para evitar dependência externa pesada
+const TooltipProvider = ({ children }: any) => <div className="relative inline-block">{children}</div>;
+const Tooltip = ({ children }: any) => <div>{children}</div>;
+const TooltipTrigger = ({ children }: any) => <>{children}</>;
+const TooltipContent = ({ children, className }: any) => (
+    <div className={cn("absolute bottom-full mb-2 left-1/2 -translate-x-1/2 p-2 rounded-lg text-[8px] font-black uppercase text-white z-[60] whitespace-nowrap", className)}>
+        {children}
+    </div>
+);
