@@ -1,3 +1,4 @@
+
 import React, { Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -32,6 +33,8 @@ const SchoolDashboard = lazy(() => import('@/pages/admin/SchoolDashboard'));
 
 // Admin Sub-pages
 const TenantManager = lazy(() => import('@/pages/admin/TenantManager'));
+const TeacherManager = lazy(() => import('@/pages/admin/TeacherManager'));
+const ClassManager = lazy(() => import('@/pages/admin/ClassManager'));
 const UserManager = lazy(() => import('@/pages/admin/UserManager'));
 const SystemHealth = lazy(() => import('@/pages/admin/SystemHealth'));
 const BroadcastCenter = lazy(() => import('@/pages/admin/BroadcastCenter'));
@@ -139,6 +142,8 @@ export default function App() {
               >
                 <Route index element={<AdminDashboard />} />
                 <Route path="tenants" element={<TenantManager />} />
+                <Route path="teachers" element={<TeacherManager />} />
+                <Route path="classes" element={<ClassManager />} />
                 <Route path="users" element={<UserManager />} />
                 <Route path="health" element={<SystemHealth />} />
                 <Route path="broadcast" element={<BroadcastCenter />} />

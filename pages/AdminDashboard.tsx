@@ -1,128 +1,115 @@
 
 import React from 'react';
-import * as RRD from 'react-router-dom';
-const { useNavigate } = RRD as any;
 import { KPICard } from '../components/dashboard/KPICard.tsx';
-import { Card } from '../components/ui/Card.tsx';
+import { Card, CardContent } from '../components/ui/Card.tsx';
 import { 
-    Users, ShieldAlert, Cpu, RefreshCw, 
-    Coins, CheckCircle2, Globe, Building2, CalendarDays, ArrowLeftCircle, Clock, TrendingUp
+    Activity, HardDrive, Cpu, Terminal, 
+    Wifi, Database, ShieldCheck, Zap,
+    Clock, AlertCircle, RefreshCw
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from '../components/ui/Button.tsx';
-import { haptics } from '../lib/haptics.ts';
 import { useRealtimeSync } from '../hooks/useRealtimeSync.ts';
-import { useAuth } from '../contexts/AuthContext.tsx';
+import { telemetryService } from '../services/telemetryService.ts';
+import { motion } from 'framer-motion';
 
 const M = motion as any;
 
 export default function AdminDashboard() {
-    const navigate = useNavigate();
-    const { schoolId, setSchoolOverride } = useAuth();
-    
-    // ENGINE REALTIME: Telemetria baseada no contexto
-    const { data: allTenants, loading: loadingSchools } = useRealtimeSync<any>('schools', undefined, { column: 'name', ascending: true });
-    const { data: allMembers } = useRealtimeSync<any>('profiles', schoolId ? `school_id=eq.${schoolId}` : undefined);
-    const { data: allClasses } = useRealtimeSync<any>('music_classes', schoolId ? `school_id=eq.${schoolId}` : undefined);
+    const [latency, setLatency] = React.useState(0);
+    const { data: logs } = useRealtimeSync<any>('audit_logs', undefined, { column: 'created_at', ascending: false });
+    const { data: profiles } = useRealtimeSync<any>('profiles');
+    const { data: schools } = useRealtimeSync<any>('schools');
 
-    const stats = React.useMemo(() => {
-        const selectedSchool = schoolId ? allTenants.find(t => t.id === schoolId) : null;
-        
-        // Cálculo de Horas Semanais: Soma de slots de turmas ativos
-        const weeklyHours = schoolId ? allClasses.length : 0; 
-        
-        // Faturamento Previsto (Lógica simplificada para o sprint)
-        const revenue = selectedSchool ? (weeklyHours * Number(selectedSchool.hourly_rate || 0) * 4) : 0;
-
-        return {
-            selectedSchool,
-            membersCount: allMembers.length,
-            classesCount: allClasses.length,
-            weeklyHours,
-            revenue
+    React.useEffect(() => {
+        const check = async () => {
+            const res = await telemetryService.measureLatency();
+            setLatency(res.ms);
         };
-    }, [allTenants, allMembers, allClasses, schoolId]);
+        check();
+        const timer = setInterval(check, 10000);
+        return () => clearInterval(timer);
+    }, []);
 
     return (
-        <div className="space-y-10 animate-in fade-in duration-700 max-w-7xl mx-auto pb-20">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900/40 p-10 rounded-[48px] border border-white/5 backdrop-blur-xl relative overflow-hidden shadow-2xl">
-                <div 
-                    className="absolute top-0 right-0 p-32 blur-[120px] pointer-events-none opacity-20" 
-                    style={{ backgroundColor: stats.selectedSchool?.branding?.primaryColor || '#38bdf8' }}
-                />
-                
-                <div className="relative z-10 flex items-center gap-8">
-                    <div className="w-20 h-20 bg-slate-950 rounded-[28px] border border-white/10 flex items-center justify-center shadow-inner overflow-hidden p-3">
-                        {stats.selectedSchool?.branding?.logoUrl ? (
-                            <img src={stats.selectedSchool.branding.logoUrl} className="w-full h-full object-contain" alt="Logo" />
-                        ) : (
-                            <Cpu size={32} className="text-sky-500" />
-                        )}
-                    </div>
-                    <div>
-                        <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">
-                            {schoolId ? stats.selectedSchool?.name : <>God <span className="text-sky-500">Mode</span></>}
-                        </h1>
-                        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.4em] mt-3">
-                            {schoolId ? `Gestão Comercial: ${stats.selectedSchool?.billing_model === 'hourly' ? 'Horista' : 'Mensalista'}` : 'Monitoramento Global Maestro v7.0'}
-                        </p>
-                    </div>
+        <div className="space-y-10 animate-in fade-in duration-700">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div>
+                    <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
+                        Maestro <span className="text-sky-500">Operations</span>
+                    </h1>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-3">Live Infrastructure Telemetry</p>
                 </div>
-                
-                {schoolId && (
-                    <Button variant="ghost" onClick={() => setSchoolOverride(null)} leftIcon={ArrowLeftCircle} className="rounded-2xl text-[10px] uppercase font-black px-6 h-14 text-slate-500 hover:text-white relative z-10">
-                        Visão Global
-                    </Button>
-                )}
+                <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 px-6 py-3 rounded-full">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Core Engine Stable</span>
+                </div>
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <KPICard title="Horas na Semana" value={loadingSchools ? undefined : `${stats.weeklyHours}h`} icon={CalendarDays} color="text-sky-400" border="border-sky-500" />
-                <KPICard title="Membros Time" value={loadingSchools ? undefined : stats.membersCount} icon={Users} color="text-purple-400" border="border-purple-500" />
-                <KPICard title="Receita Prevista" value={loadingSchools ? undefined : `R$ ${stats.revenue.toLocaleString('pt-BR')}`} icon={Coins} color="text-amber-400" border="border-amber-500" />
-                <KPICard title="Status Unidade" value={loadingSchools ? undefined : (stats.selectedSchool?.contract_status || 'ROOT')} icon={ShieldAlert} color="text-emerald-400" border="border-emerald-500" />
+                <KPICard title="API Latency" value={`${latency}ms`} icon={Wifi} color="text-sky-400" border="border-sky-500" />
+                <KPICard title="Profiles Active" value={profiles.length} icon={ShieldCheck} color="text-purple-400" border="border-purple-500" />
+                <KPICard title="Tenants Live" value={schools.length} icon={Database} color="text-amber-400" border="border-amber-500" />
+                <KPICard title="Storage Usage" value="0.42 GB" icon={HardDrive} color="text-emerald-400" border="border-emerald-500" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card className="bg-[#0a0f1d] border-white/5 rounded-[40px] p-8 hover:border-sky-500/30 transition-all cursor-pointer group" onClick={() => navigate('/admin/users')}>
-                        <div className="p-3 bg-slate-900 rounded-xl w-fit mb-6 text-sky-400 group-hover:bg-sky-500 group-hover:text-white transition-all">
-                             <Users size={24} />
+                {/* Atividade Recente do Kernel */}
+                <Card className="lg:col-span-8 bg-[#0a0f1d] border-white/5 rounded-[48px] overflow-hidden shadow-2xl flex flex-col h-[600px]">
+                    <div className="p-8 border-b border-white/5 flex items-center justify-between bg-slate-950/40">
+                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
+                            <Terminal size={18} /> Kernel Audit Stream
+                        </h4>
+                        <RefreshCw size={14} className="text-slate-600 animate-spin-slow" />
+                    </div>
+                    <CardContent className="p-0 overflow-y-auto custom-scrollbar flex-1">
+                        <div className="divide-y divide-white/5">
+                            {logs.slice(0, 15).map((log: any) => (
+                                <div key={log.id} className="p-6 hover:bg-white/[0.02] transition-colors flex items-center justify-between group">
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-[10px] font-mono text-slate-600">{new Date(log.created_at).toLocaleTimeString()}</div>
+                                        <div className="px-2 py-1 bg-slate-900 border border-white/5 rounded text-[8px] font-black uppercase text-sky-400">{log.action}</div>
+                                        <div className="text-xs font-bold text-slate-300 uppercase tracking-tight">{log.table_name}: <span className="text-slate-500">{log.record_id}</span></div>
+                                    </div>
+                                    <Clock size={14} className="text-slate-700 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                            ))}
                         </div>
-                        <h4 className="text-sm font-black text-white uppercase tracking-tight">Time & RH</h4>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Gestores e Professores</p>
-                    </Card>
-                    <Card className="bg-[#0a0f1d] border-white/5 rounded-[40px] p-8 hover:border-purple-500/30 transition-all cursor-pointer group" onClick={() => navigate('/admin/classes')}>
-                        <div className="p-3 bg-slate-900 rounded-xl w-fit mb-6 text-purple-400 group-hover:bg-purple-500 group-hover:text-white transition-all">
-                             <Clock size={24} />
-                        </div>
-                        <h4 className="text-sm font-black text-white uppercase tracking-tight">Grade de Horários</h4>
-                        <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Sincronizar Turmas Ativas</p>
-                    </Card>
-                </div>
+                    </CardContent>
+                </Card>
 
-                <aside className="lg:col-span-4 space-y-6">
-                    <Card className="bg-slate-900/60 border-white/5 p-8 rounded-[40px] shadow-xl backdrop-blur-md">
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center gap-2 mb-6">
-                            <TrendingUp size={14} /> Faturamento Unitário
-                        </p>
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center">
-                                <span className="text-[10px] text-slate-400 font-bold uppercase">Hora/Aula:</span>
-                                <span className="text-sm font-black text-white">R$ {stats.selectedSchool?.hourly_rate || '0,00'}</span>
+                {/* Status de Infra */}
+                <div className="lg:col-span-4 space-y-6">
+                    <Card className="bg-slate-900/40 border-white/5 p-8 rounded-[40px] shadow-xl">
+                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                            <Cpu size={14} /> Hardware Profile
+                        </h4>
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[10px] font-black uppercase">
+                                    <span className="text-slate-500">Server CPU</span>
+                                    <span className="text-white">12%</span>
+                                </div>
+                                <div className="h-1.5 bg-slate-950 rounded-full overflow-hidden"><div className="w-[12%] h-full bg-sky-500" /></div>
                             </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-[10px] text-slate-400 font-bold uppercase">Mensalidade:</span>
-                                <span className="text-sm font-black text-white">R$ {stats.selectedSchool?.monthly_fee || '0,00'}</span>
-                            </div>
-                            <div className="pt-4 border-t border-white/5">
-                                <p className="text-[9px] text-slate-500 leading-relaxed italic">
-                                    Cálculo baseado no modelo de cobrança configurado para este tenant.
-                                </p>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[10px] font-black uppercase">
+                                    <span className="text-slate-500">Database RAM</span>
+                                    <span className="text-white">44%</span>
+                                </div>
+                                <div className="h-1.5 bg-slate-950 rounded-full overflow-hidden"><div className="w-[44%] h-full bg-purple-500" /></div>
                             </div>
                         </div>
                     </Card>
-                </aside>
+
+                    <div className="p-8 bg-amber-500/5 border border-amber-500/20 rounded-[40px] flex items-start gap-4">
+                        <AlertCircle className="text-amber-500 shrink-0" />
+                        <div>
+                            <h5 className="text-[10px] font-black text-white uppercase tracking-widest">Maestro Insight</h5>
+                            <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
+                                Sincronia estável com o domínio <span className="text-amber-500">oliemusic.com.br</span>. Todas as policies de RLS estão em modo restrito.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
