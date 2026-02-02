@@ -1,11 +1,19 @@
+
 import React from 'react';
 import * as RRD from 'react-router-dom';
-const { Link } = RRD as any;
+const { Link, useNavigate } = RRD as any;
 import { Button } from '../ui/Button.tsx';
-import { Music, LayoutDashboard, Menu, ShoppingCart } from 'lucide-react';
-import { cn } from '../../lib/utils.ts';
+import { Music, LayoutDashboard, LogIn } from 'lucide-react';
+import { uiSounds } from '../../lib/uiSounds.ts';
 
 export const Header = () => {
+  const navigate = useNavigate();
+
+  const handleAuth = () => {
+    uiSounds.playClick();
+    navigate('/login');
+  };
+
   return (
     <header className="fixed top-0 left-0 right-0 z-[100] p-4 md:p-6 pointer-events-none">
       <nav className="max-w-7xl mx-auto bg-slate-950/60 backdrop-blur-2xl border border-white/10 rounded-[32px] px-6 md:px-10 py-4 flex items-center justify-between shadow-2xl pointer-events-auto ring-1 ring-white/5">
@@ -25,16 +33,21 @@ export const Header = () => {
         </div>
 
         <div className="flex items-center gap-4">
-          <Link to="/app" className="hidden sm:block">
-            <Button variant="ghost" className="text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest">
-              Login
-            </Button>
-          </Link>
-          <Link to="/app">
-            <Button variant="primary" className="rounded-2xl px-6 h-12 text-[10px] font-black uppercase tracking-widest shadow-xl shadow-sky-900/20 border border-white/10" leftIcon={LayoutDashboard}>
-              Portal Maestro
-            </Button>
-          </Link>
+          <Button 
+            variant="ghost" 
+            onClick={handleAuth}
+            className="text-slate-400 hover:text-white text-[10px] font-black uppercase tracking-widest"
+          >
+            Login
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleAuth}
+            className="rounded-2xl px-6 h-12 text-[10px] font-black uppercase tracking-widest shadow-xl shadow-sky-900/20 border border-white/10" 
+            leftIcon={LayoutDashboard}
+          >
+            Portal Maestro
+          </Button>
         </div>
       </nav>
     </header>

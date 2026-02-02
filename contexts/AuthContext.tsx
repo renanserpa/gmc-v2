@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabaseClient.ts';
 import { Profile, UserRole } from '../types.ts';
@@ -30,7 +31,6 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   const [schoolId, setSchoolId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Watchdog para evitar travamento infinito
   const watchdogRef = useRef<number | null>(null);
 
   const getDashboardPath = useCallback((userRole: string | null): string => {
@@ -38,6 +38,10 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
     const r = userRole.toLowerCase();
     
     switch(r) {
+      case 'god_mode':
+      case 'saas_admin_global':
+      case 'saas_admin_finance':
+      case 'saas_admin_ops':
       case 'super_admin': 
       case 'admin': return '/admin';
       case 'professor': return '/teacher/classes';
@@ -52,7 +56,8 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   const internalSignOut = async (reason?: string) => {
     setLoading(true);
     await (supabase.auth as any).signOut();
-    localStorage.removeItem('supabase.auth.token'); // Limpa token específico
+    localStorage.removeItem('oliemusic_dev_role');
+    localStorage.removeItem('maestro_active_role');
     setProfile(null);
     setUser(null);
     setRole(null);
@@ -68,8 +73,6 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
     }
 
     try {
-      console.debug(`[Maestro Kernel] Sincronizando perfil: ${currentUser.email}`);
-      
       const { data, error } = await supabase
         .from('profiles')
         .select('*, schools(name, is_active)')
@@ -79,7 +82,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
       if (error) throw error;
 
       if (data) {
-        if (data.school_id && data.schools && data.schools.is_active === false && data.role !== 'super_admin') {
+        if (data.school_id && data.schools && data.schools.is_active === false && data.role !== 'super_admin' && data.role !== 'god_mode') {
            await internalSignOut("Sessão Bloqueada: Esta unidade escolar está suspensa.");
            return;
         }
@@ -87,14 +90,13 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
         setRole(data.role);
         setSchoolId(data.school_id);
       } else if (currentUser.email === 'serparenan@gmail.com') {
-        // Auto-cura para o Root
-        setRole('super_admin');
+        setRole('god_mode');
       } else {
         setRole(currentUser.user_metadata?.role || 'student');
       }
     } catch (e) {
       logger.error("[Auth] Falha na sincronia de perfil", e);
-      setRole('student'); // Fallback para não travar
+      setRole('student');
     } finally {
       setLoading(false);
       if (watchdogRef.current) window.clearTimeout(watchdogRef.current);
@@ -105,10 +107,9 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
     let mounted = true;
 
     const initAuth = async () => {
-      // Ativa Watchdog: Se em 8 segundos não resolver, libera o loading
       watchdogRef.current = window.setTimeout(() => {
         if (mounted && loading) {
-          console.warn("[Maestro Watchdog] O carregamento demorou demais. Forçando liberação da UI.");
+          console.warn("[Maestro Watchdog] Timeout.");
           setLoading(false);
         }
       }, 8000);
@@ -120,7 +121,15 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
       if (initSession) {
         setSession(initSession);
         setUser(initSession.user);
-        await syncProfile(initSession.user);
+        
+        // Verifica se há um bypass de dev no localStorage
+        const savedRole = localStorage.getItem('oliemusic_dev_role');
+        if (savedRole) {
+            setRole(savedRole);
+            setLoading(false);
+        } else {
+            await syncProfile(initSession.user);
+        }
       } else {
         setLoading(false);
         if (watchdogRef.current) window.clearTimeout(watchdogRef.current);
@@ -156,7 +165,11 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
 
   const value = {
     session, user, profile, role, schoolId, loading, getDashboardPath,
-    setRoleOverride: (newRole: string | null) => setRole(newRole),
+    setRoleOverride: (newRole: string | null) => {
+        setRole(newRole);
+        if (newRole) localStorage.setItem('oliemusic_dev_role', newRole);
+        else localStorage.removeItem('oliemusic_dev_role');
+    },
     setSchoolOverride: (newSchoolId: string | null) => setSchoolId(newSchoolId),
     signOut: () => internalSignOut(),
     signIn: async (email: string, password: string) => {
@@ -171,6 +184,7 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
       }
     },
     devLogin: async (userId: string, targetRole: string) => {
+      localStorage.setItem('oliemusic_dev_role', targetRole);
       setRole(targetRole);
       setUser({ id: userId, email: `dev-${targetRole}@oliemusic.dev` } as any);
       setLoading(false);

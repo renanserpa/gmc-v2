@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { School, SchoolBranding } from '../types';
 import { supabase } from '../lib/supabaseClient';
@@ -41,12 +42,17 @@ export const ThemeProvider = ({ children }: { children?: ReactNode }) => {
 
         // --- BYPASS PARA MODO DEV (Mock Users) ---
         if (user?.email?.endsWith('@oliemusic.dev') || localStorage.getItem('oliemusic_dev_user_id')) {
+            // Updated mockSchool to include missing properties required by the School interface
             const mockSchool: School = {
                 id: 'school-dev-id',
                 name: 'OlieMusic HQ (Dev)',
+                slug: 'oliemusic-hq-dev',
+                is_active: true,
+                billing_model: 'fixed',
+                hourly_rate: 0,
+                monthly_fee: 0,
                 branding: DEFAULT_BRANDING,
-                // FIX: Added missing required property 'is_active' for School interface
-                is_active: true
+                contract_status: 'active'
             };
             setSchools([mockSchool]);
             const savedId = localStorage.getItem('maestro_active_school');
