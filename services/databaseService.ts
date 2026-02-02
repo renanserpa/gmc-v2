@@ -1,5 +1,5 @@
+
 import { supabase } from '../lib/supabaseClient';
-// FIX: Removed missing RealtimeChannel export and replaced with any in function signatures
 
 export interface TableStatus {
     tableName: string;
@@ -11,8 +11,9 @@ export interface TableStatus {
 const TABLES_TO_CHECK = [
     'profiles',
     'schools',
-    'professor_schools',
-    'music_classes',
+    'music_classes', // Módulo 2
+    'enrollments',   // Módulo 2
+    'class_logs',    // Módulo 2
     'students',
     'missions',
     'xp_events',
@@ -62,14 +63,11 @@ export const databaseService = {
         return results;
     },
 
-    /**
-     * Subscreve a mudanças em uma tabela específica com suporte a filtros CDC.
-     */
     subscribeToTable(
         tableName: string, 
         filter: string, 
         callback: (payload: any) => void
-    ): any { // FIX: Using any instead of missing RealtimeChannel export
+    ): any {
         const channel = supabase.channel(`db-sync-${tableName}-${filter}`)
             .on(
                 'postgres_changes' as any,

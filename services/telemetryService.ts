@@ -1,3 +1,4 @@
+
 import { supabase } from '../lib/supabaseClient.ts';
 
 export interface IntegrityStatus {
@@ -27,7 +28,7 @@ export interface TenantMetric {
     integration_health: number; // 0-100
 }
 
-const TABLES_CRITICAL = ['profiles', 'classes', 'students', 'missions', 'audit_logs'];
+const TABLES_CRITICAL = ['profiles', 'schools', 'music_classes', 'enrollments', 'students', 'missions', 'audit_logs'];
 
 export const telemetryService = {
     async measureLatency(): Promise<LatencyResult> {
@@ -52,8 +53,6 @@ export const telemetryService = {
         const { data: schools } = await supabase.from('schools').select('id, name');
         if (!schools) return [];
 
-        // Simulate aggregated telemetry per tenant for demo purposes
-        // In production, this would query a metrics table or an analytical view
         return schools.map(s => ({
             school_id: s.id,
             school_name: s.name,
@@ -98,10 +97,10 @@ export const telemetryService = {
         const now = new Date().toLocaleTimeString();
         return [
             { timestamp: now, level: 'INFO', source: 'AUTH', message: 'Maestro Session initialized via JWT.' },
-            { timestamp: now, level: 'WARN', source: 'DB', message: 'Row Level Security policy detected for "students".' },
-            { timestamp: now, level: 'ERROR', source: 'PROFILE', message: 'Active user UUID not found in public.profiles table.' },
+            { timestamp: now, level: 'WARN', source: 'DB', message: 'Row Level Security policy detected for "music_classes".' },
+            { timestamp: now, level: 'ERROR', source: 'RLS', message: 'Access denied for non-owner in tenant data.' },
             { timestamp: now, level: 'INFO', source: 'NET', message: 'Telemetry handshake successful (Region: AWS-SA-EAST).' },
-            { timestamp: now, level: 'WARN', source: 'IO', message: 'Avatar image cache miss for student_id: 882.' }
+            { timestamp: now, level: 'WARN', source: 'IO', message: 'Tenant branding sync delayed.' }
         ];
     }
 };

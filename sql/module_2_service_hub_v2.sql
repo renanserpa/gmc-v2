@@ -1,5 +1,5 @@
 
--- GCM MAESTRO V7.2 - MÓDULO 2: HUB DE PRESTAÇÃO DE SERVIÇOS
+-- GCM MAESTRO V7.2 - MÓDULO 2: HUB DE PRESTAÇÃO DE SERVIÇOS (VERSÃO FINAL VALIDADA)
 
 -- 1. Expansão de Contratos na tabela Schools
 ALTER TABLE public.schools 
@@ -50,9 +50,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 6. POLÍTICAS RLS ATUALIZADAS
+-- 6. POLÍTICAS RLS ATUALIZADAS (APLICANDO SECURITY DEFINER)
 ALTER TABLE public.music_classes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.enrollments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.class_logs ENABLE ROW LEVEL SECURITY;
+
+-- Reset de políticas para garantir aplicação limpa
+DROP POLICY IF EXISTS "SuperAdmin_Full_Classes" ON public.music_classes;
+DROP POLICY IF EXISTS "SuperAdmin_Full_Enrollments" ON public.enrollments;
+DROP POLICY IF EXISTS "Professor_Manage_Own_School_Classes" ON public.music_classes;
+DROP POLICY IF EXISTS "Professor_Manage_Own_School_Enrollments" ON public.enrollments;
 
 -- Super Admin: Acesso Total
 CREATE POLICY "SuperAdmin_Full_Classes" ON public.music_classes FOR ALL USING (public.check_is_super_admin());
@@ -70,15 +77,9 @@ FOR ALL USING (
     class_id IN (SELECT id FROM public.music_classes WHERE school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid() AND role = 'professor'))
 );
 
--- 7. PROVISIONAMENTO DO PROFESSOR (SOLUÇÃO PARA O ERRO 23503)
--- Esta lógica garante que quando o usuário 'professor@oliemusic.com.br' logar, ele já terá o cargo e escola certos.
--- Execute isto APÓS criar o usuário no painel de Authentication do Supabase.
-
-DO $$
-BEGIN
-    -- Se o perfil já existe (criado pelo trigger de auth), atualizamos
-    UPDATE public.profiles 
-    SET role = 'professor', 
-        school_id = (SELECT id FROM public.schools WHERE slug = 'redhouse-cuiaba' LIMIT 1)
-    WHERE email = 'professor@oliemusic.com.br';
-END $$;
+-- 7. PROVISIONAMENTO DO PROFESSOR (SOLUÇÃO RESILIENTE)
+-- Nota: O UPDATE é seguro. Se o perfil não existir, nada acontece.
+UPDATE public.profiles 
+SET role = 'professor', 
+    school_id = (SELECT id FROM public.schools WHERE slug = 'redhouse-cuiaba' LIMIT 1)
+WHERE email = 'professor@oliemusic.com.br';
