@@ -1,3 +1,4 @@
+
 export enum UserRole {
     Professor = 'professor',
     Student = 'student',
@@ -8,27 +9,23 @@ export enum UserRole {
     Manager = 'manager'
 }
 
-export enum MissionStatus {
-    Pending = 'pending',
-    Done = 'done',
-    Expired = 'expired'
+export interface Enrollment {
+    id: string;
+    student_id: string;
+    class_id: string;
+    created_at: string;
 }
 
-export interface Mission {
+export interface MusicClass {
     id: string;
-    student_id: string | null;
-    professor_id: string;
-    title: string;
-    description: string;
-    week_start: string;
-    xp_reward: number;
-    coins_reward: number;
-    status: MissionStatus;
-    position?: number;
-    created_at?: string;
-    school_id: string | null;
-    is_template: boolean;
-    metadata?: any;
+    school_id: string;
+    name: string;
+    day_of_week: string;
+    start_time: string;
+    capacity: number;
+    teacher_id?: string;
+    occupied?: number; // Calculado no front
+    age_group?: string; 
 }
 
 export interface SchoolBranding {
@@ -43,100 +40,94 @@ export interface School {
     name: string;
     slug?: string;
     is_active: boolean;
+    owner_id?: string; 
+    billing_model?: 'hourly' | 'per_student' | 'fixed';
+    hourly_rate?: number;
+    monthly_fee?: number;
+    contract_status?: 'trial' | 'active' | 'suspended' | string;
     branding: SchoolBranding;
     settings?: {
-        max_students: number;
-        storage_gb: number;
+        max_students?: number;
+        [key: string]: any;
     };
 }
 
-/**
- * Interface representing a user profile within the ecosystem.
- * Updated with missing properties required by components like StudentHud and contexts.
- */
+export interface AccessibilitySettings {
+    dyslexicFont: boolean;
+    highContrast: boolean;
+    colorBlindMode: 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia';
+    reducedMotion: boolean;
+    uiMode: 'standard' | 'kids';
+}
+
 export interface Profile {
     id: string;
     email: string;
     full_name: string;
     role: string;
+    school_id?: string | null;
     avatar_url: string | null;
     created_at: string;
-    school_id?: string | null;
-    // Fix: Added missing properties for Profile
     badges?: string[];
+    reputation_points?: number;
     professor_id?: string;
     accessibility_settings?: AccessibilitySettings;
-    reputation_points?: number;
 }
-
-// Missing types added below to resolve build errors across multiple files
 
 export interface Student {
   id: string;
   auth_user_id: string | null;
   professor_id: string;
+  school_id: string;
   name: string;
   instrument: string;
-  avatar_url: string | null;
   xp: number;
   coins: number;
   current_level: number;
   current_streak_days: number;
-  xpToNextLevel: number;
   invite_code: string;
-  guardian_id: string | null;
   completed_module_ids: string[];
-  completed_content_ids: string[];
-  school_id: string;
-  school_grade?: string;
+  xpToNextLevel?: number; // Calculated field
+  avatar_url?: string | null;
+  completed_content_ids?: string[];
+  guardian_id?: string | null;
 }
 
-export interface PlayerAchievement {
-  id: string;
-  player_id: string;
-  achievement_id: string;
-  unlocked_at: string;
-  metadata?: any;
-  achievements?: any;
+export enum MissionStatus {
+    Pending = 'pending',
+    Done = 'done',
+    Expired = 'expired'
 }
 
-export enum BacklogStatus {
-    Idea = 'Idea',
-    Planned = 'Planned',
-    InProgress = 'InProgress',
-    Done = 'Done'
-}
+export type AttendanceStatus = 'present' | 'absent' | 'late';
 
-export interface BacklogItem {
+export interface Mission {
     id: string;
     title: string;
-    description: string;
-    status: BacklogStatus;
-    type: 'tenants' | 'economy' | 'broadcast' | 'health';
-}
-
-export interface MusicClass {
-    id: string;
-    name: string;
+    description?: string;
+    xp_reward: number;
+    status: MissionStatus;
+    student_id: string;
     professor_id: string;
-    start_time: string;
-    age_group: string;
+    school_id?: string | null;
+    created_at?: string;
+    week_start?: string;
+    is_template?: boolean;
+    metadata?: any;
 }
 
 export interface Notice {
     id: string;
     title: string;
-    message?: string;
-    content?: string;
+    content: string;
+    message?: string; 
     priority: 'low' | 'normal' | 'high' | 'critical';
-    target_audience: string;
+    target_audience: 'all' | 'students' | 'professors' | string;
+    professor_id?: string;
+    school_id?: string | null;
     created_at: string;
     expires_at?: string;
-    professor_id: string;
-    school_id?: string | null;
 }
-
-export type AttendanceStatus = 'present' | 'absent' | 'late';
 
 export interface ContentLibraryItem {
     id: string;
@@ -144,34 +135,24 @@ export interface ContentLibraryItem {
     type: 'video' | 'audio' | 'tab' | 'pdf';
     url: string;
     difficulty_level: 'beginner' | 'intermediate' | 'pro';
-    professor_id: string;
-    school_id: string | null;
+    professor_id?: string;
+    school_id?: string | null;
     created_at?: string;
 }
 
-export interface StoreItem {
+export interface Achievement {
     id: string;
     name: string;
-    price_coins: number;
-    is_active: boolean;
-    metadata?: any;
+    description: string;
+    icon_url?: string;
 }
 
-export interface StoreOrder {
+export interface PlayerAchievement {
     id: string;
     player_id: string;
-    store_item_id: string;
-    coins_spent: number;
-    is_equipped: boolean;
-    store_items?: StoreItem;
-}
-
-export interface LessonStep {
-    id: string;
-    title: string;
-    type: 'video' | 'exercise' | 'song' | 'theory' | 'movement_break';
-    duration_mins: number;
-    metadata?: any;
+    achievement_id: string;
+    unlocked_at: string;
+    achievements?: Achievement;
 }
 
 export interface ChordSubstitution {
@@ -181,20 +162,20 @@ export interface ChordSubstitution {
 }
 
 export enum ModuleStatus {
-    Locked = 'Locked',
-    Available = 'Available',
-    Completed = 'Completed'
+    Locked = 'locked',
+    Available = 'available',
+    Completed = 'completed'
 }
 
 export interface LearningModule {
     id: string;
     trail_id: string;
     title: string;
-    description: string;
+    description?: string;
     order_index: number;
-    icon_type: 'theory' | 'technique' | 'repertoire' | 'boss';
+    icon_type: 'theory' | 'technique' | 'repertoire' | 'boss' | string;
     xp_reward: number;
-    required_missions: string[];
+    required_missions?: string[];
 }
 
 export interface Tuning {
@@ -204,26 +185,28 @@ export interface Tuning {
 }
 
 export interface ClassroomCommand {
-    type: 'PLAY' | 'PAUSE' | 'CELEBRATE' | 'END_SESSION' | 'PECS_MESSAGE';
-    payload?: any;
+    type: 'PLAY' | 'PAUSE' | 'CELEBRATE' | 'END_SESSION' | 'PECS_MESSAGE' | string;
     timestamp?: number;
-    summary?: { totalHits: number; lessonTitle: string };
+    summary?: any;
     studentId?: string;
     studentName?: string;
     messageId?: string;
     label?: string;
+    [key: string]: any;
 }
 
-export interface AccessibilitySettings {
-  dyslexicFont: boolean;
-  highContrast: boolean;
-  colorBlindMode: 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia';
-  reducedMotion: boolean;
-  uiMode: 'standard' | 'kids';
+export interface LessonStep {
+    id: string;
+    title: string;
+    type: 'theory' | 'exercise' | 'song' | 'video' | 'movement_break' | string;
+    duration_mins: number;
+    metadata?: any;
 }
 
 export interface LessonPlan {
-    age_group: string;
+    id: string;
+    title: string;
+    age_group: '4-6' | '7-12' | 'adult';
     steps: LessonStep[];
 }
 
@@ -232,7 +215,8 @@ export enum InstrumentType {
     Ukulele = 'Ukulele',
     Piano = 'Piano',
     Drums = 'Bateria',
-    Vocals = 'Voz'
+    Vocals = 'Canto',
+    Bass = 'Baixo'
 }
 
 export interface HistoryEra {
@@ -302,4 +286,25 @@ export interface Philosopher {
     era: string;
     avatar_url: string;
     system_prompt: string;
+}
+
+export interface StoreItem {
+  id: string;
+  name: string;
+  description?: string;
+  price_coins: number;
+  category?: string; 
+  image_url?: string;
+  metadata?: any;
+  is_active: boolean;
+}
+
+export interface StoreOrder {
+  id: string;
+  player_id: string;
+  store_item_id: string;
+  coins_spent: number;
+  is_equipped: boolean;
+  created_at?: string;
+  store_items?: StoreItem;
 }

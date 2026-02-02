@@ -1,3 +1,4 @@
+
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { useAdmin } from '../contexts/AdminContext.tsx';
@@ -42,6 +43,8 @@ export function useCurrentStudent() {
           id: 'student-mock-uuid',
           auth_user_id: user.id,
           professor_id: 'dev-prof-id',
+          // Fix: Added missing required school_id to satisfy Student interface
+          school_id: 'school-dev-id',
           name: isTestDomain ? `Músico ${user.email?.split('@')[0].toUpperCase()}` : 'Aluno Pro (Dev Mode)',
           instrument: 'Guitarra',
           avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`,

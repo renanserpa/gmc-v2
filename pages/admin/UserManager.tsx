@@ -1,6 +1,6 @@
+
 import React, { useState } from 'react';
-/* Added CheckCircle2 to the lucide-react import list */
-import { Search, Mail, Fingerprint, UserPlus, ShieldCheck, Star, Building2, Send, CheckCircle2 } from 'lucide-react';
+import { Search, Mail, Fingerprint, UserPlus, ShieldCheck, Star, Building2, Send, CheckCircle2, UserCog } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui/Dialog.tsx';
@@ -12,33 +12,32 @@ import { useAuth } from '../../contexts/AuthContext.tsx';
 import { cn } from '../../lib/utils.ts';
 
 export default function UserManager() {
-    const { schoolId } = useAuth();
+    const { schoolId, user } = useAuth();
     const [search, setSearch] = useState('');
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [newMember, setNewMember] = useState({ full_name: '', email: '', role: 'professor' });
 
     // ENGINE REALTIME: Perfis filtrados pela unidade ativa
-    const { data: users, loading } = useRealtimeSync<any>(
-        'profiles', 
-        schoolId ? `school_id=eq.${schoolId}` : undefined
-    );
+    const filter = schoolId ? `school_id=eq.${schoolId}` : undefined;
+    const { data: users, loading } = useRealtimeSync<any>('profiles', filter);
 
     const handleInvite = async () => {
-        if (!newMember.email || !schoolId) return;
+        if (!newMember.email) return;
         setIsSaving(true);
         haptics.heavy();
         try {
-            // Nota: Este sistema pressupõe que o Admin criará o usuário no AUTH.
-            // Aqui provisionamos apenas os metadados do Perfil.
+            // Provisiona os metadados do Perfil. 
+            // IMPORTANTE: O usuário deve se cadastrar via Auth para o ID bater.
             const { error } = await supabase.from('profiles').upsert({
-                ...newMember,
-                school_id: schoolId,
-                email: newMember.email.toLowerCase().trim()
+                full_name: newMember.full_name,
+                email: newMember.email.toLowerCase().trim(),
+                role: newMember.role,
+                school_id: schoolId
             }, { onConflict: 'email' });
 
             if (error) throw error;
-            notify.success("Perfil provisionado com sucesso!");
+            notify.success("Perfil provisionado! Solicite o cadastro no Auth.");
             setIsAddOpen(false);
             setNewMember({ full_name: '', email: '', role: 'professor' });
         } catch (e) { notify.error("Erro ao salvar perfil."); }
@@ -50,9 +49,11 @@ export default function UserManager() {
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900/40 p-8 rounded-[40px] border border-white/5 backdrop-blur-xl">
                 <div>
                     <h1 className="text-3xl font-black text-white uppercase italic leading-none">Time <span className="text-sky-500">Maestro</span></h1>
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Autoridade da Unidade Ativa</p>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em] mt-2">
+                        {schoolId ? 'Membros da Unidade Ativa' : 'Visão Global de Usuários'}
+                    </p>
                 </div>
-                <Button onClick={() => setIsAddOpen(true)} disabled={!schoolId} leftIcon={UserPlus} className="rounded-2xl px-8 h-14 bg-sky-600 font-black uppercase text-xs">Provisionar Membro</Button>
+                <Button onClick={() => setIsAddOpen(true)} leftIcon={UserPlus} className="rounded-2xl px-8 h-14 bg-sky-600 font-black uppercase text-xs">Provisionar Mestre</Button>
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -67,16 +68,8 @@ export default function UserManager() {
                                 {u.role}
                             </span>
                         </div>
-                        <h4 className="text-lg font-black text-white uppercase truncate">{u.full_name || 'Aguardando Login'}</h4>
+                        <h4 className="text-lg font-black text-white uppercase truncate">{u.full_name || 'Membro Externo'}</h4>
                         <p className="text-[10px] text-slate-500 font-bold uppercase truncate italic">{u.email}</p>
-                        
-                        {u.email === 'professor@oliemusic.com.br' && (
-                             <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-2 text-emerald-400">
-                                {/* Added missing CheckCircle2 component here */}
-                                <CheckCircle2 size={12} />
-                                <span className="text-[9px] font-black uppercase tracking-widest">Pendente: Aguardando Ativação</span>
-                             </div>
-                        )}
                     </Card>
                 ))}
             </div>
@@ -84,17 +77,18 @@ export default function UserManager() {
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                 <DialogContent className="bg-slate-900 border-slate-800 rounded-[40px] p-10">
                     <DialogHeader>
-                        <DialogTitle className="text-2xl font-black text-white uppercase italic">Provisionar Mestre/Gestor</DialogTitle>
-                        <DialogDescription className="text-slate-500 text-xs font-bold uppercase leading-relaxed">
-                            Crie o perfil agora. O usuário terá acesso assim que realizar o primeiro login no sistema com este e-mail.
+                        <DialogTitle className="text-2xl font-black text-white uppercase italic">Provisionar Membro</DialogTitle>
+                        <DialogDescription className="text-slate-500 text-xs font-bold uppercase">
+                            Provisionar um Professor-Owner permite que ele gerencie seus próprios Tenants.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-6 py-6">
                         <input value={newMember.full_name} onChange={e => setNewMember({...newMember, full_name: e.target.value})} placeholder="Nome Completo" className="w-full bg-slate-950 border border-white/5 rounded-2xl p-4 text-white" />
-                        <input value={newMember.email} onChange={e => setNewMember({...newMember, email: e.target.value})} placeholder="E-mail de Acesso" className="w-full bg-slate-950 border border-white/5 rounded-2xl p-4 text-white" />
+                        <input value={newMember.email} onChange={e => setNewMember({...newMember, email: e.target.value})} placeholder="E-mail" className="w-full bg-slate-950 border border-white/5 rounded-2xl p-4 text-white" />
                         <select value={newMember.role} onChange={e => setNewMember({...newMember, role: e.target.value})} className="w-full bg-slate-950 border border-white/5 rounded-2xl p-4 text-white appearance-none">
-                            <option value="professor">Professor (Mestre)</option>
-                            <option value="manager">Gestor da Unidade</option>
+                            <option value="professor">Professor (Master/Owner)</option>
+                            <option value="manager">Gestor de Unidade</option>
+                            <option value="guardian">Responsável</option>
                         </select>
                     </div>
                     <DialogFooter>

@@ -43,7 +43,9 @@ export default function StudentHud({ student }: StudentHudProps) {
   const [professorProfile, setProfessorProfile] = useState<Profile | null>(null);
 
   const xpPercentage = useMemo(() => {
-      return student.xpToNextLevel > 0 ? Math.min((student.xp / student.xpToNextLevel) * 100, 100) : 0;
+      // Fix: Handle optional xpToNextLevel safely
+      const nextXp = student.xpToNextLevel || 100;
+      return nextXp > 0 ? Math.min((student.xp / nextXp) * 100, 100) : 0;
   }, [student.xp, student.xpToNextLevel]);
 
   useEffect(() => {
@@ -111,6 +113,7 @@ export default function StudentHud({ student }: StudentHudProps) {
                                 className="relative z-10"
                                 whileHover={{ scale: 1.05 } as any}
                             >
+                                {/* Fix: Student interface now contains optional avatar_url */}
                                 <UserAvatar src={student.avatar_url} name={student.name} size={isKids ? "xl" : "lg"} className="border-4 border-white/10 shadow-2xl" />
                             </M.div>
                             
@@ -130,6 +133,7 @@ export default function StudentHud({ student }: StudentHudProps) {
                                     {student.current_streak_days > 4 && <span className="bg-orange-500/10 text-orange-500 text-[9px] font-black px-3 py-1 rounded-full border border-orange-500/20 uppercase tracking-[0.2em]">On Fire!</span>}
                                     
                                     {/* Badges do Professor */}
+                                    {/* Fix: Profile interface now contains optional badges array */}
                                     {professorProfile?.badges?.map(badge => (
                                         <div key={badge} className="bg-amber-500/10 text-amber-500 text-[9px] font-black px-3 py-1 rounded-full border border-amber-500/20 uppercase tracking-[0.2em] flex items-center gap-1">
                                             <Award size={10} fill="currentColor" /> {badge}
@@ -192,7 +196,8 @@ export default function StudentHud({ student }: StudentHudProps) {
                                 <div className="flex items-baseline gap-2">
                                     {/* Use any to bypass Framer Motion properties error */}
                                     <M.span key={student.xp} initial={{ scale: 1.2, color: '#38bdf8' } as any} animate={{ scale: 1, color: '#fff' } as any} className="text-5xl font-black tracking-tighter">{student.xp}</M.span>
-                                    <span className="text-slate-700 font-black text-sm">/ {student.xpToNextLevel} XP</span>
+                                    {/* Fix: Student interface now contains optional xpToNextLevel */}
+                                    <span className="text-slate-700 font-black text-sm">/ {student.xpToNextLevel || 100} XP</span>
                                 </div>
                             </div>
                             <div className="text-right">
