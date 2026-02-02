@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer } from 'react-toastify';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary.tsx';
 import { TooltipProvider } from '../components/ui/Tooltip.tsx';
+import { useSchoolBranding } from '../hooks/useSchoolBranding.ts';
 import '../lib/i18n.ts';
 
 const queryClient = new QueryClient({
@@ -21,6 +22,12 @@ const queryClient = new QueryClient({
   },
 });
 
+// Componente Wrapper para injetar hooks que dependem de Contextos
+const BrandingWrapper = ({ children }: { children: ReactNode }) => {
+    useSchoolBranding(); // Injeta o CSS da escola ativa
+    return <>{children}</>;
+};
+
 export const AppProviders = ({ children }: { children?: ReactNode }) => {
   return (
     <ErrorBoundary>
@@ -32,7 +39,9 @@ export const AppProviders = ({ children }: { children?: ReactNode }) => {
                   <AccessibilityProvider>
                     <GamificationProvider>
                         <TuningProvider>
-                            {children}
+                            <BrandingWrapper>
+                                {children}
+                            </BrandingWrapper>
                             <ToastContainer 
                                 position="bottom-right"
                                 theme="dark"
