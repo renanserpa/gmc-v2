@@ -26,7 +26,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
   usePageTitle("Acessar Plataforma");
-  const { signIn, user, role, loading, getDashboardPath } = useAuth();
+  const { signIn, user, actingRole, loading, getDashboardPath } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
@@ -35,34 +35,42 @@ export default function Login() {
     resolver: zodResolver(loginSchema)
   });
 
-  // REDIRECIONAMENTO AGRESSIVO
+  // REDIRECIONAMENTO BASEADO EM PERSONA ATIVA
   useEffect(() => {
-    if (user && !loading && role) {
-      const targetPath = getDashboardPath(role);
+    if (user && !loading && actingRole) {
+      // Caso especial do Professor Renan
+      if (user.email === 'serparenan@gmail.com') {
+        navigate('/', { replace: true });
+        return;
+      }
+
+      const targetPath = getDashboardPath(actingRole);
       const from = location.state?.from?.pathname || targetPath;
-      
-      // Evita loop infinito se o "from" for o login
       const finalDest = from === '/login' ? targetPath : from;
       
       navigate(finalDest, { replace: true });
     }
-  }, [user, role, loading, navigate, getDashboardPath, location.state]);
+  }, [user, actingRole, loading, navigate, getDashboardPath, location.state]);
 
   const onSubmit = async (data: LoginFormData) => {
     uiSounds.playClick();
     try {
-      await signIn(data.email, data.password);
-      notify.success("Acesso Autorizado pelo Maestro!");
+      const { error } = await signIn(data.email, data.password);
+      if (error) throw error;
+      notify.success("Identidade Maestro confirmada!");
     } catch (err: any) {
-      notify.error("Credenciais inválidas ou erro de rede.");
+      console.error("[Login] Erro:", err);
+      notify.error("Credenciais inválidas ou falha na rede.");
     }
   };
 
   if (user && loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
-        <Loader2 className="w-12 h-12 text-sky-500 animate-spin mb-4" />
-        <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-[10px]">Sincronizando Identidade Neural...</p>
+        <div className="p-10 bg-slate-900 rounded-[48px] border border-white/5 shadow-2xl flex flex-col items-center gap-6">
+          <Loader2 className="w-12 h-12 text-sky-500 animate-spin" />
+          <p className="text-slate-500 font-black uppercase tracking-[0.3em] text-[10px] text-center">Sincronizando Perfil Pedagógico...</p>
+        </div>
       </div>
     );
   }

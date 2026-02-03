@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Users, GraduationCap, Zap, TrendingUp, Sparkles, 
@@ -8,17 +8,25 @@ import {
     History, Search, Building2, Star, FileText, Download
 } from 'lucide-react';
 
-import { useProfessorData } from '../hooks/useProfessorData';
-import { usePageTitle } from '../hooks/usePageTitle';
-import { useAuth } from '../contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { KPICard } from '../components/dashboard/KPICard';
-import { AttendanceModal } from '../components/dashboard/AttendanceModal';
-import { getStudentsByClass, getMonthlyBillingReport } from '../services/dataService';
-import { cn } from '../lib/utils';
-import { notify } from '../lib/notification';
-import { haptics } from '../lib/haptics';
+// Hooks e Contextos com extensões obrigatórias
+import { useProfessorData } from '../hooks/useProfessorData.ts';
+import { usePageTitle } from '../hooks/usePageTitle.ts';
+import { useAuth } from '../contexts/AuthContext.tsx';
+
+// UI Components Core
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card.tsx';
+import { Button } from '../components/ui/Button.tsx';
+import { KPICard } from '../components/dashboard/KPICard.tsx';
+import { Skeleton } from '../components/ui/Skeleton.tsx';
+
+// Services e Utils
+import { getStudentsByClass, getMonthlyBillingReport } from '../services/dataService.ts';
+import { cn } from '../lib/utils.ts';
+import { notify } from '../lib/notification.ts';
+import { haptics } from '../lib/haptics.ts';
+
+// Carregamento Dinâmico de Modais pesados para otimização de Bundle
+const AttendanceModal = lazy(() => import('../components/dashboard/AttendanceModal.tsx').then(m => ({ default: m.AttendanceModal })));
 
 const M = motion as any;
 
@@ -53,8 +61,7 @@ export default function ProfessorDashboard() {
         try {
             const now = new Date();
             const report = await getMonthlyBillingReport(user.id, schoolId, now.getMonth(), now.getFullYear());
-            notify.success(`Extrato Gerado: ${report.totalHours} horas trabalhadas em ${report.sessionCount} sessões.`);
-            // No futuro, aqui dispararia o PDF real
+            notify.success(`Extrato Gerado: ${report.totalHours} horas trabalhadas.`);
         } catch (e) {
             notify.error("Erro ao processar faturamento.");
         } finally {
@@ -62,17 +69,23 @@ export default function ProfessorDashboard() {
         }
     };
 
-    if (error) return <div className="p-20 text-center text-red-500 font-black uppercase">Erro Crítico no Kernel Docente</div>;
+    if (error) return (
+        <div className="p-20 text-center space-y-4">
+            <AlertTriangle size={48} className="text-red-500 mx-auto opacity-20" />
+            <p className="text-red-500 font-black uppercase tracking-widest">Erro Crítico no Kernel Docente</p>
+            <Button onClick={() => window.location.reload()} variant="outline">Reiniciar Sistema</Button>
+        </div>
+    );
 
     return (
         <div className="space-y-8 max-w-7xl mx-auto pb-24 animate-in fade-in duration-700">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-slate-900/40 p-10 rounded-[48px] border border-white/5 backdrop-blur-xl relative overflow-hidden shadow-2xl">
                 <div className="absolute top-0 right-0 p-32 bg-sky-500/5 blur-[100px] pointer-events-none" />
                 <div className="relative z-10">
-                    <h1 className="text-4xl font-black text-white tracking-tighter uppercase italic leading-none">
+                    <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
                         Maestro <span className="text-sky-500">Center</span>
                     </h1>
-                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-3">Unidade Ativa: {schoolId || 'Global Pool'}</p>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-3">ID Unidade: {schoolId || 'Global Pool'}</p>
                 </div>
                 <div className="flex items-center gap-4 relative z-10">
                     <Button 
@@ -82,9 +95,9 @@ export default function ProfessorDashboard() {
                         leftIcon={FileText} 
                         className="rounded-2xl px-8 border-white/10"
                     >
-                        Extrato de Aula
+                        Extrato Mensal
                     </Button>
-                    <Button leftIcon={Plus} className="rounded-2xl px-8 shadow-xl shadow-sky-900/20">Matricular Aluno</Button>
+                    <Button leftIcon={Plus} className="rounded-2xl px-8 shadow-xl shadow-sky-900/20">Novo Aluno</Button>
                 </div>
             </header>
 
@@ -104,31 +117,37 @@ export default function ProfessorDashboard() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {data?.classes?.map((c: any) => (
-                                    <div 
-                                        key={c.id} 
-                                        onClick={() => handleOpenClass(c)}
-                                        className="bg-slate-950/60 p-6 rounded-[32px] border border-white/5 flex items-center justify-between group hover:border-sky-500/30 transition-all cursor-pointer shadow-lg"
-                                    >
-                                        <div className="flex items-center gap-5">
-                                            <div className="p-4 bg-slate-900 rounded-2xl text-slate-500 group-hover:bg-sky-600 group-hover:text-white transition-all shadow-inner">
-                                                <Play size={20} fill="currentColor" />
+                            {isLoading ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 w-full rounded-3xl" />)}
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {data?.classes?.map((c: any) => (
+                                        <div 
+                                            key={c.id} 
+                                            onClick={() => handleOpenClass(c)}
+                                            className="bg-slate-950/60 p-6 rounded-[32px] border border-white/5 flex items-center justify-between group hover:border-sky-500/30 transition-all cursor-pointer shadow-lg"
+                                        >
+                                            <div className="flex items-center gap-5">
+                                                <div className="p-4 bg-slate-900 rounded-2xl text-slate-500 group-hover:bg-sky-600 group-hover:text-white transition-all shadow-inner">
+                                                    <Play size={20} fill="currentColor" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="text-lg font-black text-white uppercase tracking-tight truncate max-w-[150px]">{c.name}</h4>
+                                                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">{c.day_of_week} • {c.start_time.slice(0, 5)}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h4 className="text-lg font-black text-white uppercase tracking-tight truncate max-w-[150px]">{c.name}</h4>
-                                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">{c.day_of_week} • {c.start_time.slice(0, 5)}</p>
-                                            </div>
+                                            <ChevronRight size={20} className="text-slate-800 group-hover:text-sky-400 transition-all" />
                                         </div>
-                                        <ChevronRight size={20} className="text-slate-800 group-hover:text-sky-400 transition-all" />
-                                    </div>
-                                ))}
-                                {data?.classes?.length === 0 && (
-                                    <div className="col-span-2 py-20 text-center border-2 border-dashed border-slate-800 rounded-[40px] opacity-40">
-                                        <p className="text-xs font-black uppercase tracking-widest">Nenhuma turma vinculada a você nesta unidade.</p>
-                                    </div>
-                                )}
-                            </div>
+                                    ))}
+                                    {data?.classes?.length === 0 && (
+                                        <div className="col-span-2 py-20 text-center border-2 border-dashed border-slate-800 rounded-[40px] opacity-40">
+                                            <p className="text-xs font-black uppercase tracking-widest">Nenhuma turma vinculada.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </main>
@@ -140,23 +159,23 @@ export default function ProfessorDashboard() {
                             <div className="p-4 bg-white/20 rounded-2xl w-fit shadow-xl"><Sparkles size={32} /></div>
                             <div>
                                 <h3 className="text-3xl font-black uppercase tracking-tighter italic leading-none">Próxima <br /> Sessão</h3>
-                                <p className="text-sky-100/70 text-xs mt-4 leading-relaxed font-medium">Sua aula na RedHouse começa em 15 minutos. Prepare os exercícios da Caminhada da Aranha.</p>
+                                <p className="text-sky-100/70 text-xs mt-4 leading-relaxed font-medium">Sua aula começa em breve. O Orquestrador está pronto para sincronia.</p>
                             </div>
-                            <Button className="w-full bg-white text-sky-600 hover:bg-sky-50 rounded-2xl font-black uppercase text-[10px] py-6 shadow-xl border-none">Sincronizar TV da Sala</Button>
+                            <Button className="w-full bg-white text-sky-600 hover:bg-sky-50 rounded-2xl font-black uppercase text-[10px] py-6 shadow-xl border-none">Conectar TV da Sala</Button>
                         </div>
                     </Card>
                     
                     <div className="p-8 bg-slate-900/60 border border-white/5 rounded-[40px] shadow-xl">
                         <div className="flex items-center gap-3 mb-6">
                             <History size={16} className="text-slate-500" />
-                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Logs de Atividade Alunos</h4>
+                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Atividade Recente</h4>
                         </div>
                         <div className="space-y-4">
                             {data?.auditLogs?.slice(0, 3).map((log: any) => (
                                 <div key={log.id} className="flex items-center gap-3">
                                     <div className="w-2 h-2 rounded-full bg-sky-500" />
                                     <p className="text-[10px] text-slate-400 font-medium truncate">
-                                        <span className="text-white font-bold">{log.student_name}</span> ganhou {log.xp_amount} XP
+                                        <span className="text-white font-bold">{log.student_name}</span> conquistou {log.xp_amount} XP
                                     </p>
                                 </div>
                             ))}
@@ -165,16 +184,18 @@ export default function ProfessorDashboard() {
                 </aside>
             </div>
 
-            {selectedClass && (
-                <AttendanceModal 
-                    isOpen={!!selectedClass} 
-                    onClose={() => setSelectedClass(null)} 
-                    musicClass={selectedClass} 
-                    students={classStudents}
-                    professorId={user.id}
-                    onSuccess={() => refetch()}
-                />
-            )}
+            <Suspense fallback={null}>
+                {selectedClass && (
+                    <AttendanceModal 
+                        isOpen={!!selectedClass} 
+                        onClose={() => setSelectedClass(null)} 
+                        musicClass={selectedClass} 
+                        students={classStudents}
+                        professorId={user.id}
+                        onSuccess={() => refetch()}
+                    />
+                )}
+            </Suspense>
         </div>
     );
 }

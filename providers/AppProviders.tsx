@@ -1,3 +1,4 @@
+
 import React, { ReactNode } from 'react';
 import { AuthProvider } from '../contexts/AuthContext.tsx';
 import { AdminProvider } from '../contexts/AdminContext.tsx';
@@ -5,6 +6,7 @@ import { GamificationProvider } from '../contexts/GamificationEventContext.tsx';
 import { TuningProvider } from '../contexts/TuningContext.tsx';
 import { AccessibilityProvider } from '../contexts/AccessibilityContext.tsx';
 import { ThemeProvider } from '../contexts/ThemeContext.tsx';
+import { MaestroProvider } from '../contexts/MaestroContext.tsx';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer } from 'react-toastify';
 import { ErrorBoundary } from '../components/ui/ErrorBoundary.tsx';
@@ -35,6 +37,7 @@ export const AppProviders = ({ children }: { children?: ReactNode }) => {
           <AuthProvider>
             <AdminProvider>
               <ThemeProvider>
+                <MaestroProvider>
                   <AccessibilityProvider>
                     <GamificationProvider>
                         <TuningProvider>
@@ -49,6 +52,7 @@ export const AppProviders = ({ children }: { children?: ReactNode }) => {
                         </TuningProvider>
                     </GamificationProvider>
                   </AccessibilityProvider>
+                </MaestroProvider>
               </ThemeProvider>
             </AdminProvider>
           </AuthProvider>

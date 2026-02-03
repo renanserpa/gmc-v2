@@ -1,182 +1,148 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import * as RRD from 'react-router-dom';
 const { Outlet, NavLink } = RRD as any;
 import { 
-    Home, Music, Sparkles, Gamepad2, Store, Settings, 
-    LogOut, GraduationCap, Shield, Rocket, Building2, 
-    Terminal, Cpu, Database, LayoutDashboard, Users,
-    Zap, Eye, Ghost, Code2, Globe, Monitor, Package,
-    ShieldAlert, Search, Briefcase, Wand2, Hammer, Activity,
-    History /* Added missing Lucide icon import */
+    GraduationCap, Building2, Terminal, 
+    Users, Zap, Briefcase, ChevronDown, 
+    Gamepad2, LogOut, Shield, Activity,
+    Timer, ListMusic, Map, Settings
 } from 'lucide-react';
-import { useAccessibility } from '../contexts/AccessibilityContext.tsx';
 import { useAuth } from '../contexts/AuthContext.tsx';
-import { useAdmin } from '../contexts/AdminContext.tsx';
-import { useTheme } from '../contexts/ThemeContext.tsx';
+import { PersonaSwitcher } from './admin/PersonaSwitcher.tsx';
 import { cn } from '../lib/utils.ts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { uiSounds } from '../lib/uiSounds.ts';
+import { haptics } from '../lib/haptics.ts';
 
 const M = motion as any;
 
-const GhostBanner = () => {
-    const { ghostSession, stopGhosting } = useAdmin();
-    if (!ghostSession) return null;
+const StatusBadge = ({ status }: { status: 'STABLE' | 'BETA' | 'WIP' | 'PROTO' }) => {
+    const colors = {
+        STABLE: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+        BETA: "bg-sky-500/10 text-sky-400 border-sky-500/20",
+        WIP: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+        PROTO: "bg-purple-500/10 text-purple-400 border-purple-500/20"
+    };
+    return (
+        <span className={cn("text-[7px] font-black px-1.5 py-0.5 rounded border ml-auto", colors[status])}>
+            {status}
+        </span>
+    );
+};
+
+const NavAccordion = ({ title, icon: Icon, children, id }: any) => {
+    const storageKey = `maestro_nav_${id}`;
+    const [isOpen, setIsOpen] = useState(() => localStorage.getItem(storageKey) === 'true');
+
+    const toggle = () => {
+        const next = !isOpen;
+        setIsOpen(next);
+        localStorage.setItem(storageKey, String(next));
+        haptics.light();
+    };
 
     return (
-        <M.div 
-            initial={{ y: -50 }} animate={{ y: 0 }}
-            className="fixed top-0 left-0 right-0 h-10 bg-red-600 z-[1000] flex items-center justify-between px-6 shadow-2xl border-b border-red-400/30"
-        >
-            <div className="flex items-center gap-4 text-white font-black text-[9px] uppercase tracking-widest">
-                <div className="bg-white/20 p-1 rounded-lg animate-pulse">
-                    <Ghost size={14} />
-                </div>
-                Modo Fantasma Ativo: <span className="text-red-100">{ghostSession.targetName}</span> ({ghostSession.targetRole})
-            </div>
+        <div className="mb-2">
             <button 
-                onClick={stopGhosting}
-                className="bg-white text-red-600 px-4 py-1 rounded-full text-[9px] font-black uppercase hover:bg-slate-100 transition-all flex items-center gap-2"
+                onClick={toggle}
+                className="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-white transition-colors group"
             >
-                Encerrar Infiltração <LogOut size={10} />
+                <Icon size={16} className="group-hover:text-sky-400" />
+                <span className="text-[10px] font-black uppercase tracking-widest">{title}</span>
+                <ChevronDown size={14} className={cn("ml-auto transition-transform", isOpen && "rotate-180")} />
             </button>
-        </M.div>
+            <AnimatePresence>
+                {isOpen && (
+                    <M.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-white/[0.02] rounded-2xl mx-2">
+                        <div className="py-2 space-y-1">
+                            {children}
+                        </div>
+                    </M.div>
+                )}
+            </AnimatePresence>
+        </div>
     );
 };
 
 export default function Layout() {
-  const { settings } = useAccessibility();
-  const { role: authRole, signOut, user } = useAuth();
-  const { ghostSession } = useAdmin();
-  const isKids = settings.uiMode === 'kids';
+  const { signOut, actingRole } = useAuth();
+  
+  const isStudent = actingRole === 'student';
+  const isMaestro = actingRole === 'professor' || actingRole === 'teacher_owner';
+  const isGod = actingRole === 'god_mode';
+  const isSaaS = actingRole === 'saas_admin_global' || isGod;
 
-  const isGodMode = user?.email === 'serparenan@gmail.com' || authRole === 'god_mode';
-  const activeRole = ghostSession?.targetRole || authRole || 'student';
-
-  const sovereignMenus = [
-    { 
-        group: 'ENGINE', 
-        icon: Terminal,
-        items: [
-            { path: '/system/console', label: 'Kernel Console', icon: Cpu, color: 'text-red-500' },
-            { path: '/system/sql', label: 'SQL Lab', icon: Code2, color: 'text-emerald-500' },
-            { path: '/system/audit', label: 'Audit Logs', icon: History, color: 'text-rose-400' }
-        ] 
-    },
-    { 
-        group: 'BUSINESS', 
-        icon: Briefcase,
-        items: [
-            { path: '/admin/business', label: 'Revenue BI', icon: Zap, color: 'text-amber-400' },
-            { path: '/admin/tenants', label: 'Schools', icon: Building2, color: 'text-sky-400' },
-            { path: '/admin/hr', label: 'Staff RH', icon: Users, color: 'text-purple-400' }
-        ] 
-    },
-    { 
-        group: 'PEDAGOGY', 
-        icon: GraduationCap,
-        items: [
-            { path: '/teacher/classes', label: 'Classes', icon: Monitor, color: 'text-emerald-400' },
-            { path: '/teacher/library', label: 'Assets', icon: Database, color: 'text-sky-300' }
-        ] 
-    },
-    { 
-        group: 'GAME LAB', 
-        icon: Gamepad2,
-        items: [
-            { path: '/teacher/tasks', label: 'Missions', icon: Rocket, color: 'text-pink-400' },
-            { path: '/system/assets', label: 'Skins Forge', icon: Wand2, color: 'text-amber-500' }
-        ] 
-    }
-  ];
+  const navItemClass = ({ isActive }: any) => cn(
+    "flex items-center gap-4 px-4 py-2 text-[9px] font-bold uppercase tracking-widest transition-all",
+    isActive 
+        ? (isStudent ? "text-pink-400 bg-pink-500/5 shadow-[inset_2px_0_0_#f472b6]" : "text-white bg-white/5 shadow-[inset_2px_0_0_#38bdf8]") 
+        : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.02]"
+  );
 
   return (
-    <div className={cn("min-h-screen bg-slate-950 text-slate-100 flex overflow-hidden", isKids ? "flex-col-reverse md:flex-row" : "flex-col md:flex-row")}>
-        <GhostBanner />
-        
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex overflow-hidden font-sans">
         <aside className={cn(
-            "z-50 flex shrink-0 transition-all duration-300 border-slate-800 bg-slate-950/95 backdrop-blur-xl",
-            isKids 
-                ? "w-full h-24 md:w-32 md:h-screen border-t md:border-r justify-center items-center p-2" 
-                : cn("w-full md:w-64 md:h-screen flex-col border-b md:border-r shadow-2xl", isGodMode && "bg-black border-red-950/20")
+            "w-72 border-r border-white/5 flex flex-col z-50 shadow-2xl transition-all duration-700",
+            isStudent ? "bg-[#0f0a1d] border-pink-500/10" : "bg-slate-950"
         )}>
-            {!isKids && (
-                <div className="p-6 flex items-center gap-3 border-b border-white/5">
-                    <div className={cn(
-                        "w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-xs transition-all",
-                        isGodMode ? "bg-red-600 shadow-[0_0_15px_#dc2626]" : "bg-sky-500"
-                    )}>
-                        {isGodMode ? 'G' : 'M'}
-                    </div>
-                    <span className="font-black text-lg tracking-tight text-white uppercase italic">
-                        {isGodMode ? 'Sovereign' : 'Maestro'}
-                    </span>
-                </div>
-            )}
+            <div className="p-6 border-b border-white/5 flex items-center gap-3">
+                <div className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center text-white font-black italic shadow-lg",
+                    isStudent ? "bg-pink-600 rounded-[12px]" : "bg-sky-600"
+                )}>M</div>
+                <span className="font-black text-lg tracking-tighter uppercase italic">
+                    Maestro <span className={isStudent ? "text-pink-500" : "text-sky-500"}>{isStudent ? "Arcade" : "Suite"}</span>
+                </span>
+            </div>
 
-            <nav className={cn(
-                "flex overflow-y-auto custom-scrollbar p-3",
-                isKids ? "flex-row md:flex-col w-full h-full justify-around" : "flex-col w-full h-full space-y-8"
-            )}>
-                {isGodMode && !isKids ? (
-                    sovereignMenus.map(group => (
-                        <div key={group.group} className="space-y-2">
-                            <div className="px-4 flex items-center gap-2 opacity-40">
-                                <group.icon size={10} />
-                                <span className="text-[8px] font-black uppercase tracking-[0.4em]">{group.group}</span>
-                            </div>
-                            <div className="space-y-1">
-                                {group.items.map(item => (
-                                    <NavLink
-                                        key={item.path}
-                                        to={item.path}
-                                        onClick={() => uiSounds.playClick()}
-                                        className={({ isActive }: any) => cn(
-                                            "relative group transition-all duration-300 flex items-center px-4 py-2.5 rounded-xl gap-4 w-full text-[9px] font-black uppercase tracking-widest outline-none",
-                                            isActive 
-                                                ? "bg-white/10 text-white border border-white/5" 
-                                                : "text-slate-500 hover:text-white hover:bg-white/5"
-                                        )}
-                                    >
-                                        <item.icon size={14} className={cn(item.color)} />
-                                        <span>{item.label}</span>
-                                    </NavLink>
-                                ))}
-                            </div>
-                        </div>
-                    ))
-                ) : (
-                    // Menu Padrão para outros roles ou Kids Mode
-                    <div className="space-y-1 w-full">
-                         {/* Mapeamento simplificado aqui para brevidade, herda lógica original */}
-                         <NavLink to={activeRole === 'professor' ? '/teacher/classes' : '/student/dashboard'} className="px-4 py-3 rounded-xl flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white">
-                             <Home size={18} /> <span>Home</span>
-                         </NavLink>
-                    </div>
+            <nav className="flex-1 overflow-y-auto custom-scrollbar py-6 px-2">
+                {/* CLUSTER: GOD */}
+                {isGod && (
+                    <NavAccordion id="core" title="🚀 Core Engine" icon={Terminal}>
+                        <NavLink to="/system/console" className={navItemClass}>Kernel Console <StatusBadge status="STABLE"/></NavLink>
+                        <NavLink to="/system/sql" className={navItemClass}>SQL Lab <StatusBadge status="STABLE"/></NavLink>
+                    </NavAccordion>
                 )}
 
-                <button 
-                    onClick={signOut}
-                    className={cn(
-                        "transition-all flex items-center justify-center group mt-auto",
-                        isKids 
-                            ? "w-14 h-14 rounded-full bg-red-500/10 text-red-500"
-                            : "px-4 py-3 w-full gap-4 text-slate-700 hover:text-red-500 rounded-xl text-[9px] font-black uppercase tracking-widest"
-                    )}
-                >
-                    <LogOut size={isKids ? 24 : 16} />
-                    {!isKids && <span>Sair</span>}
-                </button>
+                {/* CLUSTER: SAAS */}
+                {isSaaS && (
+                    <NavAccordion id="business" title="💰 B2B Manager" icon={Briefcase}>
+                        <NavLink to="/admin/business" className={navItemClass}>BI Analytics <StatusBadge status="BETA"/></NavLink>
+                        <NavLink to="/admin/tenants" className={navItemClass}>Unidades <StatusBadge status="STABLE"/></NavLink>
+                    </NavAccordion>
+                )}
+
+                {/* CLUSTER: MAESTRO */}
+                {(isMaestro || isGod) && (
+                    <NavAccordion id="maestro" title="🎵 Maestro Core" icon={GraduationCap}>
+                        <NavLink to="/teacher/dashboard" className={navItemClass}>Meu Estúdio <StatusBadge status="BETA"/></NavLink>
+                        <NavLink to="/teacher/classes" className={navItemClass}>Minhas Turmas <StatusBadge status="STABLE"/></NavLink>
+                        <NavLink to="/system/dev/teacher/metronome" className={navItemClass}>Metrônomo Pro <StatusBadge status="BETA"/></NavLink>
+                        <NavLink to="/system/dev/teacher/orchestrator" className={navItemClass}>Exercise Manager <StatusBadge status="BETA"/></NavLink>
+                    </NavAccordion>
+                )}
+
+                {/* CLUSTER: STUDENT */}
+                {(isStudent || isGod) && (
+                    <NavAccordion id="arcade" title="🎮 Arcade Player" icon={Gamepad2}>
+                        <NavLink to="/student/dashboard" className={navItemClass}>Meu Progresso <StatusBadge status="BETA"/></NavLink>
+                        <NavLink to="/student/arcade" className={navItemClass}>Game Center <StatusBadge status="STABLE"/></NavLink>
+                        <NavLink to="/student/practice" className={navItemClass}>Sala de Prática <StatusBadge status="STABLE"/></NavLink>
+                    </NavAccordion>
+                )}
             </nav>
+
+            <div className="p-6 border-t border-white/5 bg-black/20">
+                <button onClick={signOut} className="flex items-center gap-3 w-full text-[9px] font-black text-slate-700 hover:text-red-500 transition-colors uppercase tracking-[0.2em]">
+                    <LogOut size={14} /> Sair do Sistema
+                </button>
+            </div>
         </aside>
 
-        <main className={cn(
-            "flex-1 overflow-y-auto overflow-x-hidden relative transition-all bg-slate-950",
-            ghostSession && "pt-10",
-            isKids ? "p-4 md:p-8 rounded-[48px] m-2 border-4 border-slate-900" : "p-8"
-        )}>
+        <main className="flex-1 overflow-y-auto relative bg-[#02040a] p-8 custom-scrollbar">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.02),transparent)] pointer-events-none" />
             <Outlet />
+            <PersonaSwitcher />
         </main>
     </div>
   );
