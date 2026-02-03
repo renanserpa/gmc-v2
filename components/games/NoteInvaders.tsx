@@ -36,7 +36,8 @@ export const NoteInvaders: React.FC<{ onExit: () => void }> = ({ onExit }) => {
     const [enemies, setEnemies] = useState<Enemy[]>([]);
     const [score, setScore] = useState(0);
 
-    const detectedNote = usePitchDetector(audioPro.current, gameState === 'playing');
+    // Fix: usePitchDetector only expects the isActive boolean. Destructured noteIdx for game logic.
+    const { noteIdx: detectedNote } = usePitchDetector(gameState === 'playing');
 
     useEffect(() => {
         if (gameState === 'playing') {

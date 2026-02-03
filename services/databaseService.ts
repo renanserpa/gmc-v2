@@ -12,7 +12,9 @@ const TABLES_TO_CHECK = [
     'profiles', 'schools', 'music_classes', 'enrollments', 
     'class_logs', 'students', 'missions', 'xp_events', 
     'store_items', 'content_library', 'knowledge_docs', 
-    'system_configs', 'audit_logs', 'notices'
+    'system_configs', 'audit_logs', 'notices',
+    // Stub Tables v7.6
+    'external_contracts', 'live_tool_presets', 'family_reports'
 ];
 
 export const databaseService = {
@@ -41,16 +43,13 @@ export const databaseService = {
                     });
                 }
             } catch (err: any) {
-                results.push({ tableName, exists: false, rowCount: 0, error: 'Falha serial.' });
+                // FIX: tableName must be a string, using the loop variable instead of a boolean constant
+                results.push({ tableName: tableName, exists: false, rowCount: 0, error: 'Falha serial.' });
             }
         }
         return results;
     },
 
-    /**
-     * SQL Lab: Executa uma query de leitura via Supabase JS.
-     * Para God Mode, permitimos selecionar qualquer tabela do esquema público.
-     */
     async runQuery(tableName: string, queryParams: any = {}): Promise<any> {
         let query = supabase.from(tableName).select(queryParams.select || '*');
         

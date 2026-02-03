@@ -15,8 +15,8 @@ export const VocalMonitor: React.FC = () => {
     const [isListening, setIsListening] = useState(false);
     const [history, setHistory] = useState<number[]>(new Array(50).fill(null));
     
-    // Detecta nota em tempo real
-    const detectedNoteIdx = usePitchDetector(audioPro.current, isListening);
+    // Fix: usePitchDetector call corrected (only isActive arg). Extracted noteIdx for visualization.
+    const { noteIdx: detectedNoteIdx } = usePitchDetector(isListening);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {

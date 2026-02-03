@@ -12,6 +12,11 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
+  public state: State = {
+    hasError: false,
+    error: null
+  };
+
   constructor(props: Props) {
     super(props);
     this.state = {
@@ -61,7 +66,8 @@ export class ErrorBoundary extends Component<Props, State> {
       );
     }
 
-    return this.props.children;
+    // Fix: Accessing children from props using a cast to any to resolve property visibility issues in this environment
+    return (this as any).props.children;
   }
 }
 

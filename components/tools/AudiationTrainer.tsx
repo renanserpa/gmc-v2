@@ -24,7 +24,8 @@ export const AudiationTrainer: React.FC = () => {
     const [thinkProgress, setThinkProgress] = useState(0);
     const [feedback, setFeedback] = useState<{ accuracy: number, perfect: boolean } | null>(null);
 
-    const detectedNote = usePitchDetector(audioPro.current, state === 'perform');
+    // Fix: usePitchDetector expects only 1 argument. noteIdx is used for comparison below.
+    const { noteIdx: detectedNote } = usePitchDetector(state === 'perform');
 
     const startListen = async () => {
         setState('listen');

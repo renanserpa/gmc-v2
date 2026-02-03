@@ -1,17 +1,18 @@
+
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Send, Bot, X, Loader2 } from 'lucide-react';
 
 // UI Components
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 
 // Kernels & Services
-import { maestroBrain } from '@/services/maestroBrain';
-import { useAuth } from '@/contexts/AuthContext';
+import { maestroBrain } from '../../services/maestroBrain';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Utils & Libs
-import { cn } from '@/lib/utils';
-import { haptics } from '@/lib/haptics';
+import { cn } from '../../lib/utils';
+import { haptics } from '../../lib/haptics';
 
 const M = motion as any;
 
