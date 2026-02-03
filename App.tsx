@@ -16,20 +16,24 @@ const LandingPage = lazy(() => import('@/pages/LandingPage'));
 const Login = lazy(() => import('@/pages/Login'));
 const ProfileSelector = lazy(() => import('@/pages/ProfileSelector'));
 
-// SaaS Admin Pages (Renamed)
+// SaaS Admin Pages
 const SaaSAdminDashboard = lazy(() => import('@/pages/admin/SaaSAdminDashboard'));
 const FinanceManager = lazy(() => import('@/pages/admin/FinanceManager'));
 const TeacherManager = lazy(() => import('@/pages/admin/TeacherManager'));
 const TenantManager = lazy(() => import('@/pages/admin/TenantManager'));
 const UserDirectory = lazy(() => import('@/pages/admin/UserDirectory'));
 
-// God Mode Pages (Renamed)
+// God Mode Pages
 const StaffProvisioning = lazy(() => import('@/pages/admin/StaffProvisioning'));
-const InfrastructureDashboard = lazy(() => import('@/pages/admin/GodConsole')); // Mantido como GodConsole na marca
+const GodConsole = lazy(() => import('@/pages/admin/GodConsole'));
 const SecurityAudit = lazy(() => import('@/pages/admin/SecurityAudit'));
 const SQLLab = lazy(() => import('@/pages/admin/SQLLab'));
 const ClassroomMonitor = lazy(() => import('@/pages/admin/ClassroomMonitor'));
 const AssetFactory = lazy(() => import('@/pages/admin/AssetFactory'));
+
+// Dev Lab Pages
+const MetronomeDev = lazy(() => import('@/pages/dev/teacher/MetronomeDev'));
+const ArcadeDev = lazy(() => import('@/pages/dev/student/ArcadeDev'));
 
 const RootHandler = () => {
   const { user, role, loading, getDashboardPath } = useAuth();
@@ -64,11 +68,22 @@ export default function App() {
               {/* GOD MODE SYSTEM PANEL */}
               <Route path="/system" element={<ProtectedRoute allowedRoles={['god_mode']} requireRoot><AdminLayout mode="god" /></ProtectedRoute>}>
                 <Route index element={<Navigate to="console" replace />} />
-                <Route path="console" element={<StaffProvisioning />} />
+                <Route path="console" element={<GodConsole />} />
                 <Route path="monitor" element={<ClassroomMonitor />} />
                 <Route path="assets" element={<AssetFactory />} />
                 <Route path="audit" element={<SecurityAudit />} />
                 <Route path="sql" element={<SQLLab />} />
+                
+                {/* DEV LABORATORY ROUTES */}
+                <Route path="dev/teacher/metronome" element={<MetronomeDev />} />
+                <Route path="dev/student/arcade" element={<ArcadeDev />} />
+                <Route path="dev/teacher/tuner" element={<div className="p-10 text-center font-black uppercase text-slate-700">🚧 Em Construção: Tuner Pro</div>} />
+                <Route path="dev/teacher/planner" element={<div className="p-10 text-center font-black uppercase text-slate-700">🚧 Em Construção: Lesson Planner</div>} />
+                <Route path="dev/student/missions" element={<div className="p-10 text-center font-black uppercase text-slate-700">🚧 Em Construção: Mission HUD</div>} />
+                <Route path="dev/parent/insights" element={<div className="p-10 text-center font-black uppercase text-slate-700">🚧 Em Construção: Parent Insights</div>} />
+                <Route path="dev/parent/finance" element={<div className="p-10 text-center font-black uppercase text-slate-700">🚧 Em Construção: Billing Area</div>} />
+                <Route path="dev/manager/units" element={<div className="p-10 text-center font-black uppercase text-slate-700">🚧 Em Construção: Multi-Unit BI</div>} />
+                <Route path="dev/manager/analytics" element={<div className="p-10 text-center font-black uppercase text-slate-700">🚧 Em Construção: Global Analytics</div>} />
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />
