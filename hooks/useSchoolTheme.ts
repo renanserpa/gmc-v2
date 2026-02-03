@@ -1,11 +1,12 @@
+
 import { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { supabase } from '../lib/supabaseClient.ts';
 
 /**
  * useSchoolTheme
- * Motor de injeção de CSS dinâmico. 
- * Transforma dados JSONB do Supabase em identidade visual no navegador.
+ * Motor de injeção de CSS dinâmico e branding. 
+ * Centraliza a identidade visual do Tenant no Kernel.
  */
 export function useSchoolTheme() {
     const { schoolId } = useAuth();
@@ -14,12 +15,12 @@ export function useSchoolTheme() {
         const applyTheme = (branding: any) => {
             const root = document.documentElement;
             
-            // Mapeamento de Variáveis CSS
+            // Design Tokens Padrão Olie
             const themeMap: Record<string, string> = {
                 '--brand-primary': branding?.primaryColor || '#38bdf8',
                 '--brand-secondary': branding?.secondaryColor || '#0f172a',
                 '--brand-radius': branding?.borderRadius || '24px',
-                '--primary-glow': `${branding?.primaryColor || '#38bdf8'}33` // 20% alpha para brilhos
+                '--primary-glow': `${branding?.primaryColor || '#38bdf8'}33`
             };
 
             Object.entries(themeMap).forEach(([key, value]) => {
@@ -28,21 +29,24 @@ export function useSchoolTheme() {
         };
 
         if (!schoolId) {
-            applyTheme(null); // Reset para o padrão Olie Music
+            applyTheme(null);
             return;
         }
 
-        // Busca reativa da identidade da escola
         const fetchBranding = async () => {
-            const { data, error } = await supabase
-                .from('schools')
-                .select('branding')
-                .eq('id', schoolId)
-                .single();
+            try {
+                const { data, error } = await supabase
+                    .from('schools')
+                    .select('branding')
+                    .eq('id', schoolId)
+                    .single();
 
-            if (!error && data?.branding) {
-                applyTheme(data.branding);
-                console.debug(`%c[Maestro Theme] Aplicando identidade: ${schoolId}`, `color: ${data.branding.primaryColor}; font-weight: bold;`);
+                if (!error && data?.branding) {
+                    applyTheme(data.branding);
+                }
+            } catch (err) {
+                console.warn("[Maestro Theme] Fallback to default branding applied.");
+                applyTheme(null);
             }
         };
 

@@ -1,3 +1,4 @@
+
 import React, { ReactNode } from 'react';
 import { AuthProvider } from '../contexts/AuthContext.tsx';
 import { AdminProvider } from '../contexts/AdminContext.tsx';
@@ -22,8 +23,8 @@ const queryClient = new QueryClient({
   },
 });
 
-const BrandingWrapper = ({ children }: { children?: ReactNode }) => {
-    useSchoolTheme(); // Injeta o motor de cores dinâmicas
+const RootThemeSync = ({ children }: { children?: ReactNode }) => {
+    useSchoolTheme(); // Único hook que manipula o :root
     return <>{children}</>;
 };
 
@@ -38,9 +39,9 @@ export const AppProviders = ({ children }: { children?: ReactNode }) => {
                   <AccessibilityProvider>
                     <GamificationProvider>
                         <TuningProvider>
-                            <BrandingWrapper>
+                            <RootThemeSync>
                                 {children}
-                            </BrandingWrapper>
+                            </RootThemeSync>
                             <ToastContainer 
                                 position="bottom-right"
                                 theme="dark"

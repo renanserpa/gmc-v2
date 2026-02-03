@@ -12,18 +12,12 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
-  public state: State = {
-    hasError: false,
-    error: null
-  };
-  
-  // FIX: Explicitly defined props to resolve "Property 'props' does not exist on type 'ErrorBoundary'" error in specific compiler contexts
-  public props: Props;
-
   constructor(props: Props) {
     super(props);
-    // FIX: Manual assignment of props to satisfy strict compiler checks for class members
-    this.props = props;
+    this.state = {
+      hasError: false,
+      error: null
+    };
   }
 
   public static getDerivedStateFromError(error: Error): State {
@@ -31,7 +25,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("[Kernel Panic]:", error, errorInfo);
+    console.error("[Maestro Kernel Panic]:", error, errorInfo);
   }
 
   public render() {
