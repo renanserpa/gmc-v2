@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 199 89% 48%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 199 89% 48%;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .glass-card {
+    @apply bg-slate-900/40 backdrop-blur-xl border border-white/5 shadow-2xl;
+  }
+  
+  .neon-glow {
+    box-shadow: 0 0 15px var(--brand-primary), 0 0 30px var(--brand-primary);
+  }
+}
+
+/* Fix para AlphaTab em containers escuros */
+.alphaTab-canvas-container {
+  @apply rounded-xl overflow-hidden shadow-inner;
+  background-color: white !important;
+}
+
+/* Transições suaves de página */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Estilização para Kids Mode */
+.ui-kids .card-brand {
+  @apply border-4 border-brand-primary scale-105 shadow-[0_0_40px_rgba(56,189,248,0.2)];
+}

@@ -1,26 +1,34 @@
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    Cpu, ShieldAlert, Power, Building2, 
+    Cpu, Ghost, ShieldAlert, Power, Building2, 
     Search, Activity, Radio, Database, 
     Zap, AlertTriangle, RefreshCw, Ban,
-    Globe, Server, ShieldCheck
+    Globe, Server, ShieldCheck, Mail, Eye,
+    ArrowRight, UserCheck, Terminal
 } from 'lucide-react';
 import { useRealtimeSync } from '../../hooks/useRealtimeSync.ts';
 import { supabase } from '../../lib/supabaseClient.ts';
 import { notify } from '../../lib/notification.ts';
 import { haptics } from '../../lib/haptics.ts';
-import { Card, CardContent } from '../../components/ui/Card.tsx';
+import { useAdmin } from '../../contexts/AdminContext.tsx';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
 import { cn } from '../../lib/utils.ts';
 import { KPICard } from '../../components/dashboard/KPICard.tsx';
+import { formatDate } from '../../lib/date.ts';
 
 const M = motion as any;
 
 export default function GodConsole() {
+    const { startGhosting } = useAdmin();
+    const [searchUser, setSearchUser] = useState('');
+    const [searchSchool, setSearchSchool] = useState('');
+
     const { data: schools, loading: loadingSchools } = useRealtimeSync<any>('schools', undefined, { column: 'name', ascending: true });
-    const [search, setSearch] = useState('');
+    const { data: profiles, loading: loadingProfiles } = useRealtimeSync<any>('profiles', undefined, { column: 'full_name', ascending: true });
+    const { data: auditLogs } = useRealtimeSync<any>('audit_logs', undefined, { column: 'created_at', ascending: false });
 
     const handleToggleMaintenance = async (school: any) => {
         const nextState = !school.maintenance_mode;
@@ -33,14 +41,19 @@ export default function GodConsole() {
                 .eq('id', school.id);
             
             if (error) throw error;
-            notify.error(nextState ? `UNIT FREEZE: ${school.name} está em manutenção.` : `UNIT THAW: ${school.name} reativada.`);
+            notify.error(nextState ? `SISTEMA CONGELADO: ${school.name}` : `SISTEMA ATIVO: ${school.name}`);
         } catch (e) {
-            notify.error("Falha ao propagar Kill Switch.");
+            notify.error("Falha ao propagar comando de infraestrutura.");
         }
     };
 
+    const filteredUsers = (profiles || []).filter(p => 
+        p.full_name?.toLowerCase().includes(searchUser.toLowerCase()) || 
+        p.email?.toLowerCase().includes(searchUser.toLowerCase())
+    );
+
     const filteredSchools = (schools || []).filter(s => 
-        s.name.toLowerCase().includes(search.toLowerCase())
+        s.name.toLowerCase().includes(searchSchool.toLowerCase())
     );
 
     return (
@@ -49,76 +62,113 @@ export default function GodConsole() {
                 <div className="absolute top-0 right-0 p-32 bg-red-500/5 blur-[100px] pointer-events-none" />
                 <div className="flex items-center gap-6 relative z-10">
                     <div className="p-4 bg-red-600 rounded-[28px] text-white shadow-xl shadow-red-900/40">
-                        <Cpu size={32} />
+                        <Terminal size={32} />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-black text-white uppercase italic tracking-tighter leading-none">System <span className="text-red-500">Console</span></h1>
-                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-3">Governance & Infrastructure Kill-Switch</p>
+                        <h1 className="text-3xl font-black text-white uppercase italic tracking-tighter leading-none">Sovereign <span className="text-red-500">Command</span></h1>
+                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em] mt-3">Governance v7.5 • God Mode Activated</p>
                     </div>
+                </div>
+                <div className="flex items-center gap-3 bg-black/40 px-6 py-3 rounded-2xl border border-red-500/20 shadow-xl">
+                    <ShieldCheck className="text-emerald-500" size={20} />
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Root Authority Verified</span>
                 </div>
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <KPICard title="Units Online" value={schools.filter(s => !s.maintenance_mode).length} icon={Globe} color="text-sky-400" border="border-sky-500" />
-                <KPICard title="Schema Health" value="STABLE" icon={Database} color="text-emerald-400" border="border-emerald-500" />
-                <KPICard title="Security Layer" value="HARDENED" icon={ShieldCheck} color="text-red-400" border="border-red-500" />
+                <KPICard title="Units Status" value={schools.filter(s => !s.maintenance_mode).length + "/" + schools.length} icon={Globe} color="text-sky-400" border="border-sky-500" />
+                <KPICard title="Sovereign Shield" value="ACTIVE" icon={ShieldAlert} color="text-red-500" border="border-red-500" />
+                <KPICard title="Database Pulse" value="STABLE" icon={Database} color="text-emerald-400" border="border-emerald-500" />
             </div>
 
-            <Card className="bg-slate-900 border-white/5 p-2 rounded-3xl shadow-lg">
-                <div className="relative">
-                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-                    <input 
-                        value={search} onChange={e => setSearch(e.target.value)}
-                        placeholder="Pesquisar unidades por nome ou tenant ID..." 
-                        className="w-full bg-transparent border-none outline-none py-5 pl-14 pr-6 text-sm text-white font-mono" 
-                    />
-                </div>
-            </Card>
-
-            <div className="grid grid-cols-1 gap-4">
-                {filteredSchools.map(school => (
-                    <Card key={school.id} className={cn(
-                        "bg-[#0a0f1d] border-white/5 rounded-[40px] p-8 flex flex-col md:flex-row items-center justify-between gap-8 group transition-all",
-                        school.maintenance_mode && "border-red-600/40 bg-red-950/10"
-                    )}>
-                        <div className="flex items-center gap-6">
-                            <div className={cn(
-                                "p-5 rounded-3xl transition-all shadow-inner",
-                                school.maintenance_mode ? "bg-red-600 text-white" : "bg-slate-900 text-sky-400"
-                            )}>
-                                <Building2 size={24} />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-black text-white uppercase italic">{school.name}</h3>
-                                <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Tenant ID: <span className="text-slate-400">{school.id}</span></p>
-                            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                {/* GHOSTING LAB */}
+                <div className="lg:col-span-7 space-y-6">
+                    <div className="flex items-center justify-between px-2">
+                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] flex items-center gap-2">
+                            <Ghost size={14} className="text-purple-500" /> Infiltration Directory
+                        </h4>
+                        <div className="relative w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-700" size={12} />
+                            <input 
+                                value={searchUser} onChange={e => setSearchUser(e.target.value)}
+                                placeholder="Buscar Identidade..." 
+                                className="w-full bg-slate-900 border border-white/5 rounded-xl py-2 pl-9 pr-4 text-[10px] text-white outline-none focus:border-purple-500/50" 
+                            />
                         </div>
+                    </div>
 
-                        <div className="flex items-center gap-8">
-                             <div className="text-right">
-                                <p className="text-[9px] font-black text-slate-600 uppercase mb-1">Status do Core</p>
-                                <span className={cn(
-                                    "px-3 py-1 rounded-full text-[10px] font-black uppercase border",
-                                    school.maintenance_mode ? "bg-red-500/20 text-red-400 border-red-500/30" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                    <div className="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+                        {loadingProfiles ? (
+                            <div className="p-10 text-center animate-pulse text-slate-700 uppercase font-black text-xs">Acessando Fluxo de Almas...</div>
+                        ) : filteredUsers.map(p => (
+                            <Card key={p.id} className="bg-[#0a0f1d] border-white/5 rounded-3xl p-5 group hover:border-purple-500/30 transition-all flex items-center justify-between shadow-lg">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center font-black text-slate-600 group-hover:bg-purple-900/20 group-hover:text-purple-400 transition-all">
+                                        {p.full_name?.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-black text-white uppercase tracking-tight">{p.full_name}</p>
+                                        <p className="text-[9px] text-slate-600 font-bold uppercase">{p.role} • {p.email}</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => startGhosting(p.id, p.full_name, p.role as any)}
+                                    className="p-3 bg-slate-950 border border-white/10 rounded-xl text-slate-600 hover:bg-purple-600 hover:text-white transition-all shadow-xl"
+                                >
+                                    <Ghost size={16} />
+                                </button>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+
+                {/* KILL SWITCH & AUDIT */}
+                <div className="lg:col-span-5 space-y-8">
+                    <section className="space-y-4">
+                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] px-2">Unit Kill-Switches</h4>
+                        <div className="space-y-2">
+                            {filteredSchools.map(school => (
+                                <div key={school.id} className={cn(
+                                    "p-4 rounded-2xl border transition-all flex items-center justify-between",
+                                    school.maintenance_mode ? "bg-red-600/10 border-red-600/40" : "bg-slate-900/60 border-white/5"
                                 )}>
-                                    {school.maintenance_mode ? 'SESSÃO BLOQUEADA' : 'OPERACIONAL'}
-                                </span>
-                             </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-white uppercase">{school.name}</p>
+                                        <span className={cn("text-[8px] font-black uppercase", school.maintenance_mode ? "text-red-500" : "text-emerald-500")}>
+                                            {school.maintenance_mode ? 'MANUTENÇÃO ATIVA' : 'SISTEMA OPERACIONAL'}
+                                        </span>
+                                    </div>
+                                    <button 
+                                        onClick={() => handleToggleMaintenance(school)}
+                                        className={cn(
+                                            "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                                            school.maintenance_mode ? "bg-emerald-600 text-white" : "bg-red-600 text-white"
+                                        )}
+                                    >
+                                        {school.maintenance_mode ? <RefreshCw size={16} /> : <Ban size={16} />}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
 
-                             <button 
-                                onClick={() => handleToggleMaintenance(school)}
-                                className={cn(
-                                    "flex items-center gap-3 px-6 py-4 rounded-2xl text-[10px] font-black uppercase transition-all shadow-xl",
-                                    school.maintenance_mode 
-                                        ? "bg-emerald-600 text-white hover:bg-emerald-500" 
-                                        : "bg-red-600 text-white hover:bg-red-500"
-                                )}
-                             >
-                                <Ban size={16} /> {school.maintenance_mode ? 'Reativar Unidade' : 'Congelar Unidade'}
-                             </button>
+                    <Card className="bg-slate-950 border-white/5 rounded-[32px] overflow-hidden flex flex-col h-[280px]">
+                        <div className="p-4 bg-slate-900 border-b border-white/5 flex items-center gap-3">
+                            <Activity size={14} className="text-sky-500" />
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Realtime Audit Feed</span>
+                        </div>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 font-mono text-[9px]">
+                            {auditLogs?.slice(0, 10).map((log: any) => (
+                                <div key={log.id} className="mb-2 flex gap-2 border-l border-white/5 pl-2">
+                                    <span className="text-slate-700">[{formatDate(log.created_at, 'HH:mm')}]</span>
+                                    <span className="text-red-500 font-bold">{log.action}:</span>
+                                    <span className="text-slate-400 truncate">{log.table_name}</span>
+                                </div>
+                            ))}
                         </div>
                     </Card>
-                ))}
+                </div>
             </div>
         </div>
     );

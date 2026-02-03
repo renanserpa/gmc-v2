@@ -19,7 +19,7 @@ const ProfileSelector = lazy(() => import('@/pages/ProfileSelector'));
 // SaaS Admin Pages
 const SaaSAdminDashboard = lazy(() => import('@/pages/admin/SaaSAdminDashboard'));
 const FinanceManager = lazy(() => import('@/pages/admin/FinanceManager'));
-const StaffDirectory = lazy(() => import('@/pages/admin/StaffDirectory'));
+const TeacherManager = lazy(() => import('@/pages/admin/TeacherManager'));
 const TenantManager = lazy(() => import('@/pages/admin/TenantManager'));
 
 // God Mode Pages
@@ -55,7 +55,7 @@ export default function App() {
                 <Route index element={<Navigate to="business" replace />} />
                 <Route path="business" element={<SaaSAdminDashboard />} />
                 <Route path="finance" element={<FinanceManager />} />
-                <Route path="hr" element={<StaffDirectory />} />
+                <Route path="hr" element={<TeacherManager />} />
                 <Route path="tenants" element={<TenantManager />} />
               </Route>
 

@@ -1,5 +1,4 @@
 
-
 export enum UserRole {
     GodMode = 'god_mode',
     SaaSAdminGlobal = 'saas_admin_global',
@@ -26,6 +25,12 @@ export interface Profile {
     reputation_points?: number;
     accessibility_settings?: AccessibilitySettings;
     professor_id?: string;
+    // Campos v7.5 - Unificação de Progressão
+    xp: number;
+    coins: number;
+    current_level: number;
+    current_skin_id: string;
+    maintenance_mode_enabled: boolean;
 }
 
 export interface AccessibilitySettings {
@@ -69,8 +74,8 @@ export interface School {
     contract_status: 'trial' | 'active' | 'suspended' | 'canceled';
     cnpj?: string;
     fee_per_student: number;
-    // Added enabled_modules property to satisfy usage in Layout and admin components
     enabled_modules?: Record<string, boolean>;
+    maintenance_mode: boolean; // v7.5
 }
 
 export interface Student {
@@ -80,18 +85,19 @@ export interface Student {
   school_id: string;
   name: string;
   instrument: string;
-  xp: number;
-  coins: number;
-  current_level: number;
-  current_streak_days: number;
   invite_code: string;
   completed_module_ids: string[];
-  xpToNextLevel?: number;
   avatar_url?: string | null;
   parent_email?: string | null;
   completed_content_ids?: string[];
   guardian_id?: string | null;
   school_grade?: string;
+  /* Missing progression fields required by StudentHud and AI services */
+  xp: number;
+  coins: number;
+  current_level: number;
+  current_streak_days: number;
+  xpToNextLevel?: number;
 }
 
 export interface Mission {
@@ -105,7 +111,7 @@ export interface Mission {
     school_id: string | null;
     created_at?: string;
     week_start?: string;
-    is_template?: boolean; // Novo campo para templates globais
+    is_template?: boolean;
 }
 
 export enum MissionStatus {

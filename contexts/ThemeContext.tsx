@@ -51,10 +51,10 @@ export const ThemeProvider = ({ children }: { children?: ReactNode }) => {
                 billing_model: 'fixed',
                 hourly_rate: 0,
                 monthly_fee: 0,
-                // Add missing fee_per_student property
                 fee_per_student: 0,
                 branding: DEFAULT_BRANDING,
-                contract_status: 'active'
+                contract_status: 'active',
+                maintenance_mode: false /* Added missing required property */
             };
             setSchools([mockSchool]);
             const savedId = localStorage.getItem('maestro_active_school');

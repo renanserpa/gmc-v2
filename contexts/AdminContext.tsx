@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { UserRole } from '../types.ts';
 import { notify } from '../lib/notification.ts';
@@ -21,7 +22,6 @@ interface AdminContextType {
   isBypassActive: boolean;
   setBypassActive: (active: boolean) => void;
   isVerifiablyAdmin: boolean;
-  // FIX: Added missing properties used in hooks and components to satisfy AdminContextType
   impersonatedStudentId: string | null;
   mirrorStudent: (studentId: string | null) => void;
 }
@@ -31,12 +31,13 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 export const AdminProvider = ({ children }: { children?: ReactNode }) => {
   const { user, role } = useAuth();
   const [impersonatedRole, setImpersonatedRole] = useState<UserRole | null>(null);
-  // FIX: Added impersonatedStudentId state to track student context mirroring
   const [impersonatedStudentId, setImpersonatedStudentId] = useState<string | null>(null);
+  
   const [ghostSession, setGhostSession] = useState<GhostSession | null>(() => {
     const saved = sessionStorage.getItem('maestro_ghost_session');
     return saved ? JSON.parse(saved) : null;
   });
+
   const [isBypassActive, setBypassActiveState] = useState(() => localStorage.getItem('maestro_god_bypass') === 'true');
 
   const isVerifiablyAdmin = useMemo(() => {
@@ -55,7 +56,6 @@ export const AdminProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
-  // FIX: Added mirrorStudent function to set the current student being mirrored in Admin UI
   const mirrorStudent = (studentId: string | null) => {
     if (!isVerifiablyAdmin) return;
     haptics.heavy();
@@ -79,10 +79,10 @@ export const AdminProvider = ({ children }: { children?: ReactNode }) => {
     sessionStorage.setItem('maestro_ghost_session', JSON.stringify(session));
     setGhostSession(session);
     
-    notify.error(`INFILTRAÇÃO ATIVA: Entrando como ${name}`);
+    notify.error(`GHOST MODE: Entrando como ${name}`);
     logSecurityAudit('GHOST_MODE_ENGAGED', { target: userId, target_role: targetRole });
     
-    // Força recarregamento para injetar o novo contexto nos hooks
+    // Recarrega para injetar o novo ID nas queries de RLS e hooks
     setTimeout(() => window.location.reload(), 500);
   };
 
@@ -90,7 +90,7 @@ export const AdminProvider = ({ children }: { children?: ReactNode }) => {
     sessionStorage.removeItem('maestro_ghost_session');
     setGhostSession(null);
     haptics.heavy();
-    notify.success("Infiltração encerrada. Voltando ao Soberano.");
+    notify.success("Ghosting encerrado. Retornando ao estado Soberano.");
     logSecurityAudit('GHOST_MODE_DISENGAGED');
     setTimeout(() => window.location.reload(), 500);
   };
@@ -111,7 +111,6 @@ export const AdminProvider = ({ children }: { children?: ReactNode }) => {
       isBypassActive, 
       setBypassActive,
       isVerifiablyAdmin,
-      // FIX: Added missing context values to the provider value
       impersonatedStudentId,
       mirrorStudent
     }}>
