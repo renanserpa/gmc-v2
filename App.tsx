@@ -19,6 +19,11 @@ const TeacherWhiteboard = lazy(() => import('./pages/dev/teacher/Whiteboard.tsx'
 const TeacherOrchestrator = lazy(() => import('./pages/dev/teacher/Orchestrator.tsx'));
 const ClassroomMode = lazy(() => import('./pages/ClassroomMode.tsx'));
 
+// STUDENT PAGES
+const StudentDashboard = lazy(() => import('./pages/dev/student/Dashboard.tsx'));
+const StudentPractice = lazy(() => import('./pages/dev/student/PracticeRoom.tsx'));
+const StudentShop = lazy(() => import('./pages/dev/student/Shop.tsx'));
+
 const Login = lazy(() => import('./pages/Login.tsx'));
 
 export default function App() {
@@ -35,11 +40,18 @@ export default function App() {
                 <Route path="/classroom/tv" element={<ClassroomMode />} />
 
                 <Route element={<Layout />}>
+                    {/* TEACHER CONTEXT */}
                     <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
                     <Route path="/teacher/students" element={<TeacherStudents />} />
                     <Route path="/teacher/classes" element={<TeacherClasses />} />
                     <Route path="/teacher/whiteboard" element={<TeacherWhiteboard />} />
                     <Route path="/teacher/orchestrator" element={<TeacherOrchestrator />} />
+                    
+                    {/* STUDENT CONTEXT */}
+                    <Route path="/student/dashboard" element={<StudentDashboard />} />
+                    <Route path="/student/practice" element={<StudentPractice />} />
+                    <Route path="/student/shop" element={<StudentShop />} />
+
                     <Route path="/admin/school" element={<SchoolManager />} />
                     <Route path="/" element={<Navigate to="/teacher/dashboard" replace />} />
                 </Route>

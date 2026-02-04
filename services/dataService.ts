@@ -3,6 +3,45 @@ import { supabase } from '../lib/supabaseClient.ts';
 import { Student, MusicClass, Notice, Mission, AttendanceStatus, ContentLibraryItem, School, Profile, MissionStatus, UserRole, LessonPlan } from '../types.ts';
 import { applyXpEvent } from './gamificationService.ts';
 
+// --- STUDENT SERVICES ---
+
+export const getLatestFamilyReport = async (studentId: string) => {
+    const { data, error } = await supabase
+        .from('family_reports')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('sent_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+    if (error) throw error;
+    return data;
+};
+
+export const savePracticeTime = async (studentId: string, seconds: number, instrument: string) => {
+    const { error } = await supabase.from('practice_sessions').insert([{
+        student_id: studentId,
+        duration_seconds: seconds,
+        instrument: instrument,
+        created_at: new Date().toISOString()
+    }]);
+    if (error) throw error;
+    
+    // Concede 10 XP a cada 5 min de treino (300s)
+    const xpBonus = Math.floor(seconds / 300) * 10;
+    if (xpBonus > 0) {
+        // Busca school_id para o applyXpEvent
+        const { data: student } = await supabase.from('students').select('school_id').eq('id', studentId).single();
+        if (student) {
+            await applyXpEvent({
+                studentId,
+                eventType: 'SOLO_PRACTICE',
+                xpAmount: xpBonus,
+                schoolId: student.school_id
+            });
+        }
+    }
+};
+
 // --- CONTENT VAULT SERVICES ---
 
 export const getLibraryItems = async (professorId: string) => {
@@ -264,19 +303,15 @@ export const logClassSession = async (log: any) => {
     if (error) throw error;
 };
 
-// FIX: Added missing exported functions to resolve import errors in TeacherManager and useStudentData hooks.
-
 export const createTeacher = async (data: any) => {
     const { error } = await supabase.from('profiles').insert([{ ...data, role: 'professor' }]);
     if (error) throw error;
 };
 
 export const getStudentMilestones = async (studentId: string) => {
-    // This is a stub for the student journey milestones
     return [];
 };
 
 export const getLatestPracticeStats = async (studentId: string) => {
-    // This is a stub for the student practice statistics
     return null;
 };
