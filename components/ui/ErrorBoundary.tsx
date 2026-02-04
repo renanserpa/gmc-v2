@@ -1,9 +1,10 @@
 
-import React, { Component, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Terminal } from 'lucide-react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { AlertTriangle, RefreshCcw } from 'lucide-react';
+import { Button } from './Button.tsx';
 
 interface Props {
-  children?: ReactNode;
+  children: ReactNode;
 }
 
 interface State {
@@ -17,58 +18,50 @@ export class ErrorBoundary extends Component<Props, State> {
     error: null
   };
 
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: null
-    };
-  }
-
   public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  public componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("[Maestro Kernel Panic]:", error, errorInfo);
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Kernel Panic captured:', error, errorInfo);
   }
 
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center p-8 text-center font-sans">
-          <div className="bg-red-500/10 p-6 rounded-[40px] border border-red-500/20 mb-8 animate-pulse">
-            <AlertTriangle size={64} className="text-red-500" />
+        <div className="min-h-screen bg-[#020617] flex items-center justify-center p-6 text-center font-sans">
+          <div className="max-w-md w-full bg-slate-900 border-2 border-red-500/20 rounded-[40px] p-10 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-red-500 opacity-50" />
+            
+            <div className="w-20 h-20 bg-red-500/10 rounded-3xl flex items-center justify-center text-red-500 mx-auto mb-6 shadow-inner">
+              <AlertTriangle size={40} />
+            </div>
+            
+            <h1 className="text-2xl font-black text-white uppercase italic tracking-tighter mb-4">Kernel Panic</h1>
+            
+            <p className="text-slate-400 text-sm mb-8 leading-relaxed">
+              O ecossistema Maestro encontrou uma instabilidade crítica na rede neural. O rastro do erro foi registrado para análise de soberania.
+            </p>
+            
+            <div className="bg-black/40 rounded-2xl p-4 mb-8 text-left border border-white/5">
+                <p className="text-[10px] font-mono text-red-400/80 break-all line-clamp-3">
+                    {this.state.error?.message || 'Erro de segmentação desconhecido'}
+                </p>
+            </div>
+            
+            <Button 
+                onClick={() => window.location.reload()} 
+                className="w-full py-8 rounded-[24px] bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-widest shadow-xl shadow-red-950/20"
+                leftIcon={RefreshCcw}
+            >
+                Reiniciar Estúdio
+            </Button>
           </div>
-          <h1 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-4">
-            O Maestro <span className="text-red-500">Desafinou</span>
-          </h1>
-          <p className="text-slate-500 max-w-md mb-8 text-sm">
-            Uma falha crítica foi capturada no kernel da aplicação. A integridade dos dados foi preservada.
-          </p>
-          
-          <div className="w-full max-w-xl bg-black border border-white/5 rounded-3xl p-6 text-left mb-8 overflow-hidden">
-             <div className="flex items-center gap-2 text-red-400 mb-2 font-mono text-[10px] uppercase font-black">
-                <Terminal size={14} /> Log de Falha
-             </div>
-             <code className="text-slate-400 text-xs font-mono block break-words">
-                {this.state.error?.message || "Erro de integridade modular."}
-             </code>
-          </div>
-
-          <button
-            onClick={() => window.location.reload()}
-            className="flex items-center gap-3 bg-white text-slate-950 px-10 py-4 rounded-2xl font-black uppercase tracking-widest hover:scale-105 transition-all shadow-2xl shadow-white/5"
-          >
-            <RefreshCw size={18} /> Reiniciar Orquestra
-          </button>
         </div>
       );
     }
 
-    // Fix: Accessing children from props using a cast to any to resolve property visibility issues in this environment
+    // FIX: Explicitly casting this to any to access props.children and bypass environment-specific type resolution issues
     return (this as any).props.children;
   }
 }
-
-export default ErrorBoundary;

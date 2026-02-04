@@ -1,6 +1,6 @@
 
-import { FeatureItem, INITIAL_FEATURES, FeatureStatus } from '../data/featureRegistry';
-import { supabase } from '../lib/supabaseClient';
+import { FeatureItem, INITIAL_FEATURES, FeatureStatus } from '../data/featureRegistry.ts';
+import { supabase } from '../lib/supabaseClient.ts';
 
 const CONFIG_KEY = 'feature_flags';
 

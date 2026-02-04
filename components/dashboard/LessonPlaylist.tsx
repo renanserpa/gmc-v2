@@ -1,9 +1,9 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { LessonStep } from '../../types';
+import { LessonStep } from '../../types.ts';
 import { Play, CheckCircle2, Circle, Video, Activity, Music, Brain } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '../../lib/utils.ts';
 
 interface LessonPlaylistProps {
     steps: LessonStep[];

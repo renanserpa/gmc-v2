@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -31,7 +32,8 @@ const M = motion as any;
 export default function TaskManager() {
     const { user, profile, role } = useAuth();
     const { student, refetch: refetchStudent } = useCurrentStudent();
-    const [students, setStudents] = useState<Student[]>([]);
+    // FIX: Using any[] for students state to accommodate mapping from Profiles to UI-ready objects
+    const [students, setStudents] = useState<any[]>([]);
     const [filter, setFilter] = useState<'all' | 'pending' | 'done'>('pending');
     
     // ENGINE REALTIME: Sincronismo automático
@@ -46,7 +48,10 @@ export default function TaskManager() {
 
     useEffect(() => {
         if (role === 'professor' && user) {
-            getStudentsByTeacher(user.id).then(setStudents);
+            // FIX: Mapping Profile fields to UI-expected property names (full_name -> name)
+            getStudentsByTeacher(user.id).then(res => {
+                setStudents(res.map(p => ({ ...p, name: p.full_name })));
+            });
         }
     }, [user, role]);
 

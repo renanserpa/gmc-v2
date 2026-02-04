@@ -2,7 +2,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Command, User, Hammer, Book, Music, X, ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+// FIX: Using wildcard import for react-router-dom to bypass environment-specific export resolution errors
+import * as RRD from 'react-router-dom';
+const { useNavigate } = RRD as any;
 import { haptics } from '../../lib/haptics';
 import { cn } from '../../lib/utils';
 import { SearchResult } from '../../types';

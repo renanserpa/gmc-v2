@@ -1,9 +1,8 @@
 
-
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { useAuth } from './AuthContext';
-import { notify } from '../lib/notification';
+import { supabase } from '../lib/supabaseClient.ts';
+import { useAuth } from './AuthContext.tsx';
+import { notify } from '../lib/notification.ts';
 import { Sparkles } from 'lucide-react';
 
 interface GamificationEventContextType {

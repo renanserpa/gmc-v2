@@ -2,7 +2,7 @@
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { LottiePlayer } from './LottiePlayer';
+import { LottiePlayer } from './LottiePlayer.tsx';
 
 // FIX: Casting motion components to any to bypass property errors
 const M = motion as any;

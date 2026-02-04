@@ -9,7 +9,9 @@ import { useAuth } from '../../contexts/AuthContext.tsx';
 import { cn } from '../../lib/utils.ts';
 import { haptics } from '../../lib/haptics.ts';
 import { notify } from '../../lib/notification.ts';
-import { useNavigate } from 'react-router-dom';
+// FIX: Using wildcard import for react-router-dom to bypass environment-specific export resolution errors
+import * as RRD from 'react-router-dom';
+const { useNavigate } = RRD as any;
 
 const M = motion as any;
 

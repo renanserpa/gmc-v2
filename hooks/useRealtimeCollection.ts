@@ -1,6 +1,7 @@
+
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { databaseService } from '../services/databaseService';
+import { supabase } from '../lib/supabaseClient.ts';
+import { databaseService } from '../services/databaseService.ts';
 
 interface RealtimeCollectionOptions {
     tableName: string;

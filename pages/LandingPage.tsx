@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import * as RRD from 'react-router-dom';
 const { useNavigate } = RRD as any;
@@ -6,6 +7,7 @@ import { Hero } from '../components/landing/Hero.tsx';
 import { Methodology } from '../components/landing/Methodology.tsx';
 import { ProductGrid } from '../components/landing/ProductGrid.tsx';
 import { GCMPreview } from '../components/landing/GCMPreview.tsx';
+import { TechShowcase } from '../components/landing/TechShowcase.tsx';
 import { usePageTitle } from '../hooks/usePageTitle.ts';
 import { useAuth } from '../contexts/AuthContext.tsx';
 
@@ -14,7 +16,6 @@ export default function LandingPage() {
   const { user, role, getDashboardPath, loading } = useAuth();
   const navigate = useNavigate();
 
-  // Auto-Redirect: Se o usuário já está logado, pula a Landing Page
   useEffect(() => {
     if (!loading && user && role) {
       navigate(getDashboardPath(role), { replace: true });
@@ -28,6 +29,7 @@ export default function LandingPage() {
       <main>
         <Hero />
         <Methodology />
+        <TechShowcase />
         <ProductGrid />
         <GCMPreview />
       </main>

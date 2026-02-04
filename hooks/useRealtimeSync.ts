@@ -1,7 +1,8 @@
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { haptics } from '../lib/haptics';
-import { notify } from '../lib/notification';
+import { supabase } from '../lib/supabaseClient.ts';
+import { haptics } from '../lib/haptics.ts';
+import { notify } from '../lib/notification.ts';
 
 /**
  * useRealtimeSync: O sistema nervoso reativo do Maestro.

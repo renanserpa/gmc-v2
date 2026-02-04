@@ -1,12 +1,12 @@
 
 import React from 'react';
-import { Mission, MissionStatus } from '../../types';
+import { Mission, MissionStatus } from '../../types.ts';
 import { Check, Clock, Sparkles } from 'lucide-react';
-import { MISSION_STATUS_MAP } from '../../lib/dictionaries';
-import { formatDate } from '../../lib/date';
+import { MISSION_STATUS_MAP } from '../../lib/dictionaries.ts';
+import { formatDate } from '../../lib/date.ts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { haptics } from '../../lib/haptics';
-import { cn } from '../../lib/utils';
+import { haptics } from '../../lib/haptics.ts';
+import { cn } from '../../lib/utils.ts';
 
 // FIX: Casting motion components to any to bypass property errors
 const M = motion as any;

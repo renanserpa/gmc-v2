@@ -4,15 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Send, Bot, X, Loader2 } from 'lucide-react';
 
 // UI Components
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card.tsx';
 
 // Kernels & Services
-import { maestroBrain } from '../../services/maestroBrain';
-import { useAuth } from '../../contexts/AuthContext';
+import { maestroBrain } from '../../services/maestroBrain.ts';
+import { useAuth } from '../../contexts/AuthContext.tsx';
 
 // Utils & Libs
-import { cn } from '../../lib/utils';
-import { haptics } from '../../lib/haptics';
+import { cn } from '../../lib/utils.ts';
+import { haptics } from '../../lib/haptics.ts';
 
 const M = motion as any;
 

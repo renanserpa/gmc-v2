@@ -1,6 +1,7 @@
+
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { audioManager } from '../lib/audioManager';
-import { autoCorrelate, freqToNoteIdx, NOTES_CHROMATIC } from '../lib/theoryEngine';
+import { audioManager } from '../lib/audioManager.ts';
+import { autoCorrelate, freqToNoteIdx, NOTES_CHROMATIC } from '../lib/theoryEngine.ts';
 
 interface AudioAnalystResult {
     currentNote: string;

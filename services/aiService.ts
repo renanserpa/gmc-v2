@@ -1,85 +1,79 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Student } from "../types.ts";
+// Added missing import for SessionStats from audioPro
 import { SessionStats } from "../lib/audioPro.ts";
 
-export const getMaestroStudyPlan = async (studentName: string, trends: SessionStats[]) => {
-    try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Analise o progresso técnico de ${studentName} baseado nestas sessões de prática: ${JSON.stringify(trends)}. Gere um plano de estudo focado para a próxima semana seguindo a Metodologia Renan Serpa (Elefante/Passarinho).`,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        title: { type: Type.STRING },
-                        description: { type: Type.STRING },
-                        focusArea: { type: Type.STRING, description: 'pitch | rhythm | technique' },
-                        xpReward: { type: Type.NUMBER },
-                        maestroInsight: { type: Type.STRING }
-                    },
-                    required: ['title', 'description', 'focusArea', 'xpReward', 'maestroInsight']
-                }
-            }
-        });
-        
-        const resultText = response.text;
-        if (!resultText) throw new Error("Resposta da AI vazia.");
-        return JSON.parse(resultText);
-    } catch (e) {
-        console.warn("[AI Service] Falha ao gerar plano, usando fallback de segurança.", e);
-        return {
-            title: "Rotina de Base Maestro",
-            description: "Continue praticando os fundamentos de Elefante e Passarinho para consolidar sua técnica.",
-            focusArea: "technique",
-            xpReward: 50,
-            maestroInsight: "A consistência transforma o talento em maestria. Mantenha o foco nos exercícios fundamentais."
-        };
+export const aiPedagogy = {
+    async getLessonDynamic(topic: string, ageGroup: string, vibe: string = 'standard') {
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const styleContext = vibe === 'rock' ? "Use analogias de rockstar, guitarras distorcidas e ritmo de bateria." :
+                                 vibe === 'classical' ? "Use analogias de orquestra, pianos de cauda e partituras clássicas." :
+                                 "Foque em sintetizadores e tecnologia.";
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: `Aja como um mestre em pedagogia musical (Metodologia Renan Serpa). 
+                Estilo atual da aula: ${vibe.toUpperCase()}. ${styleContext}
+                Sugira uma dinâmica curta (5 min) para o tópico "${topic}" para crianças de ${ageGroup}.`,
+                config: { temperature: 0.8 }
+            });
+            return response.text;
+        } catch (e) {
+            return "Erro ao sintonizar rede neural Maestro.";
+        }
+    },
+
+    async generateCustomExercise(goal: string, difficulty: string) {
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const response = await ai.models.generateContent({
+                model: 'gemini-3-pro-preview',
+                contents: `Gere um código AlphaTex para um exercício de violão focado em: "${goal}". Dificuldade: ${difficulty}. Retorne apenas o código AlphaTex.`,
+                config: { thinkingConfig: { thinkingBudget: 2000 } }
+            });
+            return response.text?.trim() || "1.6 2.6 3.6 4.6 | 1.5 2.5 3.5 4.5";
+        } catch (e) {
+            return "1.6 2.6 3.6 4.6 | 1.5 2.5 3.5 4.5"; 
+        }
+    },
+
+    async generateParentReport(studentName: string, recentXp: number, instrument: string, stats: any) {
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const response = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: `Persona: Maestro Renan Serpa. Escreva um feedback acolhedor para os pais do aluno ${studentName}. 
+                Instrumento: ${instrument}. XP da semana: ${recentXp}. 
+                Mencione evolução e use emojis musicais. Seja diplomático e inspirador. Máximo 100 palavras.`,
+            });
+            return response.text;
+        } catch (e) {
+            return "O aluno está progredindo muito bem na jornada musical! Continue incentivando o hábito da prática diária.";
+        }
     }
 };
 
-export const getCrucibleChallenge = async (studentName: string, lastStats: SessionStats) => {
+export const generateNeuralArt = async (prompt: string) => {
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Crie um desafio épico "Boss Battle" para o aluno ${studentName} focado em corrigir estes desvios técnicos: ${JSON.stringify(lastStats?.noteHeatmap || {})}.`,
+            model: 'gemini-2.5-flash-image',
+            contents: prompt,
             config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        bossName: { type: Type.STRING },
-                        task: { type: Type.STRING },
-                        targetNotes: { type: Type.ARRAY, items: { type: Type.NUMBER } },
-                        winCondition: { type: Type.STRING },
-                        xpReward: { type: Type.NUMBER },
-                        maestroWarning: { type: Type.STRING }
-                    },
-                    required: ['bossName', 'task', 'targetNotes', 'winCondition', 'xpReward', 'maestroWarning']
-                }
+                imageConfig: { aspectRatio: "16:9" }
             }
         });
         
-        const resultText = response.text;
-        return resultText ? JSON.parse(resultText) : null;
-    } catch (e) {
-        console.error("[AI Service] Erro ao gerar desafio Crucible:", e);
+        for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData) {
+                return `data:image/png;base64,${part.inlineData.data}`;
+            }
+        }
         return null;
-    }
-};
-
-export const getPracticeSessionFeedback = async (studentName: string, stats: SessionStats, bpm: number) => {
-    try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `O aluno ${studentName} praticou a ${bpm} BPM. Estatísticas: ${JSON.stringify(stats)}. Dê um feedback técnico encorajador e curto em português (máx 120 caracteres). Fale sobre ressonância e groove.`,
-        });
-        return response.text || "Excelente foco hoje! Sinto que sua ressonância está evoluindo.";
     } catch (e) {
-        return "Sua prática de hoje foi inspiradora. Continue mantendo o pulso firme!";
+        return null;
     }
 };
 
@@ -88,62 +82,60 @@ export const getMaestroAdvice = async (student: Student) => {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `Como Maestro Virtual da OlieMusic, dê um conselho técnico direto para um aluno de nível ${student.current_level} que toca ${student.instrument}. Use a metáfora do Elefante e Passarinho.`,
+            contents: `Persona: Maestro Renan Serpa. Dê uma dica rápida técnica ou motivacional para um aluno de ${student.instrument} nível ${student.current_level}.`,
         });
-        return response.text || "Sinta o peso do Elefante nas notas graves e a leveza do Passarinho nos agudos.";
-    } catch (e) {
-        return "A música vive no silêncio entre as notas. Respire e sinta o ritmo.";
+        return response.text;
+    } catch (e) { 
+        return "Respire, sinta o pulso e deixe a música fluir naturalmente!"; 
     }
 };
 
-export const getParentEducationalInsight = async (activityType: string) => {
+export const getCreativeLyrics = async (degrees: string[]) => {
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `Gere uma curiosidade neurocientífica curta para pais sobre como a prática de "${activityType}" ajuda no desenvolvimento cognitivo de uma criança.`,
+            contents: `Componha uma letra curta (4 versos) para uma música baseada nesta progressão de graus: ${degrees.join('-')}.`,
         });
-        return response.text || "Estudos mostram que a prática rítmica fortalece as conexões neurais ligadas à lógica matemática.";
-    } catch (e) {
-        return "A música é a única atividade que ativa quase todas as áreas do cérebro simultaneamente.";
+        return response.text;
+    } catch (e) { 
+        return "A melodia está nascendo em silêncio..."; 
     }
 };
 
-export const getClassVerdict = async (hits: number, participants: number) => {
+export const getParentEducationalInsight = async (studentActivity: string) => {
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `Numa jam coletiva, a turma atingiu ${hits} acertos com ${participants} alunos. Dê um veredito épico e curto em português.`,
+            contents: `Explique pedagogicamente a importância desta atividade para o desenvolvimento cerebral infantil: "${studentActivity}". Use referências de Suzuki ou Gordon.`,
         });
-        return response.text || "A sinfonia de hoje vibrou em harmonia perfeita!";
-    } catch (e) {
-        return "Unidos pelo som, vocês criaram algo magnífico hoje.";
+        return response.text;
+    } catch (e) { 
+        return "A repetição consciente é a base para a fluência rítmica e cognitiva."; 
     }
 };
 
-export const getCreativeLyrics = async (chords: string[]) => {
+/**
+ * DNA OLIE: Analisa a performance da sessão de prática e gera um feedback reativo via IA.
+ */
+export const getPracticeSessionFeedback = async (studentName: string, stats: SessionStats, bpm: number) => {
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: `Componha 4 versos rítmicos para crianças baseados nesta progressão harmônica: ${chords.join(' - ')}.`,
+            contents: `Persona: Maestro Renan Serpa. Analise os resultados desta sessão de prática e dê um feedback encorajador e técnico para o aluno ${studentName}.
+            Estatísticas:
+            - Duração: ${stats.durationSeconds}s
+            - Precisão Média: ${stats.averagePrecision.toFixed(1)}%
+            - Combo Máximo: ${stats.maxCombo}
+            - Fator de Flow: ${stats.flowFactor.toFixed(2)}
+            - BPM: ${bpm}
+            
+            Seja breve (máximo 60 palavras) e use emojis musicais.`,
         });
-        return response.text || "Vibrando no som que eu criei...\nNo ritmo do meu coração...";
+        return response.text || "Ótima sessão! Continue praticando para masterizar sua técnica. 🎸✨";
     } catch (e) {
-        return "Notas voam pelo ar,\nNossa canção vai começar!";
-    }
-};
-
-export const getTechnicalIntervention = async (stats: SessionStats) => {
-    try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: `Sugira um ajuste técnico ou postural imediato para o aluno baseado nestes dados de erro: ${JSON.stringify(stats?.noteHeatmap || {})}. Curto e direto.`,
-        });
-        return response.text || "Tente relaxar os ombros e focar na ponta dos dedos.";
-    } catch (e) {
-        return "Verifique se o seu polegar está bem posicionado atrás do braço do violão.";
+        return "Ótima sessão! Continue praticando para masterizar sua técnica. 🎸✨";
     }
 };

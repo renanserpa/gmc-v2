@@ -1,41 +1,25 @@
 
 import React, { Suspense, lazy } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import * as RRD from 'react-router-dom';
+const { HashRouter, Routes, Route, Navigate } = RRD as any;
 
-import { useAuth } from './contexts/AuthContext';
-import { AppLoader } from './components/AppLoader';
-import { OmniSearch } from './components/layout/OmniSearch';
-import { RealtimeNotificationHandler } from './components/RealtimeNotificationHandler';
-import Layout from './components/Layout';
-import LoadingScreen from './components/ui/LoadingScreen';
-import ErrorBoundary from './components/ui/ErrorBoundary';
-import { MaestroProvider } from './contexts/MaestroContext';
+import { useAuth } from './contexts/AuthContext.tsx';
+import { AppLoader } from './components/AppLoader.tsx';
+import Layout from './components/Layout.tsx';
+import LoadingScreen from './components/ui/LoadingScreen.tsx';
+import { ErrorBoundary } from './components/ui/ErrorBoundary.tsx';
+import { MaestroProvider } from './contexts/MaestroContext.tsx';
 
-// Dashboards por Persona
-const TeacherDashboard = lazy(() => import('./pages/dev/teacher/Dashboard'));
-const TeacherStudents = lazy(() => import('./pages/dev/teacher/Students'));
-const TeacherClasses = lazy(() => import('./pages/dev/teacher/Classes'));
-const StudentDashboard = lazy(() => import('./pages/dev/student/Dashboard'));
-const ParentDashboard = lazy(() => import('./pages/dev/parent/Dashboard'));
-const ManagerDashboard = lazy(() => import('./pages/dev/manager/Dashboard'));
-const SaaSAdminDashboard = lazy(() => import('./pages/admin/SaaSAdminDashboard'));
-const GodConsole = lazy(() => import('./pages/admin/GodConsole'));
+// SPRINT 01 PAGES - ATUALIZADAS
+const TeacherDashboard = lazy(() => import('./pages/dev/teacher/Dashboard.tsx'));
+const TeacherStudents = lazy(() => import('./pages/dev/teacher/Students.tsx'));
+const TeacherClasses = lazy(() => import('./pages/dev/teacher/Classes.tsx'));
+const SchoolManager = lazy(() => import('./pages/admin/SchoolManager.tsx'));
+const TeacherWhiteboard = lazy(() => import('./pages/dev/teacher/Whiteboard.tsx'));
+const TeacherOrchestrator = lazy(() => import('./pages/dev/teacher/Orchestrator.tsx'));
+const ClassroomMode = lazy(() => import('./pages/ClassroomMode.tsx'));
 
-// Outras Páginas
-const LandingPage = lazy(() => import('./pages/LandingPage'));
-const Login = lazy(() => import('./pages/Login'));
-const ProfileSelector = lazy(() => import('./pages/ProfileSelector'));
-const MetronomePage = lazy(() => import('./pages/dev/teacher/Metronome'));
-const ExerciseManager = lazy(() => import('./pages/dev/teacher/ExerciseManager'));
-const ArcadeDev = lazy(() => import('./pages/dev/student/ArcadeDev'));
-
-const RootHandler = () => {
-  const { user, actingRole, loading, getDashboardPath } = useAuth();
-  if (loading) return <LoadingScreen />;
-  if (user && user.email === 'serparenan@gmail.com') return <ProfileSelector />;
-  if (user) return <Navigate to={getDashboardPath(actingRole)} replace />;
-  return <LandingPage />;
-};
+const Login = lazy(() => import('./pages/Login.tsx'));
 
 export default function App() {
   return (
@@ -44,40 +28,21 @@ export default function App() {
         <HashRouter>
           <AppLoader>
             <Suspense fallback={<LoadingScreen />}>
-              <OmniSearch />
-              <RealtimeNotificationHandler />
               <Routes>
-                <Route path="/" element={<RootHandler />} />
                 <Route path="/login" element={<Login />} />
                 
+                {/* TV MODE - No Layout */}
+                <Route path="/classroom/tv" element={<ClassroomMode />} />
+
                 <Route element={<Layout />}>
-                    {/* Maestro / Teacher Routes */}
                     <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
                     <Route path="/teacher/students" element={<TeacherStudents />} />
                     <Route path="/teacher/classes" element={<TeacherClasses />} />
-                    
-                    {/* Student Routes */}
-                    <Route path="/student/dashboard" element={<StudentDashboard />} />
-                    <Route path="/student/arcade" element={<ArcadeDev />} />
-                    <Route path="/student/practice" element={<MetronomePage />} />
-                    
-                    {/* Guardian / Parent Routes */}
-                    <Route path="/guardian/dashboard" element={<ParentDashboard />} />
-                    
-                    {/* manager Routes */}
-                    <Route path="/manager/dashboard" element={<ManagerDashboard />} />
-
-                    {/* SaaS Admin Routes */}
-                    <Route path="/admin/business" element={<SaaSAdminDashboard />} />
-
-                    {/* God Mode Routes */}
-                    <Route path="/system/console" element={<GodConsole />} />
-                    
-                    {/* Shared Live Tools Dev */}
-                    <Route path="/system/dev/teacher/metronome" element={<MetronomePage />} />
-                    <Route path="/system/dev/teacher/orchestrator" element={<ExerciseManager />} />
+                    <Route path="/teacher/whiteboard" element={<TeacherWhiteboard />} />
+                    <Route path="/teacher/orchestrator" element={<TeacherOrchestrator />} />
+                    <Route path="/admin/school" element={<SchoolManager />} />
+                    <Route path="/" element={<Navigate to="/teacher/dashboard" replace />} />
                 </Route>
-
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>

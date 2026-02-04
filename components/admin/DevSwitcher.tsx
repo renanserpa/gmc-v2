@@ -3,7 +3,9 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, User, Users, GraduationCap, Shield, Code, ChevronRight, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext.tsx';
-import { useNavigate } from 'react-router-dom';
+// FIX: Using wildcard import for react-router-dom to bypass environment-specific export resolution errors
+import * as RRD from 'react-router-dom';
+const { useNavigate } = RRD as any;
 import { cn } from '../../lib/utils.ts';
 import { haptics } from '../../lib/haptics.ts';
 
@@ -18,13 +20,18 @@ const ROLES = [
 ];
 
 export const DevSwitcher: React.FC = () => {
-  const { setRoleOverride, getDashboardPath, role } = useAuth();
+  /**
+   * FIX: Destructuring setActingRole and actingRole from AuthContext.
+   * actingRole is aliased to 'role' to maintain compatibility with existing mapping logic.
+   */
+  const { setActingRole, getDashboardPath, actingRole: role } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleSwitch = (newRole: string) => {
     haptics.heavy();
-    setRoleOverride(newRole);
+    // FIX: Replaced setRoleOverride with correct AuthContext method setActingRole
+    setActingRole(newRole);
     const targetPath = getDashboardPath(newRole);
     navigate(targetPath);
     setIsOpen(false);

@@ -1,5 +1,5 @@
 
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient.ts';
 
 export interface TableStatus {
     tableName: string;
@@ -43,7 +43,6 @@ export const databaseService = {
                     });
                 }
             } catch (err: any) {
-                // FIX: tableName must be a string, using the loop variable instead of a boolean constant
                 results.push({ tableName: tableName, exists: false, rowCount: 0, error: 'Falha serial.' });
             }
         }

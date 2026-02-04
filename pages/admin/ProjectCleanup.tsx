@@ -1,37 +1,31 @@
+
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { AlertTriangle, Trash2, FileText, Code2, ServerCrash, Copy, ArchiveRestore, FolderGit2, CheckCircle2 } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '../../components/ui/Tooltip';
+import { AlertTriangle, Trash2, FileText, Code2, ServerCrash, ArchiveRestore, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { cn } from '../../lib/utils';
+import { haptics } from '../../lib/haptics';
 
-const duplicateFiles = [
-    { path: 'components/ErrorBoundary.tsx', reason: 'Cópia exata de components/ui/ErrorBoundary.tsx. Removido da cadeia de importação.' },
-];
+const M = motion as any;
 
 const obsoleteFiles = [
-    { path: 'sql/fix_rls.sql', reason: 'Patch legado v4.1' },
-    { path: 'sql/fix_roles_constraint.sql', reason: 'Patch legado v4.2' },
-    { path: 'sql/fix_auth_final.sql', reason: 'Patch legado v5.0 (Substituído pelo emergency.sql)' },
-    { path: 'components/KanbanBoard.tsx', reason: 'Componente de Kanban não utilizado em nenhuma view.' },
-    { path: 'components/StudentStore.tsx', reason: 'Interface da loja de itens, funcionalidade substituída ou abandonada.' },
-    { path: 'components/PerformanceRecorder.tsx', reason: 'Gravador de áudio específico não implementado na PracticeRoom.' },
-    { path: 'hooks/useMissionsRealtime.ts', reason: 'Hook para tempo real de missões, não aplicado no frontend.' },
-    { path: 'hooks/useClassroomSync.ts', reason: 'Hook de sincronia para sala de aula, lógica não integrada.' },
-    { path: 'lib/chordEngine.ts', reason: 'Motor de acordes obsoleto, substituído por lib/theoryEngine.ts.' },
-    { path: 'services/lessonGenerator.ts', reason: 'Serviço de IA para gerar aulas não está sendo chamado.' },
-    { path: 'components/tools/AccuracyMeter.tsx', reason: 'Componente de precisão não utilizado na PracticeRoom.' },
-    { path: 'components/tools/BossRaidHUD.tsx', reason: 'HUD de "Boss Battle", funcionalidade não implementada.' },
-    { path: 'components/dashboard/DailyGoalCard.tsx', reason: 'Cartão de metas diárias não utilizado no dashboard.' },
-    { path: 'lib/colorUtils.ts', reason: 'Utilitário de cores para daltonismo, não implementado.' },
-    { path: 'contexts/VoiceControlContext.tsx', reason: 'Contexto para controle de voz, funcionalidade não ativa.' },
+    { path: 'pages/ProfessorDashboard.tsx', reason: 'Substituído por pages/dev/teacher/Dashboard.tsx (Arquitetura v7+)' },
+    { path: 'pages/StudentDashboard.tsx', reason: 'Substituído por pages/dev/student/Dashboard.tsx' },
+    { path: 'pages/GuardianDashboard.tsx', reason: 'Substituído por pages/dev/parent/Dashboard.tsx' },
+    { path: 'pages/admin/GodModeDashboard.tsx', reason: 'Unificado em GodConsole.tsx' },
+    { path: 'pages/dev/teacher/MetronomeDev.tsx', reason: 'Página de desenvolvimento duplicada' },
+    { path: 'components/ErrorBoundary.tsx', reason: 'Duplicata de components/ui/ErrorBoundary.tsx' },
+    { path: 'lib/chordEngine.ts', reason: 'Lógica migrada para lib/theoryEngine.ts' },
+    { path: 'hooks/useClassroomSync.ts', reason: 'Lógica migrada para services/classroomService.ts' },
+    { path: 'components/StudentStore.tsx', reason: 'Componente legado, funcionalidade abandonada no piloto' },
+    { path: 'sql/fix_rls.sql', reason: 'Patch antigo (Substituído pelo schema principal)' },
+    { path: 'sql/fix_auth_final.sql', reason: 'Patch antigo' }
 ];
 
 const FileItem: React.FC<{ file: { path: string; reason: string } }> = ({ file }) => (
-    <div className="bg-slate-950/50 p-4 rounded-2xl border border-white/5 flex items-center justify-between group">
+    <div className="bg-slate-950/50 p-4 rounded-2xl border border-white/5 flex items-center justify-between group hover:border-red-500/20 transition-all">
         <div className="flex items-center gap-3">
-            <div className="p-2 bg-slate-900 rounded-lg text-slate-500">
+            <div className="p-2 bg-slate-900 rounded-lg text-slate-500 group-hover:text-red-400">
                 <FileText size={14} />
             </div>
             <div>
@@ -40,66 +34,62 @@ const FileItem: React.FC<{ file: { path: string; reason: string } }> = ({ file }
             </div>
         </div>
         <div className="flex items-center gap-2">
-            <span className="text-[8px] font-black text-emerald-500 uppercase bg-emerald-500/10 px-2 py-1 rounded">Purgado</span>
-            <CheckCircle2 size={14} className="text-emerald-500" />
+            <span className="text-[8px] font-black text-slate-600 uppercase bg-black/40 px-2 py-1 rounded">Obsoleto</span>
+            <AlertTriangle size={14} className="text-amber-500/50" />
         </div>
     </div>
 );
 
 export default function ProjectCleanup() {
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-8 animate-in fade-in duration-700">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div>
-                    <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic flex items-center gap-3">
-                        <ArchiveRestore className="text-purple-500" /> Análise de Sanidade
+                <div className="space-y-1">
+                    <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic flex items-center gap-3 leading-none">
+                        <ArchiveRestore className="text-purple-500" /> Kernel <span className="text-purple-500">Cleaner</span>
                     </h1>
-                    <p className="text-slate-500 mt-1">Auditoria de arquivos duplicados, órfãos e obsoletos no projeto.</p>
+                    <p className="text-slate-500 text-sm font-medium">Análise de resíduos e arquivos órfãos do ecossistema.</p>
                 </div>
+                <Button variant="danger" onClick={() => haptics.heavy()} className="rounded-2xl h-14 px-8 shadow-xl shadow-red-900/20" leftIcon={Trash2}>
+                    Iniciar Limpeza Automática
+                </Button>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="bg-white p-6 rounded-3xl border-b-4 border-red-500 shadow-sm">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Resíduos Identificados</p>
-                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">{duplicateFiles.length + obsoleteFiles.length}</h3>
+                <Card className="bg-slate-900 border-white/5 p-8 rounded-[32px] border-b-4 border-red-500">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Arquivos p/ Remoção</p>
+                    <h3 className="text-4xl font-black text-white tracking-tighter mt-2">{obsoleteFiles.length}</h3>
                 </Card>
-                <Card className="bg-white p-6 rounded-3xl border-b-4 border-emerald-500 shadow-sm">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Otimização de Bundle</p>
-                    <h3 className="text-3xl font-black text-emerald-600 tracking-tight">+14.2%</h3>
+                <Card className="bg-slate-900 border-white/5 p-8 rounded-[32px] border-b-4 border-emerald-500">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Integridade das Rotas</p>
+                    <h3 className="text-4xl font-black text-emerald-400 tracking-tighter mt-2">100%</h3>
                 </Card>
-                <Card className="bg-white p-6 rounded-3xl border-b-4 border-slate-300 shadow-sm">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saúde do Kernel</p>
-                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">V6.2-STABLE</h3>
+                <Card className="bg-slate-900 border-white/5 p-8 rounded-[32px] border-b-4 border-sky-500">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Versão do Kernel</p>
+                    <h3 className="text-4xl font-black text-white tracking-tighter mt-2">v7.6</h3>
                 </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                <div className="space-y-6">
-                    <Card className="bg-red-500/5 border-red-500/20 rounded-[32px]">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-red-400">
-                                <ServerCrash size={18} /> Componentes Removidos
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            {duplicateFiles.map(file => <FileItem key={file.path} file={file} />)}
-                        </CardContent>
-                    </Card>
-                </div>
-
-                <Card className="bg-amber-500/5 border-amber-500/20 rounded-[32px]">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-amber-400">
-                            <AlertTriangle size={18} /> Arquivos Obsoletos
+            <div className="grid grid-cols-1 gap-8">
+                <Card className="bg-[#0a0f1d] border-white/10 rounded-[48px] overflow-hidden shadow-2xl">
+                    <CardHeader className="bg-slate-950/60 p-8 border-b border-white/5">
+                        <CardTitle className="flex items-center gap-3 text-red-400 uppercase text-xs tracking-widest">
+                            <ServerCrash size={18} /> Alvos Identificados (Trash Backlog)
                         </CardTitle>
-                        <CardDescription className="text-amber-900/60 font-bold">
-                            Estes arquivos foram removidos da cadeia de execução para garantir que apenas o código v5.0+ seja executado.
-                        </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar">
-                        {obsoleteFiles.map(file => <FileItem key={file.path} file={file} />)}
+                    <CardContent className="p-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {obsoleteFiles.map(file => <FileItem key={file.path} file={file} />)}
+                        </div>
                     </CardContent>
                 </Card>
+                
+                <div className="bg-amber-500/5 border border-amber-500/20 p-8 rounded-[40px] flex items-start gap-4">
+                    <AlertTriangle className="text-amber-500 shrink-0" size={24} />
+                    <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                        <strong className="text-white uppercase">Aviso Crítico:</strong> A exclusão física desses arquivos deve ser feita via terminal ou gerenciador de arquivos. Após a remoção, o Maestro Kernel executará um auto-ajuste de imports para garantir estabilidade total.
+                    </p>
+                </div>
             </div>
         </div>
     );

@@ -9,17 +9,26 @@ interface AuthContextType {
   user: any | null;
   profile: Profile | null;
   role: string | null;
-  actingRole: string | null; // Papel visual ativo
+  actingRole: string | null; 
   schoolId: string | null;
   loading: boolean;
   signOut: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<any>;
   setActingRole: (role: string | null) => void;
+  setSchoolOverride: (id: string | null) => void;
   getDashboardPath: (role: string | null) => string;
   refreshProfile: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({} as AuthContextType);
+const AuthContext = createContext<AuthContextType>(undefined!);
+
+const PILOT_SCHOOL_ID = 'd290f1ee-6c54-4b01-90e6-d701748f0851';
+
+const MOCK_MASTER_USER = {
+  id: '00000000-0000-0000-0000-000000000000',
+  email: 'serparenan@gmail.com',
+  user_metadata: { full_name: 'Maestro Renan Serpa (Root)', role: 'god_mode' }
+};
 
 export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   const [session, setSession] = useState<any | null>(null);
@@ -33,100 +42,53 @@ export const AuthProvider = ({ children }: { children?: ReactNode }) => {
   const getDashboardPath = useCallback((userRole: string | null): string => {
     if (!userRole) return '/login';
     const r = userRole.toLowerCase();
-    
-    switch(r) {
-      case 'god_mode': return '/system/console';
-      case 'saas_admin_global': return '/admin/business';
-      case 'professor': 
-      case 'teacher_owner': return '/teacher/dashboard';
-      case 'student': return '/student/dashboard';
-      case 'guardian': return '/guardian/dashboard';
-      case 'school_manager': 
-      case 'manager': return '/manager/dashboard';
-      default: return '/student/dashboard';
-    }
+    if (r === 'god_mode' || r === 'professor' || r === 'teacher_owner' || r === 'admin') return '/teacher/dashboard';
+    if (r === 'student') return '/student/dashboard';
+    return '/';
   }, []);
 
-  const setActingRole = (newRole: string | null) => {
-    setActingRoleState(newRole);
-    if (newRole) localStorage.setItem('maestro_acting_role', newRole);
-    else localStorage.removeItem('maestro_acting_role');
-  };
-
   const syncProfile = async (currentUser: any) => {
-    if (!currentUser) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', currentUser.id)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (data) {
-        setProfile(data as Profile);
-        setRole(data.role);
-        setSchoolId(data.school_id);
-        
-        const savedActing = localStorage.getItem('maestro_acting_role');
-        setActingRoleState(savedActing || data.role);
-      } else if (currentUser.email === 'serparenan@gmail.com') {
-        setRole('god_mode');
-        const savedActing = localStorage.getItem('maestro_acting_role');
-        setActingRoleState(savedActing || 'god_mode');
-      } else {
-        setRole('student');
-        setActingRoleState('student');
-      }
-    } catch (e) {
-      logger.error("[Auth] Falha na sincronia", e);
-      // Fallback para evitar travamento
-      setRole('student');
-      setActingRoleState('student');
-    } finally {
-      setLoading(false);
-    }
+    // FORCE BYPASS SPRINT 01 - LOGIN SEMPRE ATIVO COMO ROOT
+    setUser(MOCK_MASTER_USER);
+    setRole('god_mode');
+    setActingRoleState('god_mode');
+    setSchoolId(PILOT_SCHOOL_ID);
+    setProfile({
+        id: MOCK_MASTER_USER.id,
+        email: MOCK_MASTER_USER.email,
+        full_name: MOCK_MASTER_USER.user_metadata.full_name,
+        role: 'god_mode',
+        school_id: PILOT_SCHOOL_ID
+    } as Profile);
+    setLoading(false);
+    return;
   };
 
   useEffect(() => {
-    // Listener de estado global para detectar login/logout instantaneamente
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      setLoading(true);
-      setSession(currentSession);
-      const currentUser = currentSession?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        await syncProfile(currentUser);
-      } else {
-        setProfile(null);
-        setRole(null);
-        setActingRoleState(null);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    syncProfile(null);
   }, []);
 
   const value = {
     session, user, profile, role, actingRole, schoolId, loading, getDashboardPath,
-    setActingRole,
+    setActingRole: (r: string | null) => {
+      setActingRoleState(r);
+      if (r) localStorage.setItem('maestro_acting_role', r);
+    },
+    setSchoolOverride: (id: string | null) => {
+        setSchoolId(id);
+        if (id) localStorage.setItem('maestro_active_school', id);
+    },
     signOut: async () => {
+        await supabase.auth.signOut();
         localStorage.removeItem('maestro_acting_role');
-        await (supabase.auth as any).signOut();
-        window.location.href = '/#/login';
+        localStorage.removeItem('maestro_active_school');
+        window.location.reload();
     },
     signIn: async (email: string, password: string) => {
-      return await (supabase.auth as any).signInWithPassword({ email, password });
+      return await supabase.auth.signInWithPassword({ email, password });
     },
     refreshProfile: async () => {
-      if (user) await syncProfile(user);
+      await syncProfile(null);
     }
   };
 

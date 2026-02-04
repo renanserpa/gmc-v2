@@ -1,9 +1,9 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { NoteStats } from '../../lib/audioPro';
-import { NOTES_CHROMATIC } from '../../lib/theoryEngine';
-import { cn } from '../../lib/utils';
+import { NoteStats } from '../../lib/audioPro.ts';
+import { NOTES_CHROMATIC } from '../../lib/theoryEngine.ts';
+import { cn } from '../../lib/utils.ts';
 import { Target, Activity, Clock } from 'lucide-react';
 
 interface AccuracyHeatmapProps {

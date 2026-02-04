@@ -1,7 +1,8 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { AccessibilitySettings } from '../types';
-import { supabase } from '../lib/supabaseClient';
-import { useAuth } from './AuthContext';
+import { AccessibilitySettings } from '../types.ts';
+import { supabase } from '../lib/supabaseClient.ts';
+import { useAuth } from './AuthContext.tsx';
 
 interface AccessibilityContextType {
   settings: AccessibilitySettings;
@@ -69,6 +70,6 @@ export const AccessibilityProvider = ({ children }: { children?: ReactNode }) =>
 
 export const useAccessibility = () => {
   const context = useContext(AccessibilityContext);
-  if (!context) throw new Error('useAccessibility deve ser usado dentro de AccessibilityProvider');
+  if (!context) throw new Error('useAccessibility deve ser usado dentro AccessibilityProvider');
   return context;
 };

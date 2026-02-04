@@ -1,12 +1,12 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
-import { LessonStep } from '../../types';
-import { Button } from '../ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card.tsx';
+import { LessonStep } from '../../types.ts';
+import { Button } from '../ui/Button.tsx';
 import { Play, SkipForward, ListOrdered, Timer, Music, Activity, Brain } from 'lucide-react';
 import { motion, Reorder } from 'framer-motion';
-import { cn } from '../../lib/utils';
-import { haptics } from '../../lib/haptics';
+import { cn } from '../../lib/utils.ts';
+import { haptics } from '../../lib/haptics.ts';
 
 interface LessonPlannerProps {
     classId: string;

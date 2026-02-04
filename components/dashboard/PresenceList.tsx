@@ -1,9 +1,9 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserAvatar } from '../ui/UserAvatar';
+import { UserAvatar } from '../ui/UserAvatar.tsx';
 import { Activity, Wifi, WifiOff, Zap } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '../../lib/utils.ts';
 
 interface PresenceListProps {
     presences: any[]; // Estado do Supabase Presence

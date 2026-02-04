@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
-import { Student } from '../../types';
-import { getStudentAttendanceRate } from '../../services/dataService';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card.tsx';
+import { Student } from '../../types.ts';
+import { getStudentAttendanceRate } from '../../services/dataService.ts';
 import { ClipboardCheck, TrendingUp, AlertCircle, BarChart2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { cn } from '../../lib/utils';
+import { cn } from '../../lib/utils.ts';
 
 interface AttendanceReportProps {
     students: Student[];

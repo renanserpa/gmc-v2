@@ -1,4 +1,18 @@
 
+export interface ClassroomCommand {
+    /**
+     * DNA OLIE: Protocolo de Orquestração Pedagógica.
+     */
+    type: 'PLAY' | 'PAUSE' | 'CELEBRATE' | 'END_SESSION' | 'PECS_MESSAGE' | 'TROPHY' | 'HEART' | 'ZAP' | 'FRETBOARD_UPDATE' | 'PIANO_UPDATE' | 'CONTENT_LAUNCH' | 'STUDENT_SHOUTOUT';
+    payload?: any;
+    summary?: any;
+    studentId?: string;
+    studentName?: string;
+    messageId?: string;
+    label?: string;
+    timestamp?: number;
+}
+
 export enum UserRole {
     GodMode = 'god_mode',
     SaaSAdminGlobal = 'saas_admin_global',
@@ -14,262 +28,225 @@ export enum UserRole {
     SuperAdmin = 'super_admin'
 }
 
-export interface Profile {
-    id: string;
-    email: string;
-    full_name: string;
-    role: UserRole | string;
-    school_id: string | null;
-    avatar_url?: string | null;
-    badges?: string[];
-    reputation_points?: number;
-    accessibility_settings?: AccessibilitySettings;
-    professor_id?: string;
-    // Campos v7.5 - Unificação de Progressão
-    xp: number;
-    coins: number;
-    current_level: number;
-    current_skin_id: string;
-    maintenance_mode_enabled: boolean;
-}
-
-export interface AccessibilitySettings {
-  dyslexicFont: boolean;
-  highContrast: boolean;
-  colorBlindMode: 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia';
-  reducedMotion: boolean;
-  uiMode: 'standard' | 'kids';
-}
-
-export interface SchoolBranding {
-    primaryColor: string;
-    secondaryColor: string;
-    borderRadius: string;
-    logoUrl: string | null;
-}
-
-export interface MusicClass {
-    id: string;
-    school_id: string;
-    name: string;
-    day_of_week: string;
-    start_time: string;
-    capacity: number;
-    teacher_id?: string;
-    professor_id?: string;
-    occupied?: number;
-    age_group?: string;
-}
-
-export interface School {
-    id: string;
-    name: string;
-    slug: string;
-    is_active: boolean;
-    owner_id?: string; 
-    billing_model: 'hourly' | 'per_student' | 'fixed';
-    hourly_rate: number;
-    monthly_fee: number;
-    branding: SchoolBranding;
-    contract_status: 'trial' | 'active' | 'suspended' | 'canceled';
-    cnpj?: string;
-    fee_per_student: number;
-    enabled_modules?: Record<string, boolean>;
-    maintenance_mode: boolean; // v7.5
-}
-
-export interface Student {
-  id: string;
-  auth_user_id: string | null;
-  professor_id: string;
-  school_id: string;
-  name: string;
-  instrument: string;
-  invite_code: string;
-  completed_module_ids: string[];
-  avatar_url?: string | null;
-  parent_email?: string | null;
-  completed_content_ids?: string[];
-  guardian_id?: string | null;
-  school_grade?: string;
-  /* Missing progression fields required by StudentHud and AI services */
-  xp: number;
-  coins: number;
-  current_level: number;
-  current_streak_days: number;
-  xpToNextLevel?: number;
-}
-
-export interface Mission {
-    id: string;
-    title: string;
-    description: string;
-    xp_reward: number;
-    status: MissionStatus;
-    student_id: string;
-    professor_id: string;
-    school_id: string | null;
-    created_at?: string;
-    week_start?: string;
-    is_template?: boolean;
-}
-
+/* Added MissionStatus enum */
 export enum MissionStatus {
     Pending = 'pending',
     Done = 'done',
     Expired = 'expired'
 }
 
-export interface Notice {
-    id: string;
-    title: string;
-    message: string;
-    content?: string;
-    priority: 'low' | 'normal' | 'high' | 'critical';
-    target_audience: string;
-    school_id: string | null;
-    professor_id?: string;
-    created_at: string;
-}
-
-export type AttendanceStatus = 'present' | 'late' | 'absent';
-
-export interface ChordBlock {
-    id: string;
-    degree: string;
-    label: string;
-    color: string;
-    notes: string[];
-}
-
-export interface SearchResult {
-    id: string;
-    type: 'tool' | 'concept' | 'student';
-    title: string;
-    subtitle: string;
-    path: string;
-    icon: any;
-}
-
-export interface TeacherTip {
-    id: string;
-    trigger: string;
-    title: string;
-    description: string;
-    color: string;
-}
-
-export interface Achievement {
-    id: string;
-    name: string;
-    description: string;
-    icon_url?: string;
-    xp_reward: number;
-}
-
-export interface PlayerAchievement {
-    id: string;
-    player_id: string;
-    achievement_id: string;
-    achieved_at: string;
-    achievements?: Achievement;
-}
-
-export interface ContentLibraryItem {
-    id: string;
-    title: string;
-    type: 'video' | 'audio' | 'tab' | 'pdf';
-    url: string;
-    difficulty_level: 'beginner' | 'intermediate' | 'pro';
-    professor_id: string;
-    school_id: string | null;
-    created_at?: string;
-}
-
-export interface StoreItem {
-    id: string;
-    name: string;
-    description?: string;
-    price_coins: number;
-    image_url?: string;
-    is_active: boolean;
-    metadata?: any;
-}
-
-export interface StoreOrder {
-    id: string;
-    player_id: string;
-    store_item_id: string;
-    coins_spent: number;
-    is_equipped: boolean;
-    created_at?: string;
-    store_items?: StoreItem;
-}
-
-export interface LessonStep {
-    id: string;
-    title: string;
-    type: 'video' | 'exercise' | 'song' | 'theory' | 'movement_break';
-    duration_mins: number;
-    metadata?: any;
-}
-
-export interface LessonPlan {
-    id: string;
-    title: string;
-    description?: string;
-    age_group: string;
-    steps: LessonStep[];
-}
-
-export interface ChordSubstitution {
-    chord: string;
-    type: 'relative' | 'parallel' | 'tritone' | 'secondary_dominant';
-    description: string;
-}
-
+/* Added ModuleStatus enum */
 export enum ModuleStatus {
     Locked = 'locked',
     Available = 'available',
     Completed = 'completed'
 }
 
-export interface LearningModule {
-    id: string;
-    trail_id: string;
-    title: string;
-    description: string;
-    order_index: number;
-    icon_type: 'theory' | 'technique' | 'repertoire' | 'boss';
-    xp_reward: number;
-    required_missions?: string[];
+/* Added InstrumentType enum */
+export enum InstrumentType {
+    Guitar = 'Guitar',
+    Ukulele = 'Ukulele',
+    Piano = 'Piano',
+    Drums = 'Drums',
+    Vocals = 'Vocals'
 }
 
+/* Added Profile interface */
+export interface Profile {
+    id: string;
+    email: string;
+    full_name: string;
+    role: string;
+    school_id?: string;
+    professor_id?: string;
+    reputation_points?: number;
+    avatar_url?: string;
+    badges?: string[];
+    accessibility_settings?: AccessibilitySettings;
+    created_at?: string;
+    instrument?: string;
+}
+
+/* Added Student interface */
+export interface Student {
+    id: string;
+    auth_user_id: string;
+    professor_id: string;
+    school_id: string;
+    name: string;
+    instrument: string;
+    avatar_url?: string | null;
+    xp: number;
+    coins: number;
+    current_level: number;
+    current_streak_days: number;
+    xpToNextLevel?: number;
+    invite_code?: string;
+    guardian_id?: string | null;
+    completed_module_ids?: string[];
+    completed_content_ids?: string[];
+}
+
+/* Added PlayerAchievement interface */
+export interface PlayerAchievement {
+    id: string;
+    player_id: string;
+    achievement_id: string;
+    created_at: string;
+    achievements?: {
+        name: string;
+        description: string;
+    };
+}
+
+/* Added MusicClass interface */
+export interface MusicClass {
+    id: string;
+    name: string;
+    professor_id: string;
+    school_id: string;
+    day_of_week: string;
+    start_time: string;
+    age_group?: string;
+    capacity: number;
+}
+
+/* Added Notice interface */
+export interface Notice {
+    id: string;
+    title: string;
+    message: string;
+    target_audience: string;
+    professor_id: string;
+    created_at: string;
+    priority?: 'low' | 'normal' | 'high' | 'critical';
+}
+
+/* Added Mission interface */
+export interface Mission {
+    id: string;
+    student_id: string;
+    professor_id: string;
+    school_id?: string | null;
+    title: string;
+    description: string;
+    xp_reward: number;
+    status: MissionStatus;
+    week_start?: string;
+    is_template?: boolean;
+    created_at?: string;
+    students?: {
+        name: string;
+    };
+}
+
+/* Added AttendanceStatus type */
+export type AttendanceStatus = 'present' | 'absent' | 'late';
+
+/* Added SchoolBranding interface */
+export interface SchoolBranding {
+    primaryColor: string;
+    secondaryColor: string;
+    borderRadius: string;
+    logoUrl?: string | null;
+}
+
+/* Added School interface */
+export interface School {
+    id: string;
+    name: string;
+    slug: string;
+    is_active: boolean;
+    owner_id?: string;
+    billing_model: string;
+    monthly_fee: number;
+    fee_per_student: number;
+    hourly_rate?: number;
+    branding: SchoolBranding;
+    contract_status: string;
+    maintenance_mode: boolean;
+    enabled_modules?: any;
+    created_at?: string;
+}
+
+/* Added ContentLibraryItem interface with difficulty_level and tab type */
+export interface ContentLibraryItem {
+    id: string;
+    title: string;
+    category: 'repertoire' | 'exercise' | 'theory' | 'backing_track';
+    type: 'video' | 'pdf' | 'audio' | 'link' | 'tab';
+    url: string;
+    is_favorite: boolean;
+    tags: string[];
+    professor_id: string;
+    created_at: string;
+    difficulty_level?: 'beginner' | 'intermediate' | 'pro';
+}
+
+/* Added LessonStep interface */
+export interface LessonStep {
+    id: string;
+    title: string;
+    duration_mins: number;
+    type: 'theory' | 'exercise' | 'song' | 'video' | 'movement_break';
+}
+
+/* Updated LessonPlan interface */
+export interface LessonPlan {
+    id: string;
+    class_id: string;
+    title: string;
+    items: string[]; // IDs de ContentLibraryItem
+    steps: LessonStep[];
+    age_group?: string;
+    professor_id: string;
+    created_at: string;
+}
+
+/* Added StoreItem interface */
+export interface StoreItem {
+    id: string;
+    name: string;
+    price_coins: number;
+    is_active: boolean;
+    metadata?: any;
+}
+
+/* Added StoreOrder interface */
+export interface StoreOrder {
+    id: string;
+    player_id: string;
+    store_item_id: string;
+    coins_spent: number;
+    is_equipped: boolean;
+    store_items?: StoreItem;
+}
+
+/* Added Tuning interface */
 export interface Tuning {
     id: string;
     label: string;
     notes: number[];
 }
 
-export interface ClassroomCommand {
-    type: 'PLAY' | 'PAUSE' | 'CELEBRATE' | 'END_SESSION' | 'PECS_MESSAGE';
-    payload?: any;
-    summary?: any;
-    studentId?: string;
-    studentName?: string;
-    messageId?: string;
-    label?: string;
-    timestamp?: number;
+/* Added AccessibilitySettings interface */
+export interface AccessibilitySettings {
+    dyslexicFont: boolean;
+    highContrast: boolean;
+    colorBlindMode: 'none' | 'protanopia' | 'deuteranopia' | 'tritanopia';
+    reducedMotion: boolean;
+    uiMode: 'standard' | 'kids';
 }
 
-export enum InstrumentType {
-    Guitar = 'guitar',
-    Ukulele = 'ukulele',
-    Piano = 'piano',
-    Drums = 'drums',
-    Vocals = 'vocals'
+/* Added LearningModule interface */
+export interface LearningModule {
+    id: string;
+    title: string;
+    icon_type: 'theory' | 'technique' | 'repertoire' | 'boss';
+    xp_reward: number;
 }
 
+/* Added HistoryEra interface */
 export interface HistoryEra {
     id: string;
     name: string;
@@ -280,6 +257,35 @@ export interface HistoryEra {
     icon: any;
 }
 
+/* Added ChordBlock interface */
+export interface ChordBlock {
+    id: string;
+    degree: string;
+    label: string;
+    color: string;
+    notes: string[];
+}
+
+/* Added SearchResult interface */
+export interface SearchResult {
+    id: string;
+    type: 'tool' | 'concept' | 'student';
+    title: string;
+    subtitle: string;
+    path: string;
+    icon: any;
+}
+
+/* Added TeacherTip interface */
+export interface TeacherTip {
+    id: string;
+    trigger: string;
+    title: string;
+    description: string;
+    color: string;
+}
+
+/* Added ProfessorDashboardStats interface */
 export interface ProfessorDashboardStats {
     totalStudents: number;
     upcomingLessonsCount: number;
@@ -287,6 +293,7 @@ export interface ProfessorDashboardStats {
     recentCompletedMissionsCount: number;
 }
 
+/* Added StudentGuardianOverview interface */
 export interface StudentGuardianOverview {
     studentId: string;
     studentName: string;
@@ -306,10 +313,18 @@ export interface StudentGuardianOverview {
     recentAchievements: any[];
 }
 
+/* Added Philosopher interface */
 export interface Philosopher {
     id: string;
     name: string;
     era: string;
     avatar_url: string;
     system_prompt: string;
+}
+
+/* Added ChordSubstitution interface */
+export interface ChordSubstitution {
+    chord: string;
+    type: string;
+    description: string;
 }
