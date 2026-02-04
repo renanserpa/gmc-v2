@@ -3,7 +3,7 @@ export interface ClassroomCommand {
     /**
      * DNA OLIE: Protocolo de Orquestração Pedagógica.
      */
-    type: 'PLAY' | 'PAUSE' | 'CELEBRATE' | 'END_SESSION' | 'PECS_MESSAGE' | 'TROPHY' | 'HEART' | 'ZAP' | 'FRETBOARD_UPDATE' | 'PIANO_UPDATE' | 'CONTENT_LAUNCH' | 'STUDENT_SHOUTOUT';
+    type: 'PLAY' | 'PAUSE' | 'CELEBRATE' | 'END_SESSION' | 'PECS_MESSAGE' | 'TROPHY' | 'HEART' | 'ZAP' | 'FRETBOARD_UPDATE' | 'PIANO_UPDATE' | 'CONTENT_LAUNCH' | 'STUDENT_SHOUTOUT' | 'QUIZ_FEEDBACK';
     payload?: any;
     summary?: any;
     studentId?: string;
@@ -28,21 +28,18 @@ export enum UserRole {
     SuperAdmin = 'super_admin'
 }
 
-/* Added MissionStatus enum */
 export enum MissionStatus {
     Pending = 'pending',
     Done = 'done',
     Expired = 'expired'
 }
 
-/* Added ModuleStatus enum */
 export enum ModuleStatus {
     Locked = 'locked',
     Available = 'available',
     Completed = 'completed'
 }
 
-/* Added InstrumentType enum */
 export enum InstrumentType {
     Guitar = 'Guitar',
     Ukulele = 'Ukulele',
@@ -51,7 +48,6 @@ export enum InstrumentType {
     Vocals = 'Vocals'
 }
 
-/* Added Profile interface */
 export interface Profile {
     id: string;
     email: string;
@@ -67,7 +63,6 @@ export interface Profile {
     instrument?: string;
 }
 
-/* Added Student interface */
 export interface Student {
     id: string;
     auth_user_id: string;
@@ -87,7 +82,6 @@ export interface Student {
     completed_content_ids?: string[];
 }
 
-/* Added PlayerAchievement interface */
 export interface PlayerAchievement {
     id: string;
     player_id: string;
@@ -99,7 +93,6 @@ export interface PlayerAchievement {
     };
 }
 
-/* Added MusicClass interface */
 export interface MusicClass {
     id: string;
     name: string;
@@ -111,7 +104,6 @@ export interface MusicClass {
     capacity: number;
 }
 
-/* Added Notice interface */
 export interface Notice {
     id: string;
     title: string;
@@ -122,7 +114,6 @@ export interface Notice {
     priority?: 'low' | 'normal' | 'high' | 'critical';
 }
 
-/* Added Mission interface */
 export interface Mission {
     id: string;
     student_id: string;
@@ -140,10 +131,8 @@ export interface Mission {
     };
 }
 
-/* Added AttendanceStatus type */
 export type AttendanceStatus = 'present' | 'absent' | 'late';
 
-/* Added SchoolBranding interface */
 export interface SchoolBranding {
     primaryColor: string;
     secondaryColor: string;
@@ -151,7 +140,6 @@ export interface SchoolBranding {
     logoUrl?: string | null;
 }
 
-/* Added School interface */
 export interface School {
     id: string;
     name: string;
@@ -169,7 +157,6 @@ export interface School {
     created_at?: string;
 }
 
-/* Added ContentLibraryItem interface with difficulty_level and tab type */
 export interface ContentLibraryItem {
     id: string;
     title: string;
@@ -183,7 +170,6 @@ export interface ContentLibraryItem {
     difficulty_level?: 'beginner' | 'intermediate' | 'pro';
 }
 
-/* Added LessonStep interface */
 export interface LessonStep {
     id: string;
     title: string;
@@ -191,19 +177,17 @@ export interface LessonStep {
     type: 'theory' | 'exercise' | 'song' | 'video' | 'movement_break';
 }
 
-/* Updated LessonPlan interface */
 export interface LessonPlan {
     id: string;
     class_id: string;
     title: string;
-    items: string[]; // IDs de ContentLibraryItem
+    items: string[]; 
     steps: LessonStep[];
     age_group?: string;
     professor_id: string;
     created_at: string;
 }
 
-/* Added StoreItem interface */
 export interface StoreItem {
     id: string;
     name: string;
@@ -212,7 +196,6 @@ export interface StoreItem {
     metadata?: any;
 }
 
-/* Added StoreOrder interface */
 export interface StoreOrder {
     id: string;
     player_id: string;
@@ -222,14 +205,12 @@ export interface StoreOrder {
     store_items?: StoreItem;
 }
 
-/* Added Tuning interface */
 export interface Tuning {
     id: string;
     label: string;
     notes: number[];
 }
 
-/* Added AccessibilitySettings interface */
 export interface AccessibilitySettings {
     dyslexicFont: boolean;
     highContrast: boolean;
@@ -238,7 +219,6 @@ export interface AccessibilitySettings {
     uiMode: 'standard' | 'kids';
 }
 
-/* Added LearningModule interface */
 export interface LearningModule {
     id: string;
     title: string;
@@ -246,7 +226,6 @@ export interface LearningModule {
     xp_reward: number;
 }
 
-/* Added HistoryEra interface */
 export interface HistoryEra {
     id: string;
     name: string;
@@ -257,7 +236,6 @@ export interface HistoryEra {
     icon: any;
 }
 
-/* Added ChordBlock interface */
 export interface ChordBlock {
     id: string;
     degree: string;
@@ -266,7 +244,6 @@ export interface ChordBlock {
     notes: string[];
 }
 
-/* Added SearchResult interface */
 export interface SearchResult {
     id: string;
     type: 'tool' | 'concept' | 'student';
@@ -276,7 +253,6 @@ export interface SearchResult {
     icon: any;
 }
 
-/* Added TeacherTip interface */
 export interface TeacherTip {
     id: string;
     trigger: string;
@@ -285,7 +261,6 @@ export interface TeacherTip {
     color: string;
 }
 
-/* Added ProfessorDashboardStats interface */
 export interface ProfessorDashboardStats {
     totalStudents: number;
     upcomingLessonsCount: number;
@@ -293,7 +268,6 @@ export interface ProfessorDashboardStats {
     recentCompletedMissionsCount: number;
 }
 
-/* Added StudentGuardianOverview interface */
 export interface StudentGuardianOverview {
     studentId: string;
     studentName: string;
@@ -313,7 +287,6 @@ export interface StudentGuardianOverview {
     recentAchievements: any[];
 }
 
-/* Added Philosopher interface */
 export interface Philosopher {
     id: string;
     name: string;
@@ -322,7 +295,6 @@ export interface Philosopher {
     system_prompt: string;
 }
 
-/* Added ChordSubstitution interface */
 export interface ChordSubstitution {
     chord: string;
     type: string;

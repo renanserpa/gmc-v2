@@ -27,20 +27,20 @@ export const PianoBoard: React.FC<PianoBoardProps> = ({ activeNotes, onNoteToggl
                     disabled={!interactive}
                     onClick={() => onNoteToggle?.(fullNote)}
                     className={cn(
-                        "relative transition-all duration-150 flex items-end justify-center pb-4",
+                        "relative transition-all duration-150 flex items-end justify-center pb-4 select-none",
                         isBlack 
-                            ? "bg-slate-900 w-10 h-32 -mx-5 z-10 rounded-b-lg border-x border-slate-700" 
-                            : "bg-white w-16 h-52 border border-slate-200 rounded-b-xl z-0",
+                            ? "bg-slate-900 w-10 h-32 -mx-5 z-10 rounded-b-lg border-x border-slate-700 shadow-2xl" 
+                            : "bg-white w-16 h-52 border border-slate-200 rounded-b-xl z-0 shadow-md",
                         isActive && (isBlack ? "bg-sky-500 shadow-[0_0_20px_#0ea5e9]" : "bg-sky-400 shadow-[0_0_30px_#38bdf8]"),
                         !interactive && "cursor-default"
                     )}
                 >
                     <span className={cn(
-                        "text-[10px] font-black pointer-events-none",
+                        "text-[10px] font-black pointer-events-none transition-colors",
                         isBlack ? "text-slate-500" : "text-slate-300",
                         isActive && "text-white"
                     )}>
-                        {fullNote}
+                        {noteName}
                     </span>
                 </button>
             );
@@ -48,8 +48,8 @@ export const PianoBoard: React.FC<PianoBoardProps> = ({ activeNotes, onNoteToggl
     };
 
     return (
-        <div className={cn("flex justify-center bg-slate-950 p-10 rounded-[64px] border-4 border-white/5 shadow-2xl overflow-x-auto custom-scrollbar", className)}>
-            <div className="flex">
+        <div className={cn("flex justify-center bg-slate-950 p-10 rounded-[64px] border-4 border-white/5 shadow-2xl overflow-x-auto custom-scrollbar select-none", className)}>
+            <div className="flex items-start">
                 {renderOctave(3)}
                 {renderOctave(4)}
             </div>
