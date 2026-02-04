@@ -4,13 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Timer, Play, Square, Music, 
     Zap, Headphones, Save, ArrowLeft,
-    Clock, Guitar, Piano, LayoutTemplate
+    Clock, Guitar, Piano, LayoutTemplate, Award
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card.tsx';
 import { Button } from '../../../components/ui/Button.tsx';
 import { useMaestro } from '../../../contexts/MaestroContext.tsx';
 import { useCurrentStudent } from '../../../hooks/useCurrentStudent.ts';
-import { savePracticeTime } from '../../../services/dataService.ts';
+import { savePracticeTime, updatePracticeMinutes } from '../../../services/dataService.ts';
 import { haptics } from '../../../lib/haptics.ts';
 import { cn } from '../../../lib/utils.ts';
 import { notify } from '../../../lib/notification.ts';
@@ -22,30 +22,43 @@ const M = motion as any;
 
 export default function PracticeRoom() {
     const { metronome } = useMaestro();
-    const { student } = useCurrentStudent();
+    const { student, refetch } = useCurrentStudent();
     const navigate = useNavigate();
     
     const [seconds, setSeconds] = useState(0);
     const [isSaving, setIsSaving] = useState(false);
     const [selectedNotes, setSelectedNotes] = useState<string[]>([]);
     
-    const timerRef = useRef<any>(null);
+    // TAREFA 4: Tracking do tempo com metrônomo
+    const practiceTimerRef = useRef<any>(null);
+    const [accumulatedMinutes, setAccumulatedMinutes] = useState(0);
 
     useEffect(() => {
-        timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
-        return () => clearInterval(timerRef.current);
-    }, []);
+        if (metronome.isPlaying) {
+            practiceTimerRef.current = setInterval(() => {
+                setSeconds(s => s + 1);
+            }, 1000);
+        } else {
+            if (practiceTimerRef.current) clearInterval(practiceTimerRef.current);
+        }
+        return () => clearInterval(practiceTimerRef.current);
+    }, [metronome.isPlaying]);
 
     const handleSaveSession = async () => {
-        if (seconds < 60) {
-            notify.warning("Pratique pelo menos 1 minuto para registrar.");
+        if (seconds < 30) {
+            notify.warning("Pratique pelo menos 30 segundos para registrar.");
             return;
         }
         setIsSaving(true);
-        haptics.success();
+        haptics.heavy();
+        
         try {
+            const minutesEarned = Math.floor(seconds / 60) || 1; // Mínimo de 1 min se for pouco
+            await updatePracticeMinutes(student!.id, minutesEarned);
             await savePracticeTime(student!.id, seconds, student!.instrument);
-            notify.success(`Sessão de ${Math.floor(seconds/60)}m salva! XP bônus concedido.`);
+            
+            notify.success(`+${minutesEarned} minutos de voo sincronizados!`);
+            await refetch();
             navigate('/student/dashboard');
         } catch (e) {
             notify.error("Falha ao sincronizar sessão.");
@@ -73,7 +86,7 @@ export default function PracticeRoom() {
 
                 <div className="flex items-center gap-6">
                     <div className="text-right">
-                        <p className="text-[8px] font-black text-slate-600 uppercase">Tempo de Voo</p>
+                        <p className="text-[8px] font-black text-slate-600 uppercase">Tempo de Voo Atual</p>
                         <p className="text-3xl font-mono font-black text-sky-400">
                             {Math.floor(seconds / 60)}:{(seconds % 60).toString().padStart(2, '0')}
                         </p>
@@ -81,10 +94,10 @@ export default function PracticeRoom() {
                     <Button 
                         onClick={handleSaveSession} 
                         isLoading={isSaving}
-                        className="rounded-2xl h-16 px-10 bg-emerald-600 font-black uppercase text-xs" 
+                        className="rounded-2xl h-16 px-10 bg-emerald-600 font-black uppercase text-xs shadow-xl" 
                         leftIcon={Save}
                     >
-                        ENCERRAR & SALVAR
+                        FINALIZAR MISSÃO
                     </Button>
                 </div>
             </header>
@@ -92,19 +105,25 @@ export default function PracticeRoom() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Metrônomo */}
                 <div className="lg:col-span-4 space-y-6">
-                    <Card className="bg-slate-950 border-white/5 rounded-[48px] p-10 flex flex-col items-center gap-8 shadow-2xl">
-                        <div className="flex items-center gap-3 text-sky-500">
+                    <Card className="bg-slate-950 border-white/5 rounded-[48px] p-10 flex flex-col items-center gap-8 shadow-2xl relative overflow-hidden">
+                        {metronome.isPlaying && (
+                             <M.div 
+                                animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
+                                transition={{ duration: 60/metronome.bpm, repeat: Infinity }}
+                                className="absolute inset-0 bg-sky-500/10 rounded-full blur-[100px]" 
+                             />
+                        )}
+                        <div className="flex items-center gap-3 text-sky-500 relative z-10">
                             <Timer size={20} />
                             <span className="text-[10px] font-black uppercase tracking-widest">Ritmo Master</span>
                         </div>
                         
-                        <div className="w-48 h-48 rounded-full border-[12px] border-slate-900 bg-slate-950 flex flex-col items-center justify-center relative group">
-                            <div className="absolute inset-0 bg-sky-500/5 blur-3xl rounded-full group-hover:bg-sky-500/10 transition-all" />
+                        <div className="w-48 h-48 rounded-full border-[12px] border-slate-900 bg-slate-950 flex flex-col items-center justify-center relative group z-10">
                             <span className="text-6xl font-black text-white font-mono z-10">{metronome.bpm}</span>
                             <span className="text-[9px] font-black text-slate-600 uppercase z-10">BPM</span>
                         </div>
 
-                        <div className="w-full space-y-6">
+                        <div className="w-full space-y-6 relative z-10">
                             <input 
                                 type="range" min="40" max="220" value={metronome.bpm} 
                                 onChange={(e) => metronome.setBpm(Number(e.target.value))}
@@ -113,8 +132,8 @@ export default function PracticeRoom() {
                             <Button 
                                 onClick={metronome.toggle}
                                 className={cn(
-                                    "w-full py-8 rounded-[32px] font-black uppercase tracking-[0.2em] shadow-xl",
-                                    metronome.isPlaying ? "bg-rose-600" : "bg-sky-600"
+                                    "w-full py-8 rounded-[32px] font-black uppercase tracking-[0.2em] shadow-xl transition-all",
+                                    metronome.isPlaying ? "bg-rose-600 scale-95" : "bg-sky-600"
                                 )}
                             >
                                 {metronome.isPlaying ? "PARAR PULSO" : "INICIAR PULSO"}
@@ -123,10 +142,13 @@ export default function PracticeRoom() {
                     </Card>
 
                     <div className="bg-sky-500/5 p-6 rounded-[32px] border border-sky-500/10 flex items-start gap-4">
-                        <Headphones className="text-sky-400 shrink-0" size={20} />
-                        <p className="text-[10px] text-slate-400 leading-relaxed font-medium italic">
-                            O treino solo é onde a maestria acontece. Mantenha o ritmo do elefante e ganhe XP extra por minuto.
-                        </p>
+                        <Award className="text-amber-500 shrink-0" size={20} />
+                        <div className="space-y-1">
+                            <p className="text-[9px] font-black text-white uppercase tracking-widest">Objetivo: Músico Disciplinado</p>
+                            <p className="text-[10px] text-slate-400 leading-relaxed font-medium italic">
+                                Pratique 15 minutos com o pulso ativo esta semana para desbloquear este badge lendário!
+                            </p>
+                        </div>
                     </div>
                 </div>
 

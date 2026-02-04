@@ -17,6 +17,48 @@ export const getLatestFamilyReport = async (studentId: string) => {
     return data;
 };
 
+export const updatePracticeMinutes = async (studentId: string, minutes: number) => {
+    // Busca os minutos atuais para somar
+    const { data: profile } = await supabase.from('profiles').select('metadata').eq('id', studentId).single();
+    const currentMinutes = profile?.metadata?.weekly_practice_minutes || 0;
+    const newTotal = currentMinutes + minutes;
+
+    const { error } = await supabase.from('profiles').update({
+        metadata: { 
+            ...(profile?.metadata || {}), 
+            weekly_practice_minutes: newTotal,
+            last_practice_at: new Date().toISOString()
+        }
+    }).eq('id', studentId);
+    
+    if (error) throw error;
+
+    // Se bater a meta de 15 min, concede badge (simulado no metadata por enquanto)
+    if (newTotal >= 15 && !profile?.metadata?.badges?.includes('disciplined')) {
+        await applyXpEvent({
+            studentId,
+            eventType: 'DISCIPLINED_MUSICIAN',
+            xpAmount: 50,
+            schoolId: profile?.school_id || ""
+        });
+    }
+    return newTotal;
+};
+
+export const getActiveLessonMaterial = async (classId: string) => {
+    const { data, error } = await supabase
+        .from('classroom_orchestration')
+        .select(`
+            active_exercise_id,
+            content_library:active_exercise_id (*)
+        `)
+        .eq('class_id', classId)
+        .maybeSingle();
+    
+    if (error) return null;
+    return data?.content_library;
+};
+
 export const savePracticeTime = async (studentId: string, seconds: number, instrument: string) => {
     const { error } = await supabase.from('practice_sessions').insert([{
         student_id: studentId,
@@ -29,7 +71,6 @@ export const savePracticeTime = async (studentId: string, seconds: number, instr
     // Concede 10 XP a cada 5 min de treino (300s)
     const xpBonus = Math.floor(seconds / 300) * 10;
     if (xpBonus > 0) {
-        // Busca school_id para o applyXpEvent
         const { data: student } = await supabase.from('students').select('school_id').eq('id', studentId).single();
         if (student) {
             await applyXpEvent({
@@ -137,11 +178,6 @@ export const getStudentRepertoire = async (studentId: string) => {
     const { data, error } = await supabase.from('student_songs').select('*, songs(*)').eq('student_id', studentId);
     if (error) throw error;
     return data;
-};
-
-export const savePracticeSession = async (session: any) => {
-    const { error } = await supabase.from('practice_sessions').insert([session]);
-    if (error) throw error;
 };
 
 export const giveHighFive = async (hallId: string) => {

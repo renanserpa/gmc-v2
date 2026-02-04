@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as RRD from 'react-router-dom';
 const { useLocation } = RRD as any;
 import { useCurrentStudent } from '../hooks/useCurrentStudent';
-import { getStudentRepertoire, savePracticeSession } from '../services/dataService';
+// FIX: Changed savePracticeSession to savePracticeTime to match exported members in services/dataService.ts
+import { getStudentRepertoire, savePracticeTime } from '../services/dataService';
 // FIX: Removed invalid logPracticeSession import which was causing a build error
 import { getPracticeSessionFeedback } from '../services/aiService';
 import { MaestroAudioPro } from '../lib/audioPro';

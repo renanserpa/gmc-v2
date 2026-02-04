@@ -10,7 +10,7 @@ import LoadingScreen from './components/ui/LoadingScreen.tsx';
 import { ErrorBoundary } from './components/ui/ErrorBoundary.tsx';
 import { MaestroProvider } from './contexts/MaestroContext.tsx';
 
-// SPRINT 01 PAGES - ATUALIZADAS
+// SPRINT 01 PAGES
 const TeacherDashboard = lazy(() => import('./pages/dev/teacher/Dashboard.tsx'));
 const TeacherStudents = lazy(() => import('./pages/dev/teacher/Students.tsx'));
 const TeacherClasses = lazy(() => import('./pages/dev/teacher/Classes.tsx'));
@@ -19,10 +19,11 @@ const TeacherWhiteboard = lazy(() => import('./pages/dev/teacher/Whiteboard.tsx'
 const TeacherOrchestrator = lazy(() => import('./pages/dev/teacher/Orchestrator.tsx'));
 const ClassroomMode = lazy(() => import('./pages/ClassroomMode.tsx'));
 
-// STUDENT PAGES
+// STUDENT ARCADE ENGINE
 const StudentDashboard = lazy(() => import('./pages/dev/student/Dashboard.tsx'));
 const StudentPractice = lazy(() => import('./pages/dev/student/PracticeRoom.tsx'));
 const StudentShop = lazy(() => import('./pages/dev/student/Shop.tsx'));
+const ArcadePage = lazy(() => import('./pages/ArcadePage.tsx'));
 
 const Login = lazy(() => import('./pages/Login.tsx'));
 
@@ -40,6 +41,9 @@ export default function App() {
                 <Route path="/classroom/tv" element={<ClassroomMode />} />
 
                 <Route element={<Layout />}>
+                    {/* REDIRECIONAMENTO ROOT BASEADO NA PERSONA SPRINT 01 */}
+                    <Route path="/" element={<Navigate to="/teacher/dashboard" replace />} />
+
                     {/* TEACHER CONTEXT */}
                     <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
                     <Route path="/teacher/students" element={<TeacherStudents />} />
@@ -47,14 +51,15 @@ export default function App() {
                     <Route path="/teacher/whiteboard" element={<TeacherWhiteboard />} />
                     <Route path="/teacher/orchestrator" element={<TeacherOrchestrator />} />
                     
-                    {/* STUDENT CONTEXT */}
+                    {/* STUDENT ARCADE CONTEXT (ATIVADO) */}
                     <Route path="/student/dashboard" element={<StudentDashboard />} />
                     <Route path="/student/practice" element={<StudentPractice />} />
                     <Route path="/student/shop" element={<StudentShop />} />
+                    <Route path="/student/arcade" element={<ArcadePage />} />
 
                     <Route path="/admin/school" element={<SchoolManager />} />
-                    <Route path="/" element={<Navigate to="/teacher/dashboard" replace />} />
                 </Route>
+                
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>
