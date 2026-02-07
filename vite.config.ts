@@ -1,20 +1,19 @@
 
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
 import { fileURLToPath } from 'url';
-
-// Define o diretório base absoluto de forma robusta para ambientes ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      // O alias '@' mapeia para a raiz do projeto (o diretório 'src' conceitual).
-      // Isso permite que o código use imports como '@/components/ui/Card' de forma consistente.
-      '@': path.resolve(__dirname, './'),
+      /**
+       * Mapeia '@' para a raiz absoluta do projeto (conceitualmente o diretório 'src').
+       * Utiliza a API de URL do Node para garantir que o caminho seja absoluto e 
+       * resolvido corretamente em qualquer sistema operacional e ambiente ESM.
+       */
+      '@': fileURLToPath(new URL('./', import.meta.url)),
     },
   },
   build: {

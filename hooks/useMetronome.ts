@@ -7,13 +7,12 @@ export type TimeSignature = '2/4' | '3/4' | '4/4' | '6/8';
 
 export interface ProgressiveConfig {
   active: boolean;
-  initialBpm: number;
-  targetBpm: number;
   stepBpm: number;
   measuresInterval: number;
+  targetBpm: number;
 }
 
-export function useMetronome() {
+export function useMetronome(onMeasureTick?: (measure: number) => void) {
   const [bpm, setBpm] = useState(120);
   const [isPlaying, setIsPlaying] = useState(false);
   const [signature, setSignature] = useState<TimeSignature>('4/4');
@@ -22,10 +21,9 @@ export function useMetronome() {
   
   const [progression, setProgression] = useState<ProgressiveConfig>({
     active: false,
-    initialBpm: 120,
-    targetBpm: 160,
     stepBpm: 5,
-    measuresInterval: 4
+    measuresInterval: 4,
+    targetBpm: 180
   });
 
   const nextNoteTime = useRef(0);
@@ -34,14 +32,18 @@ export function useMetronome() {
   const measureCounter = useRef(0);
   
   const bpmRef = useRef(bpm);
-  const seqRef = useRef(signature);
   const progRef = useRef(progression);
 
   useEffect(() => {
     bpmRef.current = bpm;
-    seqRef.current = signature;
     progRef.current = progression;
-  }, [bpm, signature, progression]);
+  }, [bpm, progression]);
+
+  const panic = useCallback(() => {
+    const halfBpm = Math.floor(bpmRef.current / 2);
+    setBpm(Math.max(40, halfBpm));
+    haptics.error();
+  }, []);
 
   const playClick = useCallback(async (time: number, isDownbeat: boolean) => {
     const ctx = await audioManager.getContext();
@@ -67,27 +69,26 @@ export function useMetronome() {
     
     while (nextNoteTime.current < ctx.currentTime + 0.1) {
       const time = nextNoteTime.current;
-      const beatsPerMeasure = parseInt(seqRef.current.split('/')[0]);
-      
-      const isNewMeasure = beatCounter.current % beatsPerMeasure === 0;
-      
-      if (isNewMeasure && beatCounter.current > 0) {
+      const beatsPerMeasure = parseInt(signature.split('/')[0]);
+      const isDownbeat = beatCounter.current % beatsPerMeasure === 0;
+
+      if (isDownbeat && beatCounter.current > 0) {
         measureCounter.current++;
         
-        // Lógica de Progressão: Só altera se o modo estiver ativo
+        // Lógica Progressiva
         const prog = progRef.current;
         if (prog.active && measureCounter.current % prog.measuresInterval === 0) {
           const nextBpm = bpmRef.current + prog.stepBpm;
-          // Trava no Target
-          if ((prog.stepBpm > 0 && nextBpm <= prog.targetBpm) || (prog.stepBpm < 0 && nextBpm >= prog.targetBpm)) {
+          if (nextBpm <= prog.targetBpm) {
             setBpm(nextBpm);
-          } else {
-            haptics.success();
           }
         }
+        
+        // Notifica o sistema de novo compasso
+        if (onMeasureTick) onMeasureTick(measureCounter.current);
       }
 
-      playClick(time, beatCounter.current % beatsPerMeasure === 0);
+      playClick(time, isDownbeat);
 
       const delay = (time - ctx.currentTime) * 1000;
       const currentBeatVal = beatCounter.current % beatsPerMeasure;
@@ -98,12 +99,11 @@ export function useMetronome() {
         setCurrentMeasure(currentMeasureVal);
       }, Math.max(0, delay));
 
-      const secondsPerBeat = 60.0 / bpmRef.current;
-      nextNoteTime.current += secondsPerBeat;
+      nextNoteTime.current += 60.0 / bpmRef.current;
       beatCounter.current++;
     }
     timerID.current = window.setTimeout(scheduler, 25);
-  }, [playClick]);
+  }, [playClick, signature, onMeasureTick]);
 
   const toggle = useCallback(async () => {
     const ctx = await audioManager.getContext();
@@ -113,6 +113,7 @@ export function useMetronome() {
       setCurrentBeat(0);
       setCurrentMeasure(0);
       measureCounter.current = 0;
+      beatCounter.current = 0;
     } else {
       if (ctx.state === 'suspended') await ctx.resume();
       beatCounter.current = 0;
@@ -124,10 +125,7 @@ export function useMetronome() {
   }, [isPlaying, scheduler]);
 
   return { 
-    bpm, setBpm, 
-    isPlaying, toggle, 
-    signature, setSignature, 
-    currentBeat, currentMeasure,
-    progression, setProgression
+    bpm, setBpm, isPlaying, toggle, panic,
+    currentBeat, currentMeasure, progression, setProgression 
   };
 }

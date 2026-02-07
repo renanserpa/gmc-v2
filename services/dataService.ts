@@ -1,7 +1,44 @@
 
 import { supabase } from '../lib/supabaseClient.ts';
-import { Student, MusicClass, Notice, Mission, AttendanceStatus, ContentLibraryItem, School, Profile, MissionStatus, UserRole, LessonPlan } from '../types.ts';
+import { Student, MusicClass, Notice, Mission, AttendanceStatus, ContentLibraryItem, School, Profile, MissionStatus, UserRole, LessonPlan, StudentStats, LibraryAsset } from '../types.ts';
 import { applyXpEvent } from './gamificationService.ts';
+
+// --- SPRINT 09: CMS & FAMILY SERVICES ---
+
+export const getLibraryAssets = async (professorId: string): Promise<LibraryAsset[]> => {
+    const { data, error } = await supabase
+        .from('library_assets')
+        .select('*')
+        .eq('professor_id', professorId)
+        .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+};
+
+export const saveLibraryAsset = async (asset: Partial<LibraryAsset>) => {
+    const { data, error } = await supabase
+        .from('library_assets')
+        .upsert(asset)
+        .select()
+        .single();
+    if (error) throw error;
+    return data;
+};
+
+export const getStudentBpmHistory = async (studentId: string): Promise<StudentStats[]> => {
+    const { data, error } = await supabase
+        .from('student_stats')
+        .select('*')
+        .eq('student_id', studentId)
+        .order('recorded_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+};
+
+export const saveStudentSessionStats = async (stats: Partial<StudentStats>) => {
+    const { error } = await supabase.from('student_stats').insert([stats]);
+    if (error) throw error;
+};
 
 // --- STUDENT SERVICES ---
 

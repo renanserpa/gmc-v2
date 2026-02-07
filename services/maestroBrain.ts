@@ -1,6 +1,7 @@
-import { supabase } from '../lib/supabaseClient';
-import { notify } from '../lib/notification';
-import { MESSAGES } from '../config/constants';
+
+import { supabase } from '../lib/supabaseClient.ts';
+import { notify } from '../lib/notification.ts';
+import { MESSAGES } from '../config/constants.ts';
 
 export type MaestroResponse = {
   text: string;

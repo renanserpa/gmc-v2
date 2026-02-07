@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Building2, Settings2, Power, Users, Calculator, 
-    Calendar, Eye, Layers, ShieldAlert, Ban, CheckCircle2, XCircle
+    Calendar, Eye, Layers, ShieldAlert, Ban, CheckCircle2, XCircle,
+    Phone, FileText, DollarSign, ShieldCheck
 } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/Card.tsx';
 import { Button } from '../../components/ui/Button.tsx';
@@ -15,20 +16,21 @@ import { haptics } from '../../lib/haptics.ts';
 import { cn } from '../../lib/utils.ts';
 import { useAdmin } from '../../contexts/AdminContext.tsx';
 import { formatDate } from '../../lib/date.ts';
+import { School } from '../../types.ts';
 
 const M = motion as any;
 
 export default function TenantManager() {
     const { impersonate } = useAdmin();
-    const { data: schools, loading } = useRealtimeSync<any>('schools', undefined, { column: 'name', ascending: true });
+    const { data: schools, loading } = useRealtimeSync<School>('schools', undefined, { column: 'name', ascending: true });
     const { data: students } = useRealtimeSync<any>('students');
     const { data: profiles } = useRealtimeSync<any>('profiles');
     
-    const [selectedSchool, setSelectedSchool] = useState<any>(null);
+    const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
-    const handleToggleStatus = async (school: any) => {
+    const handleToggleStatus = async (school: School) => {
         haptics.heavy();
         const nextStatus = school.is_active ? 'suspended' : 'active';
         const { error } = await supabase
@@ -40,7 +42,7 @@ export default function TenantManager() {
         else notify.success(`Unidade ${!school.is_active ? 'Reativada' : 'Suspensa'}`);
     };
 
-    const handleImpersonate = (school: any) => {
+    const handleImpersonate = (school: School) => {
         const owner = profiles.find(p => p.id === school.owner_id);
         if (owner) {
             haptics.heavy();
@@ -62,7 +64,9 @@ export default function TenantManager() {
                     monthly_fee: selectedSchool.monthly_fee,
                     fee_per_student: selectedSchool.fee_per_student,
                     contract_status: selectedSchool.contract_status,
-                    enabled_modules: selectedSchool.enabled_modules
+                    enabled_modules: selectedSchool.enabled_modules,
+                    cnpj: selectedSchool.cnpj,
+                    phone: selectedSchool.phone
                 })
                 .eq('id', selectedSchool.id);
             
@@ -77,7 +81,7 @@ export default function TenantManager() {
     };
 
     return (
-        <div className="space-y-10 animate-in fade-in duration-500 pb-20">
+        <div className="space-y-10 animate-in fade-in duration-700 pb-20">
             <header className="flex justify-between items-center bg-slate-900/40 p-10 rounded-[48px] border border-white/5 backdrop-blur-xl relative overflow-hidden shadow-2xl">
                  <div className="absolute top-0 right-0 p-32 bg-sky-500/5 blur-[100px] pointer-events-none" />
                  <div className="relative z-10">
@@ -89,7 +93,7 @@ export default function TenantManager() {
             <div className="grid grid-cols-1 gap-4">
                 {loading ? (
                     [...Array(3)].map((_, i) => <div key={i} className="h-40 bg-slate-900/40 rounded-[48px] animate-pulse" />)
-                ) : schools.map((school: any) => {
+                ) : schools.map((school: School) => {
                     const pupilCount = students?.filter((s: any) => s.school_id === school.id).length || 0;
                     const estimatedRevenue = Number(school.monthly_fee) + (Number(school.fee_per_student) * pupilCount);
                     const owner = profiles.find(p => p.id === school.owner_id);
@@ -111,7 +115,9 @@ export default function TenantManager() {
                                         <h3 className="text-2xl font-black text-white uppercase tracking-tight italic truncate">{school.name}</h3>
                                         <span className={cn(
                                             "px-2 py-0.5 rounded text-[8px] font-black uppercase border",
-                                            school.contract_status === 'active' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"
+                                            school.contract_status === 'active' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : 
+                                            school.contract_status === 'trial' ? "bg-sky-500/10 text-sky-400 border-sky-500/20" :
+                                            "bg-red-500/10 text-red-400 border-red-500/20"
                                         )}>
                                             {school.contract_status}
                                         </span>
@@ -125,6 +131,11 @@ export default function TenantManager() {
                                         <div className="flex items-center gap-1.5 text-[10px] font-black text-emerald-400 uppercase tracking-widest">
                                             <Calculator size={12} /> {estimatedRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} /mês
                                         </div>
+                                        {school.phone && (
+                                            <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                                <Phone size={12} /> {school.phone}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -142,7 +153,7 @@ export default function TenantManager() {
                                     onClick={() => { setSelectedSchool(school); setIsEditOpen(true); }}
                                     className="rounded-2xl h-14 px-8 border-white/10 text-[10px] font-black uppercase hover:bg-white/5"
                                 >
-                                    Gerenciar Plano
+                                    Gerenciar Contrato
                                 </Button>
                                 <button 
                                     onClick={() => handleToggleStatus(school)}
@@ -160,19 +171,74 @@ export default function TenantManager() {
             </div>
 
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                <DialogContent className="bg-slate-950 border-slate-800 rounded-[56px] p-12 max-w-2xl shadow-[0_0_100px_rgba(0,0,0,0.5)]">
+                <DialogContent className="bg-slate-950 border-slate-800 rounded-[56px] p-12 max-w-3xl shadow-[0_0_100px_rgba(0,0,0,0.5)] overflow-y-auto max-h-[90vh] custom-scrollbar">
                     <DialogHeader className="text-center mb-10">
                         <div className="w-16 h-16 bg-sky-600 rounded-3xl flex items-center justify-center mx-auto text-white shadow-xl shadow-sky-900/40 mb-6">
                             <Settings2 size={32} />
                         </div>
-                        <DialogTitle className="text-3xl font-black text-white uppercase italic tracking-tighter">Acesso & Billing</DialogTitle>
-                        <DialogDescription className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2">Configuração de Gating e Parâmetros SaaS</DialogDescription>
+                        <DialogTitle className="text-3xl font-black text-white uppercase italic tracking-tighter">Gestão de Contrato</DialogTitle>
+                        <DialogDescription className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-2">Parâmetros Institucionais e Billing SaaS</DialogDescription>
                     </DialogHeader>
 
                     {selectedSchool && (
-                        <div className="space-y-8">
+                        <div className="space-y-10">
+                            {/* Seção: Dados Jurídicos */}
                             <div className="space-y-4">
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-1">Módulos do Produto</p>
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-1 flex items-center gap-2">
+                                    <FileText size={12} /> Dados Institucionais
+                                </p>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[9px] font-black text-slate-600 uppercase ml-1">CNPJ</label>
+                                        <input 
+                                            value={selectedSchool.cnpj || ''} 
+                                            onChange={e => setSelectedSchool({...selectedSchool, cnpj: e.target.value})} 
+                                            placeholder="00.000.000/0000-00"
+                                            className="w-full bg-slate-900 border border-white/5 rounded-2xl p-5 text-white font-mono" 
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[9px] font-black text-slate-600 uppercase ml-1">Telefone Contato</label>
+                                        <input 
+                                            value={selectedSchool.phone || ''} 
+                                            onChange={e => setSelectedSchool({...selectedSchool, phone: e.target.value})} 
+                                            placeholder="(00) 00000-0000"
+                                            className="w-full bg-slate-900 border border-white/5 rounded-2xl p-5 text-white font-mono" 
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Seção: Billing */}
+                            <div className="space-y-4">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-1 flex items-center gap-2">
+                                    <DollarSign size={12} /> Parâmetros Financeiros
+                                </p>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[9px] font-black text-slate-600 uppercase ml-1">Fee Fixo (R$)</label>
+                                        <input type="number" value={selectedSchool.monthly_fee} onChange={e => setSelectedSchool({...selectedSchool, monthly_fee: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/5 rounded-2xl p-5 text-white font-mono" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[9px] font-black text-slate-600 uppercase ml-1">Valor por Aluno (R$)</label>
+                                        <input type="number" value={selectedSchool.fee_per_student} onChange={e => setSelectedSchool({...selectedSchool, fee_per_student: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/5 rounded-2xl p-5 text-white font-mono" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[9px] font-black text-slate-600 uppercase ml-1">Status Contrato</label>
+                                        <select value={selectedSchool.contract_status} onChange={e => setSelectedSchool({...selectedSchool, contract_status: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-2xl p-5 text-white appearance-none">
+                                            <option value="trial">Trial (Degustação)</option>
+                                            <option value="active">Active (Pago)</option>
+                                            <option value="suspended">Suspended (Atraso)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Seção: Gating */}
+                            <div className="space-y-4">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] ml-1 flex items-center gap-2">
+                                    <ShieldCheck size={12} /> Módulos Habilitados
+                                </p>
                                 <div className="grid grid-cols-2 gap-3">
                                     {['gamification', 'financial', 'ai_pitch', 'library'].map(mod => (
                                         <button 
@@ -183,30 +249,15 @@ export default function TenantManager() {
                                             })}
                                             className={cn(
                                                 "p-5 rounded-3xl border-2 flex items-center justify-between transition-all",
-                                                selectedSchool.enabled_modules[mod] 
+                                                selectedSchool.enabled_modules?.[mod] 
                                                     ? "bg-sky-500/10 border-sky-500 text-white shadow-lg" 
                                                     : "bg-slate-900 border-white/5 text-slate-700"
                                             )}
                                         >
                                             <span className="text-[10px] font-black uppercase tracking-widest">{mod.replace('_', ' ')}</span>
-                                            {selectedSchool.enabled_modules[mod] ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+                                            {selectedSchool.enabled_modules?.[mod] ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
                                         </button>
                                     ))}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Fee Fixo (R$)</label>
-                                    <input type="number" value={selectedSchool.monthly_fee} onChange={e => setSelectedSchool({...selectedSchool, monthly_fee: Number(e.target.value)})} className="w-full bg-slate-900 border border-white/5 rounded-2xl p-5 text-white font-mono" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Status Contrato</label>
-                                    <select value={selectedSchool.contract_status} onChange={e => setSelectedSchool({...selectedSchool, contract_status: e.target.value})} className="w-full bg-slate-900 border border-white/5 rounded-2xl p-5 text-white">
-                                        <option value="active">Ativo</option>
-                                        <option value="trial">Trial</option>
-                                        <option value="suspended">Suspenso</option>
-                                    </select>
                                 </div>
                             </div>
                         </div>

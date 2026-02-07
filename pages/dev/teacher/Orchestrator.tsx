@@ -1,339 +1,295 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    Radio, Zap, Play, Square, Wand2, 
-    Sparkles, Timer as TimerIcon, Users, ShieldCheck, 
-    Trophy, Heart, Music, Send, Loader2,
-    Monitor, MessageSquare, LayoutTemplate, Brain,
-    LogOut, CheckCircle2, Eraser, Save, Star,
-    Piano as PianoIcon, Guitar as GuitarIcon,
-    FileText, Volume2, Pause, RotateCcw, X, Eye, 
-    ChevronDown, BookMarked, History, Plus, 
-    PlayCircle, Check, AlertCircle, Printer, BookOpen
+    Zap, Eraser, Piano as PianoIcon, Guitar as GuitarIcon,
+    Ear, FastForward, Check, RotateCcw, Monitor,
+    Sparkles, Gauge, Target, Users, Play, Square,
+    ThumbsUp, ChevronLeft, ChevronRight, Music,
+    Flame, AlertCircle, Info, Trophy, Heart, BookOpen,
+    Save, LogOut, Crosshair
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card.tsx';
-import { Button } from '../../../components/ui/Button.tsx';
+import { Card, CardContent } from '../../../components/ui/Card.tsx';
 import { UserAvatar } from '../../../components/ui/UserAvatar.tsx';
 import { useMaestro } from '../../../contexts/MaestroContext.tsx';
-import { useAuth } from '../../../contexts/AuthContext.tsx';
-import { 
-    getStudentsInClass, 
-    getLibraryItems, 
-    saveLivePreset, 
-    getLivePresets,
-    saveFamilyReport,
-    logClassSession 
-} from '../../../services/dataService.ts';
 import { classroomService } from '../../../services/classroomService.ts';
+import { applyXpEvent } from '../../../services/gamificationService.ts';
 import { haptics } from '../../../lib/haptics.ts';
 import { cn } from '../../../lib/utils.ts';
-import { getNoteName } from '../../../lib/theoryEngine.ts';
+import { getNoteName, getScaleNotes, NOTES_CHROMATIC } from '../../../lib/theoryEngine.ts';
 import { PianoBoard } from '../../../components/instruments/PianoBoard.tsx';
+import { GuitarBoard } from '../../../components/instruments/GuitarBoard.tsx';
+import { Button } from '../../../components/ui/Button.tsx';
 import { notify } from '../../../lib/notification.ts';
-import * as RRD from 'react-router-dom';
-const { useNavigate } = RRD as any;
+import { getStudentsInClass } from '../../../services/dataService.ts';
+import { LessonSummaryModal } from '../../../components/dashboard/LessonSummaryModal.tsx';
 
-const M = motion as any;
-
-const STRINGS_TUNING = [4, 11, 7, 2, 9, 4];
-const STRING_LABELS = ['e', 'B', 'G', 'D', 'A', 'E'];
-
-// Estrutura Pedagógica Olie
-const CURRICULUM = [
-    {
-        id: 'mod1',
-        title: 'Módulo 1: Fundamentos',
-        lessons: [
-            { id: 'l1', title: 'Aula 1: O Toque da Aranha', page: '5', video: 'https://vimeo.com/123456', activity: 'fretboard', notes: ['0-0', '1-0', '2-0'] },
-            { id: 'l2', title: 'Aula 2: Ritmo do Elefante', page: '12', video: 'https://vimeo.com/789012', activity: 'piano', notes: ['C3', 'E3', 'G3'] },
-            { id: 'l3', title: 'Aula 3: Acordes Amigos', page: '18', video: 'https://vimeo.com/345678', activity: 'fretboard', notes: ['3-1', '2-2', '0-3'] },
-        ]
-    },
-    {
-        id: 'mod2',
-        title: 'Módulo 2: O Despertar',
-        lessons: [
-            { id: 'l4', title: 'Aula 4: Escala de Luz', page: '24', video: 'https://vimeo.com/901234', activity: 'piano', notes: ['C4', 'D4', 'E4', 'F4'] },
-        ]
-    }
-];
-
-const LUCCA_QUOTES = [
-    "Mandou bem na palhetada! 🎸",
-    "Essa nota soou limpa, mestre! ✨",
-    "Estou ouvindo o progresso daqui! 🎧",
-    "Ritmo de elefante nota 10! 🐘",
-    "Você é um rockstar nato! 🤘",
-    "Maestria total nessa escala! 🌟"
+const MOCK_SCALES = [
+    { id: 'major', label: 'Maior' },
+    { id: 'minor', label: 'Menor' },
+    { id: 'pentatonic_major', label: 'Penta Maior' },
+    { id: 'pentatonic_minor', label: 'Penta Menor' }
 ];
 
 export default function Orchestrator() {
-    const { metronome, activeSession } = useMaestro();
-    const { user } = useAuth();
-    const navigate = useNavigate();
+    const { 
+        metronome, activeSession, lessonScript, 
+        currentStepIdx, nextStep, prevStep, sendTVCommand 
+    } = useMaestro();
     
-    // Core States
-    const [students, setStudents] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
     const [selectedInstrument, setSelectedInstrument] = useState<'guitar' | 'piano'>('guitar');
     const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set());
+    const [students, setStudents] = useState<any[]>([]);
+    const [showSummary, setShowSummary] = useState(false);
     
-    // UI States
-    const [expandedModule, setExpandedModule] = useState<string | null>('mod1');
-    const [activeLesson, setActiveLesson] = useState<any>(null);
-    const [quizMode, setQuizMode] = useState(false);
-    
-    // Pedagogical Log
-    const [lessonObservation, setLessonObservation] = useState('');
-    const [timerValue, setTimerValue] = useState(0);
+    // Book Marker Logic
+    const touchpadRef = useRef<HTMLDivElement>(null);
+    const [isBookMode, setIsBookMode] = useState(false);
+    // FIX: Defined 'markerPos' state to resolve "Cannot find name 'markerPos'" error
+    const [markerPos, setMarkerPos] = useState({ x: 50, y: 50 });
 
     useEffect(() => {
-        if (activeSession.classId && user?.id) {
-            getStudentsInClass(activeSession.classId).then(res => {
-                setStudents(res);
-                setLoading(false);
-            });
+        if (activeSession.classId) {
+            getStudentsInClass(activeSession.classId).then(setStudents);
         }
-    }, [activeSession.classId, user?.id]);
+    }, [activeSession.classId]);
 
-    const handleLessonSelect = (lesson: any) => {
-        setActiveLesson(lesson);
-        setSelectedInstrument(lesson.activity);
-        setSelectedNotes(new Set(lesson.notes));
+    const handleTouchpadMove = (e: React.MouseEvent | React.TouchEvent) => {
+        if (!touchpadRef.current) return;
+        const rect = touchpadRef.current.getBoundingClientRect();
+        const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+        const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+        
+        const x = ((clientX - rect.left) / rect.width) * 100;
+        const y = ((clientY - rect.top) / rect.height) * 100;
+
+        // FIX: Update local 'markerPos' state for visual feedback in Orchestrator
+        setMarkerPos({ x, y });
+        sendTVCommand({
+            type: 'BOOK_MARKER_MOVE',
+            payload: { x, y }
+        });
+    };
+
+    const toggleBookMode = () => {
+        const next = !isBookMode;
+        setIsBookMode(next);
         haptics.medium();
         
-        // Sincroniza a TV com o novo material
-        if (activeSession.classId) {
-            classroomService.sendCommand(activeSession.classId, {
-                type: lesson.activity === 'guitar' ? 'FRETBOARD_UPDATE' : 'PIANO_UPDATE',
-                payload: { notes: lesson.notes }
+        const currentStep = lessonScript[currentStepIdx];
+        if (next && currentStep.config?.bookImageUrl) {
+            sendTVCommand({
+                type: 'BOOK_PAGE_VIEW',
+                payload: { url: currentStep.config.bookImageUrl, page: currentStep.config.bookPage }
             });
-        }
-        notify.info(`Iniciando ${lesson.title}. Apostila: Pág ${lesson.page}`);
-    };
-
-    const toggleNote = (key: string) => {
-        haptics.light();
-        const next = new Set(selectedNotes);
-        if (next.has(key)) next.delete(key);
-        else next.add(key);
-        setSelectedNotes(next);
-
-        // Broadcast Live
-        if (activeSession.classId) {
-            classroomService.sendCommand(activeSession.classId, {
-                type: selectedInstrument === 'guitar' ? 'FRETBOARD_UPDATE' : 'PIANO_UPDATE',
-                payload: { notes: Array.from(next) }
-            });
+        } else {
+            sendTVCommand({ type: 'EXIT_VIDEO' });
         }
     };
 
-    const handleGiveExtraXp = (student: any) => {
+    const triggerSticker = (type: string, label: string) => {
+        haptics.fever();
+        sendTVCommand({
+            type: 'COMMAND_STICKER',
+            payload: { type, label }
+        });
+    };
+
+    const handleQuickEval = async (student: any, rating: 'mastered' | 'progressing') => {
         haptics.success();
-        const quote = LUCCA_QUOTES[Math.floor(Math.random() * LUCCA_QUOTES.length)];
+        const xp = rating === 'mastered' ? 50 : 20;
+        const msg = rating === 'mastered' ? 'DOMINOU!' : 'MUITO BEM!';
         
-        // Dispara Shoutout na TV
-        if (activeSession.classId) {
-            classroomService.sendCommand(activeSession.classId, {
-                type: 'STUDENT_SHOUTOUT',
-                payload: { 
-                    name: student.name.split(' ')[0], 
-                    message: quote,
-                    avatar: student.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=Lucca`
-                }
-            });
-        }
-        notify.success(`${student.name.split(' ')[0]} ganhou XP! Lucca está no telão.`);
-    };
+        await applyXpEvent({
+            studentId: student.id,
+            eventType: 'LIVE_EVALUATION',
+            xpAmount: xp,
+            schoolId: 'd290f1ee-6c54-4b01-90e6-d701748f0851'
+        });
 
-    const sendQuizResult = (success: boolean) => {
-        haptics.heavy();
-        if (activeSession.classId) {
-            classroomService.sendCommand(activeSession.classId, {
-                type: 'QUIZ_FEEDBACK',
-                payload: { success }
-            });
-        }
-        if (success) notify.success("Resposta Correta enviada para TV! 🎉");
-        else notify.error("Ops! Tente novamente na TV. ❌");
+        sendTVCommand({
+            type: 'STUDENT_SHOUTOUT',
+            payload: { name: student.name, avatar: student.avatar_url, message: msg }
+        });
     };
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8 pb-64 animate-in fade-in duration-700">
-            {/* Header Control */}
-            <header className="flex justify-between items-center bg-[#0a0f1d] p-8 rounded-[48px] border border-white/5 backdrop-blur-xl shadow-2xl">
-                <div className="flex items-center gap-6">
-                    <div className="p-5 bg-sky-600 rounded-[32px] text-white shadow-xl">
-                        <Radio size={32} />
-                    </div>
-                    <div>
-                        <h1 className="text-3xl font-black text-white uppercase italic tracking-tighter leading-none">
-                            {activeSession.className || 'Maestro Pro'}
-                        </h1>
-                        <div className="flex items-center gap-2 mt-2">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Sessão Sincronizada</span>
-                        </div>
-                    </div>
-                </div>
-
+        <div className="max-w-full mx-auto space-y-6 pb-40 animate-in fade-in duration-700 font-sans h-screen flex flex-col">
+            
+            <header className="flex justify-between items-center bg-slate-900 p-6 rounded-3xl border border-white/5">
                 <div className="flex items-center gap-4">
-                    <div className="bg-slate-900 px-6 py-3 rounded-2xl border border-white/5 flex flex-col items-end">
-                        <span className="text-[8px] font-black text-slate-600 uppercase">Tempo de Aula</span>
-                        <span className="text-xl font-black text-white font-mono">00:42:15</span>
+                    <div className="p-3 bg-sky-600 rounded-2xl text-white"><Monitor size={20} /></div>
+                    <div>
+                        <h2 className="text-xl font-black text-white uppercase italic">{activeSession.className || 'Sessão Offline'}</h2>
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Orquestrador Maestro v8.5</p>
                     </div>
-                    <Button onClick={() => notify.info("Aula Finalizada.")} className="rounded-2xl h-16 px-10 bg-rose-600 font-black uppercase text-xs" leftIcon={CheckCircle2}>ENCERRAR AULA</Button>
                 </div>
+                <Button 
+                    onClick={() => setShowSummary(true)} 
+                    variant="danger" 
+                    className="rounded-2xl px-8 h-14 bg-red-600 font-black uppercase text-xs"
+                    leftIcon={LogOut}
+                >
+                    Finalizar Aula
+                </Button>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Lateral: Curriculum Navigator */}
-                <aside className="lg:col-span-3 space-y-6">
-                    <Card className="bg-[#0a0f1d] border-white/5 rounded-[48px] overflow-hidden shadow-2xl">
-                        <div className="p-6 bg-slate-950/50 border-b border-white/5 flex items-center gap-3">
-                            <BookOpen size={18} className="text-sky-400" />
-                            <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Olie Curriculum</h3>
-                        </div>
-                        <div className="p-4 space-y-4">
-                            {CURRICULUM.map(mod => (
-                                <div key={mod.id} className="space-y-2">
-                                    <button 
-                                        onClick={() => setExpandedModule(expandedModule === mod.id ? null : mod.id)}
-                                        className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-900 border border-white/5 text-[10px] font-black text-slate-400 uppercase hover:text-white transition-all"
-                                    >
-                                        {mod.title}
-                                        <ChevronDown size={14} className={cn("transition-transform", expandedModule === mod.id && "rotate-180")} />
-                                    </button>
-                                    <AnimatePresence>
-                                        {expandedModule === mod.id && (
-                                            <M.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="space-y-1 pl-2">
-                                                {mod.lessons.map(lesson => (
-                                                    <button 
-                                                        key={lesson.id}
-                                                        onClick={() => handleLessonSelect(lesson)}
-                                                        className={cn(
-                                                            "w-full text-left p-3 rounded-xl text-[10px] font-bold uppercase transition-all flex items-center justify-between group",
-                                                            activeLesson?.id === lesson.id ? "bg-sky-600 text-white" : "text-slate-500 hover:bg-white/5"
-                                                        )}
-                                                    >
-                                                        {lesson.title}
-                                                        <span className="opacity-0 group-hover:opacity-100 text-[8px] bg-white/10 px-1.5 py-0.5 rounded">Pág {lesson.page}</span>
-                                                    </button>
-                                                ))}
-                                            </M.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                            ))}
-                        </div>
-                    </Card>
-
-                    <Card className="bg-[#0a0f1d] border-white/5 rounded-[48px] p-6 shadow-2xl">
-                        <div className="flex items-center gap-3 mb-6 px-2">
-                            <Users className="text-purple-500" size={18} />
-                            <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Squad Online</h3>
-                        </div>
-                        <div className="space-y-3">
-                            {students.map(s => (
-                                <div key={s.id} className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/50 border border-white/5">
-                                    <div className="flex items-center gap-3">
-                                        <UserAvatar src={s.avatar_url} name={s.name} size="sm" />
-                                        <span className="text-[10px] font-black text-white uppercase truncate max-w-[80px]">{s.name.split(' ')[0]}</span>
-                                    </div>
-                                    <button onClick={() => handleGiveExtraXp(s)} className="p-2 text-slate-700 hover:text-amber-500 transition-colors"><Star size={16} /></button>
-                                </div>
-                            ))}
-                        </div>
-                    </Card>
-                </aside>
-
-                {/* Main: Interactive Board & Quiz */}
-                <main className="lg:col-span-9 space-y-8">
-                    <Card className="bg-[#0a0f1d] border-white/5 rounded-[56px] p-10 shadow-2xl relative overflow-hidden">
-                        <div className="flex justify-between items-center mb-10">
-                            <div className="flex items-center gap-4">
-                                <div className={cn("p-3 rounded-2xl", quizMode ? "bg-amber-600 animate-pulse" : "bg-sky-600")}>
-                                    {quizMode ? <Sparkles size={24} className="text-white" /> : <LayoutTemplate size={24} className="text-white" />}
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Lousa de Apoio Olie</h3>
-                                    <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-1">
-                                        {quizMode ? 'MODO QUIZ ATIVO: AVALIAÇÃO LIVE' : 'DEMONSTRAÇÃO TÉCNICA'}
-                                    </p>
-                                </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
+                
+                {/* COLUNA 1: METRÔNOMO & WORKBOOK */}
+                <div className="lg:col-span-3 space-y-6">
+                    <Card className="bg-slate-900 border-white/5 p-8 rounded-[48px] h-full flex flex-col justify-between">
+                        <div className="space-y-8">
+                            <div className="text-center">
+                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">BPM Master</p>
+                                <p className="text-7xl font-black text-white font-mono">{metronome.bpm}</p>
+                                <input 
+                                    type="range" min="40" max="220" value={metronome.bpm} 
+                                    onChange={(e) => metronome.setBpm(Number(e.target.value))}
+                                    className="w-full mt-6 h-2 accent-sky-500 bg-slate-800 rounded-full appearance-none cursor-pointer"
+                                />
                             </div>
-                            
-                            <div className="flex gap-3">
-                                <Button 
-                                    variant="ghost" 
-                                    onClick={() => setQuizMode(!quizMode)}
-                                    className={cn("rounded-xl text-[9px] font-black uppercase", quizMode ? "text-amber-500" : "text-slate-600")}
-                                    leftIcon={Sparkles}
+
+                            <Button 
+                                onClick={metronome.toggle}
+                                className={cn("w-full h-20 rounded-3xl text-white font-black", metronome.isPlaying ? "bg-rose-600 animate-pulse" : "bg-emerald-600")}
+                            >
+                                {metronome.isPlaying ? <Square size={32} fill="white"/> : <Play size={32} fill="white"/>}
+                            </Button>
+                        </div>
+
+                        <div className="pt-8 border-t border-white/5">
+                            <button 
+                                onClick={toggleBookMode}
+                                className={cn(
+                                    "w-full py-6 rounded-3xl border-2 flex flex-col items-center justify-center gap-2 transition-all shadow-xl",
+                                    isBookMode ? "bg-purple-600 border-white text-white" : "bg-slate-950 border-white/5 text-slate-500"
+                                )}
+                            >
+                                <BookOpen size={24} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">📖 Ver Apostila na TV</span>
+                            </button>
+                        </div>
+                    </Card>
+                </div>
+
+                {/* COLUNA 2: TOUCHPAD & INSTRUMENTO */}
+                <div className="lg:col-span-6">
+                    <Card className="h-full bg-[#050810] border border-white/5 rounded-[64px] p-8 flex flex-col">
+                        {isBookMode ? (
+                            <div className="flex-1 flex flex-col">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <Crosshair size={20} className="text-sky-400" />
+                                    <h3 className="text-lg font-black text-white uppercase italic">Touchpad de Foco (HDMI)</h3>
+                                </div>
+                                <div 
+                                    ref={touchpadRef}
+                                    onMouseMove={handleTouchpadMove}
+                                    onTouchMove={handleTouchpadMove}
+                                    className="flex-1 bg-slate-900/50 rounded-[48px] border-4 border-dashed border-sky-500/20 relative cursor-crosshair overflow-hidden group"
                                 >
-                                    {quizMode ? 'SAIR DO QUIZ' : 'MODO QUIZ'}
-                                </Button>
-                                <Button variant="ghost" className="rounded-xl text-[9px] font-black uppercase text-slate-600" leftIcon={Printer}>Handout PDF</Button>
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-10">
+                                         <BookOpen size={120} className="text-white" />
+                                    </div>
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+                                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em]">Arraste para mover o marcador neon na TV</p>
+                                    </div>
+                                    {/* Guia visual do cursor no tablet */}
+                                    <div 
+                                        className="absolute w-12 h-12 rounded-full border-2 border-sky-400 bg-sky-400/20 pointer-events-none"
+                                        style={{ left: `${markerPos.x}%`, top: `${markerPos.y}%`, marginLeft: '-24px', marginTop: '-24px' }}
+                                    />
+                                </div>
                             </div>
-                        </div>
-
-                        <div className="min-h-[300px] flex items-center justify-center">
-                            {selectedInstrument === 'guitar' ? (
-                                <div className="flex flex-col gap-0 w-full">
-                                    {STRINGS_TUNING.map((rootNote, sIdx) => (
-                                        <div key={sIdx} className="h-12 flex items-center relative border-b border-slate-800/30 last:border-0 group">
-                                            <div className="w-10 flex items-center justify-center font-black text-slate-700 text-[10px] border-r border-slate-800 bg-slate-900/30">{STRING_LABELS[sIdx]}</div>
-                                            {Array.from({ length: 13 }).map((_, fIdx) => (
-                                                <button key={fIdx} onClick={() => toggleNote(`${sIdx}-${fIdx}`)} className={cn("flex-1 h-full border-r border-slate-800/50 flex items-center justify-center relative", fIdx === 0 && "border-r-8 border-slate-700 bg-slate-900/20")}>
-                                                    <div className="absolute w-full h-[1px] bg-slate-800" />
-                                                    {selectedNotes.has(`${sIdx}-${fIdx}`) && (
-                                                        <M.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-8 h-8 rounded-full bg-sky-500 border-2 border-white shadow-lg flex items-center justify-center z-10">
-                                                            <span className="text-[9px] font-black text-white">{getNoteName((rootNote + fIdx) % 12)}</span>
-                                                        </M.div>
-                                                    )}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="w-full">
-                                    <PianoBoard activeNotes={Array.from(selectedNotes)} onNoteToggle={(note) => toggleNote(note)} className="bg-transparent border-none p-0" />
-                                </div>
-                            )}
-                        </div>
-
-                        {quizMode && (
-                            <div className="mt-10 pt-10 border-t border-white/5 flex justify-center gap-6 animate-in slide-in-from-bottom-4 duration-500">
-                                <Button onClick={() => sendQuizResult(false)} className="bg-rose-600/20 text-rose-500 border border-rose-500/20 px-10 py-6 rounded-2xl font-black uppercase text-xs" leftIcon={X}>REFAZER</Button>
-                                <Button onClick={() => sendQuizResult(true)} className="bg-emerald-600 text-white px-16 py-6 rounded-2xl font-black uppercase text-xs shadow-xl shadow-emerald-900/20" leftIcon={Check}>ACERTOU!</Button>
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center scale-110">
+                                <GuitarBoard 
+                                    selectedNotes={selectedNotes} 
+                                    onNoteToggle={(s, f) => {
+                                        const key = `${s}-${f}`;
+                                        const next = new Set(selectedNotes);
+                                        if (next.has(key)) next.delete(key);
+                                        else next.add(key);
+                                        setSelectedNotes(next);
+                                        sendTVCommand({ type: 'FRETBOARD_UPDATE', payload: { notes: Array.from(next) } });
+                                    }} 
+                                />
                             </div>
                         )}
                     </Card>
+                </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <Card className="bg-[#0a0f1d] border-white/5 rounded-[48px] p-8 shadow-2xl flex items-center gap-8">
-                            <div className="p-6 bg-slate-950 rounded-3xl text-emerald-500 shadow-inner"><Volume2 size={32} /></div>
-                            <div className="flex-1">
-                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Backing Track</p>
-                                <div className="flex items-center gap-4">
-                                    <button className="p-3 bg-emerald-600 rounded-xl text-white hover:bg-emerald-500 transition-all"><Play size={18} fill="currentColor" /></button>
-                                    <div className="flex-1 h-1.5 bg-slate-900 rounded-full overflow-hidden"><div className="h-full w-1/3 bg-emerald-500" /></div>
-                                </div>
-                            </div>
-                        </Card>
-                        <Card className="bg-[#0a0f1d] border-white/5 rounded-[48px] p-8 shadow-2xl flex items-center gap-8">
-                            <div className="p-6 bg-slate-950 rounded-3xl text-purple-500 shadow-inner"><MessageSquare size={32} /></div>
-                            <textarea 
-                                value={lessonObservation}
-                                onChange={e => setLessonObservation(e.target.value)}
-                                placeholder="Dever de casa / Log pedagógico..."
-                                className="flex-1 bg-transparent border-none outline-none text-sm text-slate-400 font-medium italic resize-none"
-                            />
-                        </Card>
-                    </div>
-                </main>
+                {/* COLUNA 3: STICKERS & SCRIPT */}
+                <div className="lg:col-span-3 space-y-6">
+                    <Card className="bg-slate-900 border-white/5 p-6 rounded-[48px] shadow-2xl">
+                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 px-2">Comandos HDMI</p>
+                         <div className="grid grid-cols-2 gap-3">
+                             {[
+                                 { id: 'attention', label: 'Escutar', color: 'bg-rose-600' },
+                                 { id: 'energy', label: 'Energia', color: 'bg-amber-500' },
+                                 { id: 'celebrate', label: 'Celebrar', color: 'bg-emerald-500' },
+                                 { id: 'focus', label: 'Foco', color: 'bg-sky-500' }
+                             ].map(s => (
+                                 <button 
+                                    key={s.id}
+                                    onClick={() => triggerSticker(s.id, s.label)}
+                                    className={cn("aspect-square rounded-3xl flex flex-col items-center justify-center gap-2 text-white font-black text-[10px] uppercase transition-all hover:scale-105 active:scale-95 shadow-xl", s.color)}
+                                 >
+                                    <Zap size={20} fill="white" />
+                                    {s.label}
+                                 </button>
+                             ))}
+                         </div>
+                    </Card>
+
+                    <Card className="flex-1 bg-slate-950 border border-white/5 rounded-[48px] p-6 overflow-y-auto custom-scrollbar">
+                         <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] mb-4 px-2">Músicos na Aula</p>
+                         <div className="space-y-3">
+                             {students.map(s => (
+                                 <div key={s.id} className="bg-slate-900 p-4 rounded-[28px] border border-white/5 flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <UserAvatar src={s.avatar_url} name={s.name} size="sm" />
+                                        <span className="text-[10px] font-black text-white uppercase">{s.name.split(' ')[0]}</span>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <button onClick={() => handleQuickEval(s, 'mastered')} className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all"><Check size={14}/></button>
+                                        <button onClick={() => handleQuickEval(s, 'progressing')} className="p-2 rounded-lg bg-sky-500/10 text-sky-400 hover:bg-sky-500 hover:text-white transition-all"><Zap size={14}/></button>
+                                    </div>
+                                 </div>
+                             ))}
+                         </div>
+                    </Card>
+                </div>
             </div>
+
+            {/* WORKBOOK NAVIGATOR */}
+            <footer className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-7xl px-6 z-[100]">
+                <div className="bg-slate-900/90 backdrop-blur-3xl border-4 border-white/10 p-4 rounded-[40px] shadow-2xl flex items-center justify-between">
+                    <div className="flex items-center gap-6 pl-4">
+                        <div className="bg-sky-600 p-3 rounded-2xl text-white shadow-lg"><BookOpen size={24} /></div>
+                        <div>
+                            <span className="text-[10px] font-black text-sky-400 uppercase tracking-[0.4em] block">Workbook Navigator</span>
+                            <h4 className="text-xl font-black text-white uppercase italic tracking-tight">{lessonScript[currentStepIdx].title}</h4>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 pr-2">
+                        <Button variant="ghost" disabled={currentStepIdx === 0} onClick={prevStep} className="w-14 h-14 rounded-2xl bg-slate-800 border border-white/5"><ChevronLeft/></Button>
+                        <div className="flex gap-2">
+                            {lessonScript.map((_, i) => (
+                                <div key={i} className={cn("h-1.5 rounded-full transition-all", i === currentStepIdx ? "w-8 bg-sky-500 shadow-[0_0_10px_#0ea5e9]" : "w-1.5 bg-slate-700")} />
+                            ))}
+                        </div>
+                        <Button disabled={currentStepIdx === lessonScript.length - 1} onClick={nextStep} className="h-16 px-10 rounded-2xl bg-sky-600 font-black uppercase text-xs">PRÓXIMO PASSO</Button>
+                    </div>
+                </div>
+            </footer>
+
+            <LessonSummaryModal 
+                isOpen={showSummary} 
+                onClose={() => setShowSummary(false)} 
+                session={activeSession}
+                students={students}
+            />
         </div>
     );
 }

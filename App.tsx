@@ -10,7 +10,7 @@ import LoadingScreen from './components/ui/LoadingScreen.tsx';
 import { ErrorBoundary } from './components/ui/ErrorBoundary.tsx';
 import { MaestroProvider } from './contexts/MaestroContext.tsx';
 
-// SPRINT 01 PAGES
+// SPRINT 01-08 PAGES
 const TeacherDashboard = lazy(() => import('./pages/dev/teacher/Dashboard.tsx'));
 const TeacherStudents = lazy(() => import('./pages/dev/teacher/Students.tsx'));
 const TeacherClasses = lazy(() => import('./pages/dev/teacher/Classes.tsx'));
@@ -19,11 +19,19 @@ const TeacherWhiteboard = lazy(() => import('./pages/dev/teacher/Whiteboard.tsx'
 const TeacherOrchestrator = lazy(() => import('./pages/dev/teacher/Orchestrator.tsx'));
 const ClassroomMode = lazy(() => import('./pages/ClassroomMode.tsx'));
 
+// ADMIN PAGES
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard.tsx'));
+
 // STUDENT ARCADE ENGINE
 const StudentDashboard = lazy(() => import('./pages/dev/student/Dashboard.tsx'));
 const StudentPractice = lazy(() => import('./pages/dev/student/PracticeRoom.tsx'));
 const StudentShop = lazy(() => import('./pages/dev/student/Shop.tsx'));
+const StudentInventory = lazy(() => import('./pages/dev/student/Inventory.tsx'));
 const ArcadePage = lazy(() => import('./pages/ArcadePage.tsx'));
+
+// SPRINT 09 - FAMILY & CMS
+const FamilyDashboard = lazy(() => import('./pages/dev/family/Dashboard.tsx'));
+const LibraryCMS = lazy(() => import('./pages/admin/LibraryCMS.tsx'));
 
 const Login = lazy(() => import('./pages/Login.tsx'));
 
@@ -41,7 +49,6 @@ export default function App() {
                 <Route path="/classroom/tv" element={<ClassroomMode />} />
 
                 <Route element={<Layout />}>
-                    {/* REDIRECIONAMENTO ROOT BASEADO NA PERSONA SPRINT 01 */}
                     <Route path="/" element={<Navigate to="/teacher/dashboard" replace />} />
 
                     {/* TEACHER CONTEXT */}
@@ -50,13 +57,19 @@ export default function App() {
                     <Route path="/teacher/classes" element={<TeacherClasses />} />
                     <Route path="/teacher/whiteboard" element={<TeacherWhiteboard />} />
                     <Route path="/teacher/orchestrator" element={<TeacherOrchestrator />} />
+                    <Route path="/teacher/cms" element={<LibraryCMS />} />
                     
-                    {/* STUDENT ARCADE CONTEXT (ATIVADO) */}
+                    {/* STUDENT ARCADE CONTEXT */}
                     <Route path="/student/dashboard" element={<StudentDashboard />} />
                     <Route path="/student/practice" element={<StudentPractice />} />
                     <Route path="/student/shop" element={<StudentShop />} />
+                    <Route path="/student/inventory" element={<StudentInventory />} />
                     <Route path="/student/arcade" element={<ArcadePage />} />
 
+                    {/* FAMILY CONTEXT */}
+                    <Route path="/family/dashboard" element={<FamilyDashboard />} />
+
+                    <Route path="/admin/dashboard" element={<AdminDashboard />} />
                     <Route path="/admin/school" element={<SchoolManager />} />
                 </Route>
                 

@@ -6,7 +6,7 @@ import {
     Heart, Shield, Gamepad2, Play, 
     MessageSquare, Music, ArrowRight,
     Gamepad, Sparkles, User, Bell, FileText,
-    TrendingUp, ExternalLink, PlayCircle
+    TrendingUp, ExternalLink, PlayCircle, Guitar, Palette
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card.tsx';
 import { Button } from '../../../components/ui/Button.tsx';
@@ -15,6 +15,7 @@ import { useCurrentStudent } from '../../../hooks/useCurrentStudent.ts';
 import { useAuth } from '../../../contexts/AuthContext.tsx';
 import { JourneyMap } from '../../../components/dashboard/JourneyMap.tsx';
 import { getLatestFamilyReport, getActiveLessonMaterial } from '../../../services/dataService.ts';
+import { getAvatarAssets } from '../../../services/storeService.ts';
 import { supabase } from '../../../lib/supabaseClient.ts';
 import { cn } from '../../../lib/utils.ts';
 import { haptics } from '../../../lib/haptics.ts';
@@ -34,12 +35,24 @@ export default function StudentDashboard() {
     const [lastReport, setLastReport] = useState<any>(null);
     const [activeMaterial, setActiveMaterial] = useState<any>(null);
     const [showReward, setShowReward] = useState<any>(null);
+    const [equippedSkin, setEquippedSkin] = useState<any>(null);
 
-    // TAREFA 1: REALTIME REWARD SYNC
+    // Carregar informações da Skin Ativa
+    useEffect(() => {
+        const skinId = student?.metadata?.equipped_skin_id;
+        if (skinId) {
+            getAvatarAssets().then(assets => {
+                const found = assets.find((a: any) => a.id === skinId);
+                setEquippedSkin(found);
+            });
+        } else {
+            setEquippedSkin(null);
+        }
+    }, [student?.metadata?.equipped_skin_id]);
+
     useEffect(() => {
         if (!student?.id) return;
 
-        // Listener de alterações no perfil (XP / Moedas)
         const profileSub = supabase
             .channel(`student_rewards_${student.id}`)
             .on('postgres_changes', { 
@@ -63,7 +76,6 @@ export default function StudentDashboard() {
             })
             .subscribe();
 
-        // TAREFA 2: WORKBOOK SYNC (Listener de Orquestração da Classe)
         const { data: enrollment } = supabase.from('enrollments').select('class_id').eq('student_id', student.id).maybeSingle() as any;
         
         if (enrollment?.class_id) {
@@ -91,7 +103,6 @@ export default function StudentDashboard() {
         return () => supabase.removeChannel(profileSub);
     }, [student?.id, refetch]);
 
-    // Mock das missões baseado no progresso da apostila (Tarefa 2)
     const dynamicLessons = useMemo(() => {
         const completedCount = student?.completed_content_ids?.length || 0;
         return [
@@ -108,7 +119,6 @@ export default function StudentDashboard() {
     return (
         <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in duration-700 pb-32">
             
-            {/* Pop de Recompensa em Tempo Real */}
             <AnimatePresence>
                 {showReward && (
                     <M.div 
@@ -134,7 +144,6 @@ export default function StudentDashboard() {
                 <Sparkles size={20} fill="white" />
             </M.div>
 
-            {/* Greeting do Lucca */}
             <div className="flex flex-col md:flex-row gap-8 items-center">
                 <M.div 
                     initial={{ scale: 0.8, opacity: 0 }}
@@ -163,16 +172,30 @@ export default function StudentDashboard() {
                 </M.div>
             </div>
             
-            {/* Header Gamer HUD */}
             <header className="grid grid-cols-1 md:grid-cols-12 gap-6">
                 <div className="md:col-span-8 bg-[#0a0f1d] border border-white/5 p-8 rounded-[48px] shadow-2xl relative overflow-hidden flex items-center gap-8">
                     <div className="absolute top-0 right-0 p-32 bg-sky-500/5 blur-[100px] pointer-events-none" />
+                    
                     <div className="relative group">
                         <UserAvatar src={student.avatar_url} name={student.name} size="xl" className="border-4 border-sky-500 shadow-2xl" />
+                        
+                        {/* REFLEXO VISUAL DA SKIN EQUIPADA */}
+                        {equippedSkin && (
+                            <motion.div 
+                                initial={{ scale: 0 }} 
+                                animate={{ scale: 1 }}
+                                className="absolute -top-3 -left-3 bg-purple-600 text-white p-2 rounded-2xl shadow-xl border-4 border-[#0a0f1d] z-20"
+                                title={`Equipado: ${equippedSkin.name}`}
+                            >
+                                {equippedSkin.category === 'instrument' ? <Guitar size={18} /> : <Sparkles size={18} />}
+                            </motion.div>
+                        )}
+
                         <div className="absolute -bottom-2 -right-2 bg-amber-500 text-white p-2 rounded-2xl shadow-xl border-4 border-[#0a0f1d]">
                             <Trophy size={16} fill="currentColor" />
                         </div>
                     </div>
+
                     <div className="flex-1 space-y-4">
                         <div className="flex justify-between items-end">
                             <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
@@ -216,7 +239,6 @@ export default function StudentDashboard() {
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                {/* Lateral: TAREFA 3 - O Botão Olie */}
                 <aside className="lg:col-span-4 space-y-6">
                     <Card className="bg-[#0a0f1d] border-2 border-sky-500/30 rounded-[48px] overflow-hidden shadow-2xl relative group">
                         <div className="p-8 bg-sky-600 border-b border-white/10 flex items-center justify-between">
@@ -285,7 +307,6 @@ export default function StudentDashboard() {
                     </button>
                 </aside>
 
-                {/* Main: World Map Journey */}
                 <main className="lg:col-span-8">
                     <Card className="bg-[#050505] border-white/5 rounded-[64px] min-h-[700px] shadow-2xl relative overflow-hidden">
                         <div className="absolute inset-0 opacity-10 pointer-events-none">

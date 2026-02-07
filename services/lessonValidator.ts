@@ -1,4 +1,5 @@
-import { LessonPlan, LessonStep } from '../types';
+
+import { LessonPlan, LessonStep } from '../types.ts';
 
 export interface ValidationWarning {
     stepId: string;

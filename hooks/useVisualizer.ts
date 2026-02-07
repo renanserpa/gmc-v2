@@ -1,6 +1,6 @@
 
 import { useEffect, useRef, useState } from 'react';
-import { MaestroAudioPro } from '../lib/audioPro';
+import { MaestroAudioPro } from '../lib/audioPro.ts';
 
 export function useVisualizer(audioPro: MaestroAudioPro, isEnabled: boolean) {
     const [levels, setLevels] = useState({ master: 0, mic: 0, isAttack: false });

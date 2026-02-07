@@ -3,6 +3,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { audioManager } from '../lib/audioManager.ts';
 import { autoCorrelate, freqToNoteIdx, NOTES_CHROMATIC } from '../lib/theoryEngine.ts';
 
+export type DifficultyLevel = 'beginner' | 'intermediate' | 'pro';
+
 interface AudioAnalystResult {
     currentNote: string;
     noteIdx: number | null;
@@ -12,13 +14,13 @@ interface AudioAnalystResult {
     isDetected: boolean;
 }
 
-const NOISE_FLOOR_THRESHOLD = 0.005; // ~ -45dB aproximado
+const NOISE_FLOOR_THRESHOLD = 0.005; 
 
 /**
  * Hook de Análise Maestro Otimizado.
  * Implementa detecção de hardware e gate de ruído para preservação de CPU.
  */
-export function useAudioAnalyst(isActive: boolean, targetNoteIdx?: number | null, difficulty: 'beginner' | 'pro' = 'beginner') {
+export function useAudioAnalyst(isActive: boolean, targetNoteIdx?: number | null, difficulty: DifficultyLevel = 'beginner') {
     const [result, setResult] = useState<AudioAnalystResult>({
         currentNote: '--',
         noteIdx: null,
@@ -32,11 +34,18 @@ export function useAudioAnalyst(isActive: boolean, targetNoteIdx?: number | null
     const rafRef = useRef<number>(0);
     const bufferRef = useRef<Float32Array | null>(null);
     
-    // Resource Optimization: Hardware Detection
     const isMobile = useMemo(() => /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent), []);
     const FFT_SIZE = isMobile ? 1024 : 2048; 
     
-    const tolerance = difficulty === 'beginner' ? 40 : 15;
+    // Mapa de Tolerância de Erro (Cents)
+    const tolerance = useMemo(() => {
+        const map = {
+            beginner: 45,      // Muito permissivo
+            intermediate: 25,  // Padrão RedHouse
+            pro: 10            // Exigência de Concerto
+        };
+        return map[difficulty] || 25;
+    }, [difficulty]);
 
     const process = useCallback(() => {
         if (!analyserRef.current || !isActive) return;
@@ -48,7 +57,6 @@ export function useAudioAnalyst(isActive: boolean, targetNoteIdx?: number | null
         const buffer = bufferRef.current;
         analyserRef.current.getFloatTimeDomainData(buffer);
         
-        // RMS Optimization: Calcula energia antes de processar Pitch (Noise Gate)
         let sum = 0;
         const len = buffer.length;
         for (let i = 0; i < len; i++) {
@@ -58,7 +66,6 @@ export function useAudioAnalyst(isActive: boolean, targetNoteIdx?: number | null
         const rms = Math.sqrt(sum / len);
         const vol = Math.min(1, rms * 5);
 
-        // Somente executa correlação se o volume exceder o Noise Floor
         if (vol > NOISE_FLOOR_THRESHOLD) {
             const freq = autoCorrelate(buffer, analyserRef.current.context.sampleRate);
             
@@ -69,6 +76,7 @@ export function useAudioAnalyst(isActive: boolean, targetNoteIdx?: number | null
 
                 let inTune = false;
                 if (targetNoteIdx !== undefined && targetNoteIdx !== null) {
+                    // Verificação de Nota Correta + Tolerância de Micro-afinação
                     inTune = (idx % 12 === targetNoteIdx % 12) && Math.abs(cents) <= tolerance;
                 } else {
                     inTune = Math.abs(cents) <= tolerance;
@@ -84,7 +92,6 @@ export function useAudioAnalyst(isActive: boolean, targetNoteIdx?: number | null
                 });
             }
         } else {
-            // Silêncio: Zera detecção preservando apenas o nível de volume
             setResult(prev => ({ 
                 ...prev, 
                 volumeLevel: vol, 
